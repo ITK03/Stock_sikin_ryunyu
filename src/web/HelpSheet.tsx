@@ -1,0 +1,54 @@
+interface Props {
+  topK: number;
+  onClose: () => void;
+}
+
+export function HelpSheet({ topK, onClose }: Props) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="sheet-head">
+          <h2>指標の説明</h2>
+          <button className="sheet-close" onClick={onClose} aria-label="閉じる">×</button>
+        </div>
+
+        <div className="sheet-body">
+          <section>
+            <h3>基本の考え方</h3>
+            <p>
+              <b>比率 = 売買代金 ÷ 時価総額</b>。時価総額に対して売買代金が大きいほど、
+              その銘柄に資金が集中していると考えます。
+            </p>
+            <p className="dim">時価総額 = 終値 × 発行済株式数 / 売買代金 ≈ 終値 × 出来高</p>
+          </section>
+
+          <section>
+            <h3>3つのランキング</h3>
+            <dl>
+              <dt>時価総額比</dt>
+              <dd>最新営業日のスナップショット。比率が大きい順。</dd>
+              <dt>連日継続</dt>
+              <dd>選択期間（3日〜半年）の<b>平均</b>比率が大きい順。資金流入が連日続く銘柄が上位に。</dd>
+              <dt>全市場上位</dt>
+              <dd>「連日継続」に加え、全市場の売買代金（期間平均）が上位{topK}位以内の銘柄に絞り込み。</dd>
+            </dl>
+          </section>
+
+          <section>
+            <h3>その他</h3>
+            <ul>
+              <li>市場フィルタで プライム / スタンダード / グロース を切替。</li>
+              <li>「カード / 一覧」で表示密度を切替（設定は記憶）。</li>
+              <li>「上位20コピー」で、表示中ランキングの順位・コード・銘柄名をコピー。</li>
+            </ul>
+          </section>
+
+          <p className="disclaimer">
+            本ツールは情報提供のみを目的とし、投資勧誘ではありません。売買代金は出来高×終値による
+            近似値を含みます。最終判断はご自身の責任で行ってください。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -27,9 +27,9 @@ export function RankingList({ rows, showTurnoverRank, density }: Props) {
   if (density === 'compact') {
     return (
       <ol className="rows">
-        {rows.map((r) => (
+        {rows.map((r, i) => (
           <li key={r.code} className="row">
-            <span className={`r-rank ${medalClass(r.rank)}`}>{r.rank}</span>
+            <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
             <span className="r-ident">
               <span className="r-name">{r.name}</span>
               <span className="r-code">{r.code}</span>
@@ -49,12 +49,12 @@ export function RankingList({ rows, showTurnoverRank, density }: Props) {
 
   return (
     <ul className="cards">
-      {rows.map((r) => {
+      {rows.map((r, i) => {
         const strength = Math.max(0.04, Math.min(1, r.ratio / maxRatio));
         return (
           <li key={r.code} className="card">
             <div className="card-top">
-              <span className={`rankbadge ${medalClass(r.rank)}`}>{r.rank}</span>
+              <span className={`rankbadge ${medalClass(i + 1)}`}>{i + 1}</span>
               <div className="ident">
                 <div className="name">{r.name}</div>
                 <div className="sub">
