@@ -3,11 +3,18 @@ import type { MarketSegment, PeriodKey, RankRow, RankingDataset } from '../core/
 import { PERIODS } from '../core/periods';
 import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
+import { FilterSheet } from './FilterSheet';
 import { Logo } from './Logo';
 import { relTime } from './format';
 
 type TabKey = '1' | '2' | '3';
 type MarketFilter = 'All' | MarketSegment;
+
+interface Filters {
+  capMin: string;
+  capMax: string;
+  turnoverMin: string;
+}
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: '1', label: '時価総額比' },
@@ -22,6 +29,32 @@ const MARKETS: { key: MarketFilter; label: string }[] = [
   { key: 'Growth', label: 'グロース' },
 ];
 
+function parseOku(s: string): number | null {
+  const n = parseFloat(s);
+  return isFinite(n) ? n * 1e8 : null;
+}
+
+function isFilterActive(f: Filters): boolean {
+  return (
+    parseOku(f.capMin) !== null ||
+    parseOku(f.capMax) !== null ||
+    parseOku(f.turnoverMin) !== null
+  );
+}
+
+function applyFilters(rows: RankRow[], f: Filters): RankRow[] {
+  const capMin = parseOku(f.capMin);
+  const capMax = parseOku(f.capMax);
+  const turnoverMin = parseOku(f.turnoverMin);
+  if (capMin === null && capMax === null && turnoverMin === null) return rows;
+  return rows.filter(
+    (r) =>
+      (capMin === null || r.marketCap >= capMin) &&
+      (capMax === null || r.marketCap <= capMax) &&
+      (turnoverMin === null || r.turnover >= turnoverMin),
+  );
+}
+
 export function App() {
   const [data, setData] = useState<RankingDataset | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +65,8 @@ export function App() {
     () => (localStorage.getItem('density') as Density) || 'card',
   );
   const [help, setHelp] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>({ capMin: '', capMax: '', turnoverMin: '' });
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -95,7 +130,10 @@ export function App() {
 
   const base: RankRow[] =
     tab === '1' ? data.ranking1 : tab === '2' ? data.ranking2[period] : data.ranking3[period];
-  const viewRows = market === 'All' ? base : base.filter((r) => r.market === market);
+  const byMarket = market === 'All' ? base : base.filter((r) => r.market === market);
+  const viewRows = applyFilters(byMarket, filters);
+
+  const filterActive = isFilterActive(filters);
 
   const copyTop20 = async () => {
     const text = viewRows
@@ -209,9 +247,25 @@ export function App() {
                   strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button className="btn-help" onClick={() => setHelp(true)} aria-label="ヘルプ">?</button>
+            <button
+              className={filterActive ? 'btn-icon btn-filter-active' : 'btn-icon'}
+              onClick={() => setFilterOpen(true)}
+              aria-label="フィルタ"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+                <path d="M3 5h18M7 12h10M10 19h4" fill="none" stroke="currentColor"
+                  strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+              {filterActive && <span className="filter-dot" aria-hidden />}
+            </button>
             <button className="btn-copy" onClick={copyTop20} aria-label="上位20をコピー">
-              <span className="copy-ico" aria-hidden />
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+                <rect x="9" y="9" width="11" height="13" rx="2" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+                <path d="M15 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h4"
+                  fill="none" stroke="currentColor" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
         </div>
@@ -227,6 +281,13 @@ export function App() {
       </footer>
 
       {help && <HelpSheet topK={data.topK} onClose={() => setHelp(false)} />}
+      {filterOpen && (
+        <FilterSheet
+          filters={filters}
+          onChange={setFilters}
+          onClose={() => setFilterOpen(false)}
+        />
+      )}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
