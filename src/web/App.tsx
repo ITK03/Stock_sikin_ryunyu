@@ -33,16 +33,34 @@ export function App() {
   );
   const [help, setHelp] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/rankings.json`)
+  // bust=true でキャッシュを無視し、最新の公開データを取得する。
+  const load = (bust = false) =>
+    fetch(`${import.meta.env.BASE_URL}data/rankings.json${bust ? `?t=${Date.now()}` : ''}`, {
+      cache: bust ? 'no-store' : 'default',
+    })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(setData)
-      .catch((e) => setError(String(e)));
+      .then(setData);
+
+  useEffect(() => {
+    load().catch((e) => setError(String(e)));
   }, []);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await load(true);
+      flash('最新データに更新しました');
+    } catch {
+      flash('更新に失敗しました');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const changeDensity = (d: Density) => {
     setDensity(d);
@@ -178,6 +196,19 @@ export function App() {
             </button>
           </div>
           <div className="act-right">
+            <button
+              className={refreshing ? 'btn-icon spin' : 'btn-icon'}
+              onClick={refresh}
+              disabled={refreshing}
+              aria-label="最新データに更新"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+                <path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor"
+                  strokeWidth="2.2" strokeLinecap="round" />
+                <path d="M20 4v5h-5" fill="none" stroke="currentColor"
+                  strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
             <button className="btn-help" onClick={() => setHelp(true)} aria-label="ヘルプ">?</button>
             <button className="btn-copy" onClick={copyTop20} aria-label="上位20をコピー">
               <span className="copy-ico" aria-hidden />
