@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import type { PeriodKey, RankingDataset } from '../core/types';
 import { PERIODS } from '../core/periods';
-import { RankingTable } from './RankingTable';
+import { RankingList } from './RankingList';
+import { relTime } from './format';
 
 type TabKey = '1' | '2' | '3';
 
-const TABS: { key: TabKey; label: string; desc: string }[] = [
-  { key: '1', label: '① 時価総額比', desc: '最新営業日。時価総額に対して売買代金が大きいほど上位。' },
-  { key: '2', label: '② 連日継続', desc: '選択期間の平均で、時価総額比の売買代金が大きいほど上位。' },
-  { key: '3', label: '③ 全市場上位', desc: '②に加え、全市場の売買代金(期間平均)上位に入る銘柄に絞り込み。' },
+const TABS: { key: TabKey; short: string; label: string; desc: string }[] = [
+  { key: '1', short: '①', label: '時価総額比', desc: '最新営業日。時価総額に対して売買代金が大きいほど上位。' },
+  { key: '2', short: '②', label: '連日継続', desc: '選択期間の平均で、時価総額比の売買代金が大きいほど上位。資金流入が連日続く銘柄が浮上。' },
+  { key: '3', short: '③', label: '全市場上位', desc: '②に加え、全市場の売買代金(期間平均)上位に入る銘柄に絞り込み。' },
 ];
 
 export function App() {
   const [data, setData] = useState<RankingDataset | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>('1');
-  const [period, setPeriod] = useState<PeriodKey>('3d');
+  const [period, setPeriod] = useState<PeriodKey>('1w');
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}data/rankings.json`)
@@ -29,62 +30,85 @@ export function App() {
 
   if (error) {
     return (
-      <div className="app">
-        <p className="empty">データを読み込めませんでした: {error}</p>
-        <p className="empty">先に <code>npm run build:data:sample</code> を実行してください。</p>
+      <div className="screen">
+        <div className="state">
+          <p className="state-title">データを読み込めませんでした</p>
+          <p className="state-sub">{error}</p>
+        </div>
       </div>
     );
   }
-  if (!data) return <div className="app"><p className="empty">読み込み中…</p></div>;
+  if (!data) {
+    return (
+      <div className="screen">
+        <div className="state">
+          <span className="spinner" />
+          <p className="state-sub">読み込み中…</p>
+        </div>
+      </div>
+    );
+  }
 
   const active = TABS.find((t) => t.key === tab)!;
   const rows =
     tab === '1' ? data.ranking1 : tab === '2' ? data.ranking2[period] : data.ranking3[period];
 
   return (
-    <div className="app">
-      <header>
-        <h1>資金流入株ランキング</h1>
-        <div className="meta">
-          <span>最新営業日: {data.asOfDate || '—'}</span>
-          <span>対象: {data.universe.toLocaleString()}銘柄</span>
-          <span>データ: {data.source}</span>
+    <div className="screen">
+      <header className="appbar">
+        <div className="brand">
+          <span className="brand-mark" />
+          <div>
+            <h1>資金流入株</h1>
+            <p className="brand-sub">時価総額比 × 売買代金 ランキング</p>
+          </div>
+        </div>
+        <div className="asof">
+          <span className="asof-date">{data.asOfDate || '—'}</span>
+          <span className="asof-meta">{data.universe.toLocaleString()}銘柄 · {data.source}</span>
         </div>
       </header>
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={t.key === tab ? 'tab active' : 'tab'}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {tab !== '1' && (
-        <nav className="periods">
-          {PERIODS.map((p) => (
+      <div className="controls">
+        <nav className="segmented" role="tablist">
+          {TABS.map((t) => (
             <button
-              key={p.key}
-              className={p.key === period ? 'period active' : 'period'}
-              onClick={() => setPeriod(p.key)}
+              key={t.key}
+              role="tab"
+              aria-selected={t.key === tab}
+              className={t.key === tab ? 'seg-btn active' : 'seg-btn'}
+              onClick={() => setTab(t.key)}
             >
-              {p.label}
+              <span className="seg-no">{t.short}</span>
+              <span className="seg-label">{t.label}</span>
             </button>
           ))}
         </nav>
-      )}
 
-      <p className="desc">{active.desc}</p>
+        {tab !== '1' && (
+          <nav className="periods">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                className={p.key === period ? 'chip active' : 'chip'}
+                onClick={() => setPeriod(p.key)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
-      <RankingTable rows={rows} showTurnoverRank={tab === '3'} />
+        <p className="desc">{active.desc}</p>
+      </div>
 
-      <footer>
-        <span>{new Date(data.generatedAt).toLocaleString('ja-JP')} 生成</span>
-        {tab === '3' && <span>全市場上位 = 売買代金 上位{data.topK}位以内</span>}
+      <main className="list-area">
+        <RankingList rows={rows} showTurnoverRank={tab === '3'} />
+      </main>
+
+      <footer className="foot">
+        <span>更新 {relTime(data.generatedAt)}</span>
+        {tab === '3' && <span>上位 = 売買代金 {data.topK}位以内</span>}
       </footer>
     </div>
   );
