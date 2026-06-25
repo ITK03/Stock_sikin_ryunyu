@@ -30,10 +30,8 @@ export function RankingList({ rows, showTurnoverRank, density }: Props) {
         {rows.map((r, i) => (
           <li key={r.code} className="row">
             <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
-            <span className="r-ident">
-              <span className="r-name">{r.name}</span>
-              <span className="r-code">{r.code}</span>
-            </span>
+            <span className="r-code">{r.code}</span>
+            <span className="r-name">{r.name}</span>
             <span className="r-ratio">{pct(r.ratio)}</span>
             <span className="r-sub">
               {showTurnoverRank ? `代金#${r.turnoverRank ?? '-'}` : `${yen(r.turnover)}円`}

@@ -110,12 +110,10 @@ export function App() {
           <Logo />
           <div>
             <h1>資金流入株</h1>
-            <p className="brand-sub">日本株ランキング</p>
           </div>
         </div>
         <div className="asof">
           <span className="asof-date">{data.asOfDate || '—'}</span>
-          <span className="asof-meta">{data.universe.toLocaleString()}銘柄 · {data.source}</span>
         </div>
       </header>
 
@@ -136,6 +134,7 @@ export function App() {
 
         {tab !== '1' && (
           <nav className="chiprow">
+            <span className="row-label">期間</span>
             {PERIODS.map((p) => (
               <button
                 key={p.key}
@@ -149,6 +148,7 @@ export function App() {
         )}
 
         <nav className="chiprow markets">
+          <span className="row-label">市場</span>
           {MARKETS.map((m) => (
             <button
               key={m.key}
@@ -179,8 +179,8 @@ export function App() {
           </div>
           <div className="act-right">
             <button className="btn-help" onClick={() => setHelp(true)} aria-label="ヘルプ">?</button>
-            <button className="btn-copy" onClick={copyTop20}>
-              <span className="copy-ico" aria-hidden />上位20コピー
+            <button className="btn-copy" onClick={copyTop20} aria-label="上位20をコピー">
+              <span className="copy-ico" aria-hidden />
             </button>
           </div>
         </div>

@@ -61,6 +61,44 @@ function tradingDates(bars: DailyBar[]): string[] {
 const ratio = (b: DailyBar): number =>
   b.marketCap > 0 ? b.turnover / b.marketCap : 0;
 
+function median(vals: number[]): number {
+  if (vals.length === 0) return 0;
+  const s = [...vals].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * ウィンザライズ平均: 各値を「中央値×3」で上限クリップしてから平均する。
+ * 出来高が1日だけ異常に多い等の単発スパイクが平均を底上げするのを抑える。
+ */
+function winsorMean(vals: number[]): number {
+  if (vals.length === 0) return 0;
+  const cap = median(vals) * 3;
+  let sum = 0;
+  for (const v of vals) sum += cap > 0 ? Math.min(v, cap) : v;
+  return sum / vals.length;
+}
+
+/**
+ * 期間スコア(②③の順位付けの基準)。
+ * 「単発の急増では上がらず、毎日コンスタントに資金が入っているほど高い」よう設計:
+ *  - ウィンザライズ平均で単発スパイクの影響を抑制
+ *  - 継続性(普段の水準=中央値付近を毎日維持できているか)を重みとして掛ける
+ */
+function continuityScore(ratios: number[]): number {
+  const n = ratios.length;
+  if (n === 0) return 0;
+  const med = median(ratios);
+  const base = winsorMean(ratios);
+  const threshold = 0.6 * med;
+  let sustained = 0;
+  for (const r of ratios) if (r >= threshold) sustained += 1;
+  const consistency = sustained / n; // 0..1
+  // 継続的な銘柄ほど満点(×1.0)、ムラのある銘柄は最大でも×0.6まで減衰。
+  return base * (0.6 + 0.4 * consistency);
+}
+
 /** ① 最新営業日のスナップショット。時価総額比の売買代金が大きい順。 */
 function buildRanking1(
   byCode: Map<string, CodeSeries>,
@@ -97,8 +135,10 @@ interface WindowStat {
 }
 
 /**
- * 期間(直近 tradingDays 営業日)について、銘柄ごとの平均比率・平均売買代金を算出。
+ * 期間(直近 tradingDays 営業日)について、銘柄ごとの期間スコア(継続性重視)と
+ * 売買代金(スパイク耐性のあるウィンザライズ平均)を算出。
  * 最新営業日に取引があり、かつ被覆率が minCoverage 以上の銘柄のみ対象。
+ * avgRatio は継続性スコア、avgTurnover はウィンザライズ平均売買代金。
  */
 function windowStats(
   byCode: Map<string, CodeSeries>,
@@ -113,32 +153,30 @@ function windowStats(
   const stats: WindowStat[] = [];
 
   for (const s of byCode.values()) {
-    let sumRatio = 0;
-    let sumTurnover = 0;
-    let count = 0;
+    const ratios: number[] = [];
+    const turnovers: number[] = [];
     let latestBar: DailyBar | undefined;
     let presentOnLatest = false;
 
     for (const bar of s.bars) {
       if (!windowSet.has(bar.date)) continue;
       if (bar.marketCap <= 0) continue;
-      sumRatio += ratio(bar);
-      sumTurnover += bar.turnover;
-      count += 1;
+      ratios.push(ratio(bar));
+      turnovers.push(bar.turnover);
       latestBar = bar; // bars は昇順なので最後が期間内最新
       if (bar.date === latestDate) presentOnLatest = true;
     }
 
     if (!presentOnLatest || !latestBar) continue;
-    const coverage = count / denom;
+    const coverage = ratios.length / denom;
     if (coverage < minCoverage) continue;
 
     stats.push({
       code: s.code,
       name: s.name,
       market: latestBar.market,
-      avgRatio: sumRatio / count,
-      avgTurnover: sumTurnover / count,
+      avgRatio: continuityScore(ratios),
+      avgTurnover: winsorMean(turnovers),
       marketCap: latestBar.marketCap,
       coverage,
     });

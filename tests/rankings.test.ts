@@ -111,3 +111,22 @@ describe('computeRankings メタ情報', () => {
     expect(res.universe).toBe(50);
   });
 });
+
+describe('computeRankings ② 継続性(単発スパイク耐性)', () => {
+  it('1日だけの出来高急増では順位が底上げされず、毎日コンスタントな銘柄が上位', () => {
+    const ds = dates(10);
+    const bars: DailyBar[] = [];
+    ds.forEach((d, i) => {
+      // SPIKE: 普段は比率0.05、1日だけ比率50の異常値。
+      bars.push(bar(d, 'SPIKE', i === 5 ? 5000 : 5, 100));
+      // CONST: 毎日 比率0.30 で安定。
+      bars.push(bar(d, 'CONST', 30, 100));
+    });
+    const res = computeRankings(bars, { source: 'test', minCoverage: 0.5 });
+    // 単純平均なら SPIKE(≈0.55) が CONST(0.30) に勝つが、継続性重視で逆転する。
+    expect(res.ranking2['2w'][0].code).toBe('CONST');
+    const spike = res.ranking2['2w'].find((r) => r.code === 'SPIKE')!;
+    const cnst = res.ranking2['2w'].find((r) => r.code === 'CONST')!;
+    expect(cnst.ratio).toBeGreaterThan(spike.ratio);
+  });
+});
