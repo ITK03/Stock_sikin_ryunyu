@@ -1,10 +1,13 @@
 name: Build and Deploy
 
-# 平日の市場引け後(16:30 JST = 07:30 UTC)に最新データで再生成しデプロイ。
-# 手動実行・ブランチへの push でも実行可能。
+# 無料データ(Yahoo Finance + JPX上場一覧)で再生成し GitHub Pages へデプロイ。
+# できるだけ新しい値にするため平日の市場時間帯〜引け後に複数回実行する。
+# 時刻は UTC。JST = UTC+9。
 on:
   schedule:
-    - cron: '30 7 * * 1-5'
+    - cron: '30 3 * * 1-5' # 12:30 JST 場中スナップショット
+    - cron: '10 6 * * 1-5' # 15:10 JST 引け直前
+    - cron: '50 6 * * 1-5' # 15:50 JST 引け後(当日確定値)
   workflow_dispatch: {}
   push:
     branches: [main, claude/jp-stock-inflow-tool-evy4mz]
@@ -14,7 +17,6 @@ permissions:
   pages: write
   id-token: write
 
-# 同時デプロイは1つに制限。
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -33,13 +35,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test
-      # JQUANTS_* シークレットが設定されていれば実データ、無ければサンプルで生成。
-      - name: Build data
-        env:
-          JQUANTS_REFRESH_TOKEN: ${{ secrets.JQUANTS_REFRESH_TOKEN }}
-          JQUANTS_MAIL: ${{ secrets.JQUANTS_MAIL }}
-          JQUANTS_PASS: ${{ secrets.JQUANTS_PASS }}
-        run: npm run build:data
+      # JPX公式の上場一覧から全市場ユニバースを生成し、Yahooで発行済株式数を補完。
+      # APIキー不要。Actions ランナーはネットワーク開放なので外部取得が可能。
+      - run: npm run universe
+      - run: npm run build:data
       - run: npm run build:web
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

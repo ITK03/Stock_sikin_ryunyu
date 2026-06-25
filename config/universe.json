@@ -1,0 +1,22 @@
+[
+  { "code": "7203", "name": "トヨタ自動車", "market": "Prime" },
+  { "code": "6758", "name": "ソニーグループ", "market": "Prime" },
+  { "code": "9984", "name": "ソフトバンクグループ", "market": "Prime" },
+  { "code": "6861", "name": "キーエンス", "market": "Prime" },
+  { "code": "8035", "name": "東京エレクトロン", "market": "Prime" },
+  { "code": "9983", "name": "ファーストリテイリング", "market": "Prime" },
+  { "code": "6098", "name": "リクルートホールディングス", "market": "Prime" },
+  { "code": "8306", "name": "三菱UFJフィナンシャル・グループ", "market": "Prime" },
+  { "code": "6501", "name": "日立製作所", "market": "Prime" },
+  { "code": "7974", "name": "任天堂", "market": "Prime" },
+  { "code": "4063", "name": "信越化学工業", "market": "Prime" },
+  { "code": "8058", "name": "三菱商事", "market": "Prime" },
+  { "code": "6857", "name": "アドバンテスト", "market": "Prime" },
+  { "code": "4661", "name": "オリエンタルランド", "market": "Prime" },
+  { "code": "9433", "name": "KDDI", "market": "Prime" },
+  { "code": "4519", "name": "中外製薬", "market": "Prime" },
+  { "code": "6594", "name": "ニデック", "market": "Prime" },
+  { "code": "7741", "name": "HOYA", "market": "Prime" },
+  { "code": "4385", "name": "メルカリ", "market": "Prime" },
+  { "code": "4477", "name": "BASE", "market": "Growth" }
+]

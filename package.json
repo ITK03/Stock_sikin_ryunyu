@@ -6,6 +6,7 @@
   "description": "日本株の資金流入(時価総額比の売買代金)ランキングツール",
   "scripts": {
     "dev": "vite",
+    "universe": "tsx src/pipeline/universe.ts",
     "build:data": "tsx src/pipeline/build.ts",
     "build:data:sample": "tsx src/pipeline/build.ts --sample",
     "build:web": "vite build",
@@ -16,7 +17,8 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",

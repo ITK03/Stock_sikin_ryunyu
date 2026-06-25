@@ -12,18 +12,17 @@ export interface DataProvider {
 
 /**
  * 環境に応じてプロバイダを選択する。
- * - JQUANTS_REFRESH_TOKEN もしくは JQUANTS_MAIL+JQUANTS_PASS があれば J-Quants を使用。
- * - --sample 指定、または認証情報が無ければサンプル(オフライン)プロバイダ。
+ * - 既定: Yahoo Finance(無料・APIキー不要)。
+ * - --sample 指定: 決定論的サンプル(オフライン)。外部ネットワークが無い
+ *   サンドボックスでのUI確認や、コミット用JSONの生成に使う。
+ *
+ * 実取得(Yahoo)は外部ドメインへ到達できる環境(GitHub Actions 等)で実行する。
  */
 export async function selectProvider(forceSample = false): Promise<DataProvider> {
-  const hasJQuants =
-    !!process.env.JQUANTS_REFRESH_TOKEN ||
-    (!!process.env.JQUANTS_MAIL && !!process.env.JQUANTS_PASS);
-
-  if (!forceSample && hasJQuants) {
-    const { JQuantsProvider } = await import('./jquants.js');
-    return new JQuantsProvider();
+  if (forceSample) {
+    const { SampleProvider } = await import('./sample.js');
+    return new SampleProvider();
   }
-  const { SampleProvider } = await import('./sample.js');
-  return new SampleProvider();
+  const { YahooProvider } = await import('./yahoo.js');
+  return new YahooProvider();
 }

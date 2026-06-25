@@ -19,9 +19,12 @@ src/data/      データプロバイダ(差し替え可能な seam)
   provider.ts    インターフェース + 自動選択
   jquants.ts     J-Quants API(JPX公式)プロバイダ
   sample.ts      決定論的サンプル(オフラインで全機能確認用)
-src/pipeline/  取得 → 計算 → public/data/rankings.json 出力
+src/data/yahoo.ts             Yahoo Finance(無料・キー不要)プロバイダ
+src/data/sample.ts            決定論的サンプル(オフライン確認用)
+src/pipeline/universe.ts      JPX上場一覧 → config/universe.json 生成
+src/pipeline/build.ts         取得 → 計算 → public/data/rankings.json 出力
 src/web/       React + Vite のフロントエンド(モバイル優先)
-.github/workflows/daily.yml  平日引け後に再生成 → GitHub Pages へデプロイ
+.github/workflows/deploy.yml  平日に複数回 再生成 → GitHub Pages へデプロイ
 ```
 
 データは**事前生成した JSON**をフロントが読むだけ。実行時サーバー不要なので
@@ -37,46 +40,51 @@ npm test                    # ランキングエンジンのテスト
 npm run typecheck
 ```
 
-## 実データ(J-Quants)に切り替える
+## 実データ(無料 / Yahoo Finance + JPX)
 
-[J-Quants](https://jpx-jquants.com/) に登録し、認証情報を環境変数で渡すだけ。コード変更は不要。
+**APIキー・課金・登録は不要。** 2つの無料ソースだけを使う:
+
+- **ユニバース**: JPX公式「東証上場銘柄一覧(data_j.xls)」→ 全市場の内国株式(プライム/スタンダード/グロース)+ 市場区分
+- **株価・出来高の履歴**: Yahoo Finance chart API(認証不要、6ヶ月〜1年の日足)
+- **発行済株式数(時価総額用)**: Yahoo Finance quote API
 
 ```bash
-export JQUANTS_REFRESH_TOKEN=xxxxx      # リフレッシュトークン(推奨)
-# または
-export JQUANTS_MAIL=you@example.com
-export JQUANTS_PASS=yourpassword
-
-npm run build:data          # 認証情報があれば自動で J-Quants を使用
+npm run universe     # JPX一覧+Yahoo株式数で config/universe.json を生成
+npm run build:data   # Yahoo から取得 → ランキング計算 → JSON 出力
 npm run build:web
 ```
 
-### データ鮮度とプラン
+### 指標の算出(無料データの制約)
 
-ユーザー要件は「1日以上の遅延を許容しない」。プランで鮮度が決まる:
+| 指標 | 算出 |
+| --- | --- |
+| 売買代金 | `終値 × 出来高`(出来高代金の近似) |
+| 時価総額 | `終値 × 発行済株式数` |
+| 比率 | `売買代金 / 時価総額` |
 
-| プラン | 鮮度 | 用途 |
-| --- | --- | --- |
-| 無料 | 約12週間遅延 | 検証・バックフィルのみ |
-| Light(約¥1,650/月)以上 | 前営業日まで | 日次運用 |
+> 真の売買代金(Σ価格×数量)は無料では銘柄横断・履歴で取得できないため、強く相関する
+> `終値×出来高` を用いる。ランキング用途では実用上問題ない。より厳密にしたい場合は
+> `src/data/yahoo.ts` の `barsFromChart` を別ソースに差し替えればよい(プロバイダは
+> `src/data/provider.ts` の `DataProvider` インターフェースで分離済み)。
 
-要件を満たすには **Light 以上**を推奨。コードはプラン非依存で、シークレットを
-設定し直すだけで切り替わる。
+### 鮮度
 
-> 補足: 時価総額は `終値 × 発行済株式数` で算出。発行済株式数は J-Quants の
-> 財務諸表(`/fins/statements`)から取得している。プランやデータ提供状況により
-> 取得方法の調整が必要な場合がある(`src/data/jquants.ts` の `sharesOutstanding`)。
+Yahoo の日足は当日分も場中〜引け後に更新される(おおよそ15〜20分遅延)。
+ワークフローは平日に**場中(12:30 JST)・引け直前(15:10)・引け後(15:50)**の
+複数回走るので、当日の値を当日中に反映できる(1営業日以上の遅延なし)。
+
+> 注: 開発サンドボックスは外部ドメインがegress制限で遮断されるため、実取得は
+> ネットワーク開放の **GitHub Actions 上**で実行される。ローカルで実データを試す場合は
+> ネットワーク制限のない環境で `npm run universe && npm run build:data` を実行する。
 
 ## スマホから見る(GitHub Pages)
 
 1. リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** に設定。
-2. (実データを使う場合)**Settings → Secrets and variables → Actions** に
-   `JQUANTS_REFRESH_TOKEN`(または `JQUANTS_MAIL` / `JQUANTS_PASS`)を登録。
-3. `.github/workflows/daily.yml` が**平日 16:30 JST**に自動で再生成しデプロイ。
-   手動実行(workflow_dispatch)や push でも走る。
-4. 公開URL(`https://<user>.github.io/<repo>/`)をスマホのホーム画面に追加。
+2. `.github/workflows/deploy.yml` が**平日に複数回**(場中・引け前・引け後)自動で
+   再生成しデプロイ。手動実行(Actions タブ → Run workflow)や push でも走る。
+3. 公開URL(`https://<user>.github.io/<repo>/`)をスマホのホーム画面に追加。
 
-シークレット未設定でもサンプルデータでデプロイされ、UIの動作確認ができる。
+シークレットや課金は不要。ローカル確認用のサンプルデータも同梱されている。
 
 ## 設計上のパラメータ
 
