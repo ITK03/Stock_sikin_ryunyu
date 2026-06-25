@@ -1,0 +1,31 @@
+{
+  "name": "stock-sikin-ryunyu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "日本株の資金流入(時価総額比の売買代金)ランキングツール",
+  "scripts": {
+    "dev": "vite",
+    "build:data": "tsx src/pipeline/build.ts",
+    "build:data:sample": "tsx src/pipeline/build.ts --sample",
+    "build:web": "vite build",
+    "build": "npm run build:data && npm run build:web",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

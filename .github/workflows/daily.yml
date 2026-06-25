@@ -1,0 +1,49 @@
+name: Build and Deploy
+
+# 平日の市場引け後(16:30 JST = 07:30 UTC)に最新データで再生成しデプロイ。
+# 手動実行・ブランチへの push でも実行可能。
+on:
+  schedule:
+    - cron: '30 7 * * 1-5'
+  workflow_dispatch: {}
+  push:
+    branches: [main, claude/jp-stock-inflow-tool-evy4mz]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時デプロイは1つに制限。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+      # JQUANTS_* シークレットが設定されていれば実データ、無ければサンプルで生成。
+      - name: Build data
+        env:
+          JQUANTS_REFRESH_TOKEN: ${{ secrets.JQUANTS_REFRESH_TOKEN }}
+          JQUANTS_MAIL: ${{ secrets.JQUANTS_MAIL }}
+          JQUANTS_PASS: ${{ secrets.JQUANTS_PASS }}
+        run: npm run build:data
+      - run: npm run build:web
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
