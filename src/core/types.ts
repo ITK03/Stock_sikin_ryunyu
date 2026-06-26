@@ -1,8 +1,19 @@
 // 中核データモデル。ここはIO非依存の純粋な型のみ。
 
-export type MarketSegment = 'Prime' | 'Standard' | 'Growth' | 'Other';
+/** 対象地域。JP=日本株(円建て)、US=米国株(ドル建て)。 */
+export type Region = 'JP' | 'US';
 
-/** 1銘柄・1営業日の足。売買代金・時価総額は円建て。 */
+// 市場区分。JPは東証区分、USは上場取引所を区分として使う。
+export type MarketSegment =
+  | 'Prime'
+  | 'Standard'
+  | 'Growth'
+  | 'NYSE'
+  | 'NASDAQ'
+  | 'AMEX'
+  | 'Other';
+
+/** 1銘柄・1営業日の足。金額は地域通貨建て(JP=円, US=ドル)。 */
 export interface DailyBar {
   date: string; // 'YYYY-MM-DD'
   code: string; // 証券コード 例 '7203'
@@ -38,6 +49,8 @@ export interface RankingDataset {
   generatedAt: string;
   /** データの最新営業日。 */
   asOfDate: string;
+  /** 対象地域。 */
+  region: Region;
   /** 対象銘柄数。 */
   universe: number;
   /** ランキング③で「全市場上位」とみなす売買代金順位の閾値。 */

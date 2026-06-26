@@ -3,6 +3,7 @@ import type {
   PeriodKey,
   RankRow,
   RankingDataset,
+  Region,
 } from './types';
 import { PERIODS } from './periods';
 
@@ -17,6 +18,7 @@ export interface RankingOptions {
    */
   minCoverage: number;
   source: string;
+  region: Region;
   generatedAt?: string;
 }
 
@@ -25,6 +27,7 @@ const DEFAULTS = {
   topK: 100,
   minCoverage: 0.6,
   source: 'unknown',
+  region: 'JP' as Region,
 };
 
 interface CodeSeries {
@@ -253,6 +256,7 @@ export function computeRankings(
   return {
     generatedAt: opts.generatedAt ?? new Date().toISOString(),
     asOfDate: latestDate,
+    region: opts.region,
     universe: byCode.size,
     topK: opts.topK,
     topN: opts.topN,

@@ -1,5 +1,5 @@
-import type { RankRow } from '../core/types';
-import { MARKET_LABEL, pct, yen } from './format';
+import type { RankRow, Region } from '../core/types';
+import { MARKET_LABEL, money, pct } from './format';
 
 export type Density = 'card' | 'compact';
 
@@ -8,18 +8,22 @@ interface Props {
   /** ③のとき全市場の売買代金順位を表示。 */
   showTurnoverRank?: boolean;
   density: Density;
+  region: Region;
 }
 
 const segClass: Record<string, string> = {
   Prime: 'seg-prime',
   Standard: 'seg-standard',
   Growth: 'seg-growth',
+  NYSE: 'seg-nyse',
+  NASDAQ: 'seg-nasdaq',
+  AMEX: 'seg-amex',
   Other: 'seg-other',
 };
 
 const medalClass = (rank: number) => (rank <= 3 ? `medal-${rank}` : '');
 
-export function RankingList({ rows, showTurnoverRank, density }: Props) {
+export function RankingList({ rows, showTurnoverRank, density, region }: Props) {
   if (rows.length === 0) {
     return <p className="empty">該当する銘柄がありません。</p>;
   }
@@ -34,7 +38,7 @@ export function RankingList({ rows, showTurnoverRank, density }: Props) {
             <span className="r-name">{r.name}</span>
             <span className="r-ratio">{pct(r.ratio)}</span>
             <span className="r-sub">
-              {showTurnoverRank ? `代金#${r.turnoverRank ?? '-'}` : `${yen(r.turnover)}円`}
+              {showTurnoverRank ? `代金#${r.turnoverRank ?? '-'}` : money(r.turnover, region)}
             </span>
           </li>
         ))}
@@ -75,11 +79,11 @@ export function RankingList({ rows, showTurnoverRank, density }: Props) {
             <div className="stats">
               <div className="stat">
                 <span className="stat-label">売買代金</span>
-                <span className="stat-val">{yen(r.turnover)}<i>円</i></span>
+                <span className="stat-val">{money(r.turnover, region)}</span>
               </div>
               <div className="stat">
                 <span className="stat-label">時価総額</span>
-                <span className="stat-val">{yen(r.marketCap)}<i>円</i></span>
+                <span className="stat-val">{money(r.marketCap, region)}</span>
               </div>
               {showTurnoverRank ? (
                 <div className="stat">

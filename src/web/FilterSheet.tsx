@@ -1,3 +1,5 @@
+import type { Region } from '../core/types';
+
 interface FilterValues {
   capMin: string;
   capMax: string;
@@ -8,13 +10,16 @@ interface Props {
   filters: FilterValues;
   onChange: (f: FilterValues) => void;
   onClose: () => void;
+  region: Region;
 }
 
-export function FilterSheet({ filters, onChange, onClose }: Props) {
+export function FilterSheet({ filters, onChange, onClose, region }: Props) {
   const set = (key: keyof FilterValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...filters, [key]: e.target.value });
 
   const reset = () => onChange({ capMin: '', capMax: '', turnoverMin: '' });
+
+  const unit = region === 'US' ? '$M' : '億';
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -28,7 +33,7 @@ export function FilterSheet({ filters, onChange, onClose }: Props) {
           <section>
             <h3>時価総額</h3>
             <div className="filter-row">
-              <label className="filter-label" htmlFor="f-cap-min">下限(億)</label>
+              <label className="filter-label" htmlFor="f-cap-min">下限({unit})</label>
               <input
                 id="f-cap-min"
                 className="filter-input"
@@ -41,7 +46,7 @@ export function FilterSheet({ filters, onChange, onClose }: Props) {
               />
             </div>
             <div className="filter-row">
-              <label className="filter-label" htmlFor="f-cap-max">上限(億)</label>
+              <label className="filter-label" htmlFor="f-cap-max">上限({unit})</label>
               <input
                 id="f-cap-max"
                 className="filter-input"
@@ -58,7 +63,7 @@ export function FilterSheet({ filters, onChange, onClose }: Props) {
           <section>
             <h3>売買代金</h3>
             <div className="filter-row">
-              <label className="filter-label" htmlFor="f-to-min">下限(億)</label>
+              <label className="filter-label" htmlFor="f-to-min">下限({unit})</label>
               <input
                 id="f-to-min"
                 className="filter-input"

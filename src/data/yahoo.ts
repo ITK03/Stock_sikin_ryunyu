@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DailyBar, MarketSegment } from '../core/types';
+import type { DailyBar, MarketSegment, Region } from '../core/types';
 import type { DataProvider, FetchOptions } from './provider';
 
 // Yahoo Finance(無料・APIキー不要)プロバイダ。
@@ -99,12 +99,14 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out;
 }
 
-/** 4桁コードを Yahoo の東証シンボルへ。 */
-export const toSymbol = (code: string): string => `${code}.T`;
+/** コードを Yahoo シンボルへ。JPは東証サフィックス(.T)、USはそのまま。 */
+export const toSymbol = (code: string, region: Region = 'JP'): string =>
+  region === 'US' ? code : `${code}.T`;
 
-export function loadUniverse(): UniverseEntry[] {
+export function loadUniverse(region: Region = 'JP'): UniverseEntry[] {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, '../../config/universe.json');
+  const file = region === 'US' ? 'universe.us.json' : 'universe.json';
+  const path = resolve(here, '../../config', file);
   return JSON.parse(readFileSync(path, 'utf8')) as UniverseEntry[];
 }
 
@@ -130,11 +132,12 @@ export async function getCrumb(): Promise<{ cookie: string; crumb: string } | nu
 export async function fetchShares(
   codes: string[],
   auth: { cookie: string; crumb: string },
+  region: Region = 'JP',
 ): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   for (let i = 0; i < codes.length; i += 100) {
     const batch = codes.slice(i, i + 100);
-    const symbols = batch.map(toSymbol).join(',');
+    const symbols = batch.map((c) => toSymbol(c, region)).join(',');
     const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(auth.crumb)}`;
     try {
       const json = await fetchJson(url, { cookie: auth.cookie });
@@ -151,10 +154,14 @@ export async function fetchShares(
 }
 
 export class YahooProvider implements DataProvider {
-  readonly id = 'yahoo';
+  readonly id: string;
+
+  constructor(private readonly region: Region = 'JP') {
+    this.id = `yahoo-${region.toLowerCase()}`;
+  }
 
   async fetchBars(opts: FetchOptions): Promise<DailyBar[]> {
-    const universe = loadUniverse();
+    const universe = loadUniverse(this.region);
 
     // 発行済株式数: universe に無いものを quote API で補完。
     const shares = new Map<string, number>();
@@ -163,19 +170,18 @@ export class YahooProvider implements DataProvider {
     if (missing.length > 0) {
       const auth = await getCrumb();
       if (auth) {
-        const fetched = await fetchShares(missing, auth);
+        const fetched = await fetchShares(missing, auth, this.region);
         for (const [c, s] of fetched) shares.set(c, s);
       }
     }
 
-    const meta = new Map(universe.map((u) => [u.code, u]));
     // 半年(約120営業日)を確実に含むため range=1y を取り、直近 lookbackDays に絞る。
     const range = opts.lookbackDays > 120 ? '1y' : '6mo';
 
     const perCode = await mapLimit(universe, 8, async (u) => {
       const sh = shares.get(u.code);
       if (!sh) return [] as DailyBar[];
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${toSymbol(u.code)}?range=${range}&interval=1d`;
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${toSymbol(u.code, this.region)}?range=${range}&interval=1d`;
       try {
         const json = await fetchJson(url, {});
         return barsFromChart(json, u, sh, opts.lookbackDays);
@@ -184,7 +190,6 @@ export class YahooProvider implements DataProvider {
       }
     });
 
-    void meta;
     return perCode.flat();
   }
 }

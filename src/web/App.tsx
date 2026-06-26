@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { MarketSegment, PeriodKey, RankRow, RankingDataset } from '../core/types';
+import type { MarketSegment, PeriodKey, RankRow, RankingDataset, Region } from '../core/types';
 import { PERIODS } from '../core/periods';
 import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
@@ -22,30 +22,34 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: '3', label: '全市場上位' },
 ];
 
-const MARKETS: { key: MarketFilter; label: string }[] = [
+const MARKETS_JP: { key: MarketFilter; label: string }[] = [
   { key: 'All', label: '全市場' },
   { key: 'Prime', label: 'プライム' },
   { key: 'Standard', label: 'スタンダード' },
   { key: 'Growth', label: 'グロース' },
 ];
 
-function parseOku(s: string): number | null {
+const MARKETS_US: { key: MarketFilter; label: string }[] = [
+  { key: 'All', label: '全市場' },
+  { key: 'NYSE', label: 'NYSE' },
+  { key: 'NASDAQ', label: 'NASDAQ' },
+  { key: 'AMEX', label: 'AMEX' },
+];
+
+function parseUnit(s: string, region: Region): number | null {
   const n = parseFloat(s);
-  return isFinite(n) ? n * 1e8 : null;
+  if (!isFinite(n)) return null;
+  return region === 'US' ? n * 1e6 : n * 1e8;
 }
 
 function isFilterActive(f: Filters): boolean {
-  return (
-    parseOku(f.capMin) !== null ||
-    parseOku(f.capMax) !== null ||
-    parseOku(f.turnoverMin) !== null
-  );
+  return f.capMin !== '' || f.capMax !== '' || f.turnoverMin !== '';
 }
 
-function applyFilters(rows: RankRow[], f: Filters): RankRow[] {
-  const capMin = parseOku(f.capMin);
-  const capMax = parseOku(f.capMax);
-  const turnoverMin = parseOku(f.turnoverMin);
+function applyFilters(rows: RankRow[], f: Filters, region: Region): RankRow[] {
+  const capMin = parseUnit(f.capMin, region);
+  const capMax = parseUnit(f.capMax, region);
+  const turnoverMin = parseUnit(f.turnoverMin, region);
   if (capMin === null && capMax === null && turnoverMin === null) return rows;
   return rows.filter(
     (r) =>
@@ -55,8 +59,16 @@ function applyFilters(rows: RankRow[], f: Filters): RankRow[] {
   );
 }
 
+function dataUrl(region: Region, bust = false): string {
+  const file = region === 'US' ? 'rankings.us.json' : 'rankings.json';
+  return `${import.meta.env.BASE_URL}data/${file}${bust ? `?t=${Date.now()}` : ''}`;
+}
+
 export function App() {
-  const [data, setData] = useState<RankingDataset | null>(null);
+  const [cache, setCache] = useState<Partial<Record<Region, RankingDataset>>>({});
+  const [region, setRegion] = useState<Region>(
+    () => (localStorage.getItem('region') as Region) || 'JP',
+  );
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>('1');
   const [period, setPeriod] = useState<PeriodKey>('1w');
@@ -70,25 +82,38 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // bust=true でキャッシュを無視し、最新の公開データを取得する。
-  const load = (bust = false) =>
-    fetch(`${import.meta.env.BASE_URL}data/rankings.json${bust ? `?t=${Date.now()}` : ''}`, {
-      cache: bust ? 'no-store' : 'default',
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
+  // データを取得してキャッシュに保存する。bust=true でキャッシュバスト。
+  const load = (r: Region, bust = false) =>
+    fetch(dataUrl(r, bust), { cache: bust ? 'no-store' : 'default' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<RankingDataset>;
       })
-      .then(setData);
+      .then((dataset) => {
+        setCache((prev) => ({ ...prev, [r]: dataset }));
+      });
 
+  // 起動時に現在のリージョンを読み込む。
   useEffect(() => {
-    load().catch((e) => setError(String(e)));
+    load(region).catch((e) => setError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const changeRegion = (r: Region) => {
+    setRegion(r);
+    localStorage.setItem('region', r);
+    setMarket('All');
+    setFilters({ capMin: '', capMax: '', turnoverMin: '' });
+    // まだキャッシュがない場合のみフェッチ。
+    if (!cache[r]) {
+      load(r).catch((e) => setError(String(e)));
+    }
+  };
 
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await load(true);
+      await load(region, true);
       flash('最新データに更新しました');
     } catch {
       flash('更新に失敗しました');
@@ -117,6 +142,9 @@ export function App() {
       </div>
     );
   }
+
+  const data = cache[region];
+
   if (!data) {
     return (
       <div className="screen">
@@ -128,10 +156,12 @@ export function App() {
     );
   }
 
+  const MARKETS = region === 'US' ? MARKETS_US : MARKETS_JP;
+
   const base: RankRow[] =
     tab === '1' ? data.ranking1 : tab === '2' ? data.ranking2[period] : data.ranking3[period];
   const byMarket = market === 'All' ? base : base.filter((r) => r.market === market);
-  const viewRows = applyFilters(byMarket, filters);
+  const viewRows = applyFilters(byMarket, filters, region);
 
   const filterActive = isFilterActive(filters);
 
@@ -166,6 +196,22 @@ export function App() {
           <Logo />
           <div>
             <h1>資金流入株</h1>
+          </div>
+          <div className="region-toggle" role="group" aria-label="地域切替">
+            <button
+              className={region === 'JP' ? 'region-btn active' : 'region-btn'}
+              onClick={() => changeRegion('JP')}
+              aria-pressed={region === 'JP'}
+            >
+              JP
+            </button>
+            <button
+              className={region === 'US' ? 'region-btn active' : 'region-btn'}
+              onClick={() => changeRegion('US')}
+              aria-pressed={region === 'US'}
+            >
+              US
+            </button>
           </div>
         </div>
         <div className="asof">
@@ -258,7 +304,7 @@ export function App() {
               </svg>
               {filterActive && <span className="filter-dot" aria-hidden />}
             </button>
-            <button className="btn-copy" onClick={copyTop20} aria-label="上位20をコピー">
+            <button className="btn-icon" onClick={copyTop20} aria-label="上位20をコピー">
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
                 <rect x="9" y="9" width="11" height="13" rx="2" fill="none"
                   stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
@@ -272,7 +318,7 @@ export function App() {
       </div>
 
       <main className="list-area">
-        <RankingList rows={viewRows} showTurnoverRank={tab === '3'} density={density} />
+        <RankingList rows={viewRows} showTurnoverRank={tab === '3'} density={density} region={region} />
       </main>
 
       <footer className="foot">
@@ -286,6 +332,7 @@ export function App() {
           filters={filters}
           onChange={setFilters}
           onClose={() => setFilterOpen(false)}
+          region={region}
         />
       )}
       {toast && <div className="toast" role="status">{toast}</div>}
