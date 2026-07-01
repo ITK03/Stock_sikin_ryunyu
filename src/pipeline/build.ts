@@ -23,7 +23,10 @@ async function buildRegion(region: Region, forceSample: boolean, outDir: string)
   console.log(`[build:${region}] fetched ${bars.length} bars`);
 
   const dataset = computeRankings(bars, {
-    topN: 100,
+    // 市場フィルタ後も各区分(プライム/スタンダード/グロース等)に十分な件数が
+    // 残るよう、集計の深さを広めに取る。③は全市場売買代金上位 topK に限定される
+    // 性質上、これとは別に大型株中心になる。
+    topN: 300,
     topK: 100,
     minCoverage: 0.6,
     source: provider.id,
