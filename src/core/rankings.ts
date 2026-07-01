@@ -252,12 +252,12 @@ function buildSurge(
     for (const s of byCode.values()) {
       const byDate = new Map(s.bars.map((b) => [b.date, b]));
 
-      // 平常時基準: 手前25営業日の平均売買代金。
+      // 平常時基準: 手前25営業日の平均売買代金(時価総額は不要=ETF等も対象)。
       let bSum = 0;
       let bCnt = 0;
       for (const d of baselineDates) {
         const b = byDate.get(d);
-        if (b && b.marketCap > 0) {
+        if (b && b.turnover > 0) {
           bSum += b.turnover;
           bCnt += 1;
         }
@@ -272,7 +272,7 @@ function buildSurge(
       let latestBar: DailyBar | undefined;
       for (const d of recentDates) {
         const b = byDate.get(d);
-        if (!b || b.marketCap <= 0) {
+        if (!b || b.turnover <= 0) {
           ok = false;
           break;
         }

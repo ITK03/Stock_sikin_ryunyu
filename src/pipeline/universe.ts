@@ -24,7 +24,20 @@ function jpSegment(div: string): MarketSegment | null {
   if (div.includes('プライム')) return 'Prime';
   if (div.includes('スタンダード')) return 'Standard';
   if (div.includes('グロース')) return 'Growth';
-  return null; // ETF/REIT/PRO Market 等は対象外
+  // ETF/ETN/REIT/インフラファンド等も対象(SBIの急増ランキングに含まれるため)。
+  // 時価総額比の①②③には出ないが、④急増ランキングで拾う。
+  if (
+    div.includes('ETF') ||
+    div.includes('ETN') ||
+    div.includes('REIT') ||
+    div.includes('インフラファンド') ||
+    div.includes('出資証券') ||
+    div.includes('ベンチャーファンド') ||
+    div.includes('カントリーファンド')
+  ) {
+    return 'Other';
+  }
+  return null; // PRO Market 等は対象外
 }
 
 async function buildJP(): Promise<UniverseEntry[]> {

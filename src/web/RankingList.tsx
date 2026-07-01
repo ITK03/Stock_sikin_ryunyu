@@ -109,7 +109,9 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
                   </div>
                   <div className="stat">
                     <span className="stat-label">時価総額</span>
-                    <span className="stat-val">{money(r.marketCap, region)}</span>
+                    <span className="stat-val">
+                      {r.marketCap > 0 ? money(r.marketCap, region) : '—'}
+                    </span>
                   </div>
                 </>
               ) : (

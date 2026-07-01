@@ -179,8 +179,10 @@ export class YahooProvider implements DataProvider {
     const range = opts.lookbackDays > 120 ? '1y' : '6mo';
 
     const perCode = await mapLimit(universe, 8, async (u) => {
-      const sh = shares.get(u.code);
-      if (!sh) return [] as DailyBar[];
+      // 株数が無い銘柄(ETF・新規上場等)も対象にする。時価総額は 0 となり
+      // ①②③(時価総額比)からは自動的に除外されるが、④急増は売買代金のみで
+      // 計算するため対象に含める(SBIの売買代金増加率と同様に広く拾う)。
+      const sh = shares.get(u.code) ?? 0;
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${toSymbol(u.code, this.region)}?range=${range}&interval=1d`;
       try {
         const json = await fetchJson(url, {});
