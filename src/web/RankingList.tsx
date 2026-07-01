@@ -25,9 +25,12 @@ const segClass: Record<string, string> = {
 
 const medalClass = (rank: number) => (rank <= 3 ? `medal-${rank}` : '');
 
-/** 急増倍率を「×5.3」のように整形。未定義時は「×-」。 */
-const surgeText = (surge: number | undefined) =>
-  surge === undefined ? '×-' : `×${surge.toFixed(1)}`;
+/** 急増を増加率(SBIと同形式)「+5,317%」のように整形。未定義時は「-」。 */
+const surgeText = (surge: number | undefined) => {
+  if (surge === undefined) return '-';
+  const pctInc = Math.round((surge - 1) * 100);
+  return `${pctInc >= 0 ? '+' : ''}${pctInc.toLocaleString()}%`;
+};
 
 export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio' }: Props) {
   if (rows.length === 0) {
@@ -84,7 +87,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
               <div className="hero">
                 <div className="hero-val">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</div>
                 <div className="hero-cap">
-                  {isSurge ? '売買代金 急増(平常比)' : '代金 / 時価総額'}
+                  {isSurge ? '売買代金 増加率(平常比)' : '代金 / 時価総額'}
                 </div>
               </div>
             </div>

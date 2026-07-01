@@ -1,13 +1,13 @@
 name: Build and Deploy
 
 # 無料データ(Yahoo Finance + JPX上場一覧)で再生成し GitHub Pages へデプロイ。
-# できるだけ新しい値にするため平日の市場時間帯〜引け後に複数回実行する。
-# 時刻は UTC。JST = UTC+9。
+# 急増(初動)を早く捉えるため、JP場中は毎時、引け後に確定、US引け後も更新する。
+# 時刻は UTC。JST = UTC+9。GitHub の cron は数分遅延することがある。
 on:
   schedule:
-    - cron: '30 3 * * 1-5' # 12:30 JST 場中スナップショット
-    - cron: '10 6 * * 1-5' # 15:10 JST 引け直前
-    - cron: '50 6 * * 1-5' # 15:50 JST 引け後(当日確定値)
+    - cron: '0 0-6 * * 1-5'  # JP場中 09:00〜15:00 JST を毎時更新
+    - cron: '50 6 * * 1-5'   # 15:50 JST JP引け後(当日確定値)
+    - cron: '30 20 * * 1-5'  # US引け後(ET 16:30頃) US当日値を更新
   workflow_dispatch: {}
   push:
     branches: [main, claude/jp-stock-inflow-tool-evy4mz]
