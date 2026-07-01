@@ -32,17 +32,24 @@ export interface RankRow {
   market: MarketSegment;
   /** 売買代金 / 時価総額(比率, 0..1)。期間指定時は期間平均。 */
   ratio: number;
-  /** 売買代金(円)。期間指定時は期間平均。 */
+  /** 売買代金(地域通貨)。期間指定時は期間平均、急増は直近N日平均。 */
   turnover: number;
-  /** 時価総額(円)。期間内の最新値。 */
+  /** 時価総額(地域通貨)。期間内の最新値。 */
   marketCap: number;
   /** 期間内でデータが存在した割合(0..1)。 */
   coverage: number;
   /** ランキング③用: 全市場の売買代金順位(期間平均ベース, 1始まり)。 */
   turnoverRank?: number;
+  /** 急増ランキング用: 直近N日平均売買代金 ÷ 過去25営業日平均(倍)。 */
+  surge?: number;
+  /** 急増ランキング用: 過去25営業日平均の売買代金(平常時の水準)。 */
+  baseline?: number;
 }
 
 export type PeriodKey = '3d' | '1w' | '2w' | '1m' | '3m' | '6m';
+
+/** 売買代金急増の集計期間(直近N営業日)。 */
+export type SurgeHorizon = '1d' | '2d' | '3d';
 
 export interface RankingDataset {
   /** 生成時刻(ISO8601)。 */
@@ -65,4 +72,6 @@ export interface RankingDataset {
   ranking2: Record<PeriodKey, RankRow[]>;
   /** ③ ②に加えて全市場の売買代金上位に入っている順。 */
   ranking3: Record<PeriodKey, RankRow[]>;
+  /** ④ 売買代金急増(初動)。直近N日平均 ÷ 過去25営業日平均 が大きい順。 */
+  ranking4: Record<SurgeHorizon, RankRow[]>;
 }

@@ -9,6 +9,8 @@ interface Props {
   showTurnoverRank?: boolean;
   density: Density;
   region: Region;
+  /** ④のとき 'surge'(急増倍率表示)。既定は 'ratio'(比率%表示)。 */
+  metric?: 'ratio' | 'surge';
 }
 
 const segClass: Record<string, string> = {
@@ -23,10 +25,16 @@ const segClass: Record<string, string> = {
 
 const medalClass = (rank: number) => (rank <= 3 ? `medal-${rank}` : '');
 
-export function RankingList({ rows, showTurnoverRank, density, region }: Props) {
+/** 急増倍率を「×5.3」のように整形。未定義時は「×-」。 */
+const surgeText = (surge: number | undefined) =>
+  surge === undefined ? '×-' : `×${surge.toFixed(1)}`;
+
+export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio' }: Props) {
   if (rows.length === 0) {
     return <p className="empty">該当する銘柄がありません。</p>;
   }
+
+  const isSurge = metric === 'surge';
 
   if (density === 'compact') {
     return (
@@ -36,9 +44,13 @@ export function RankingList({ rows, showTurnoverRank, density, region }: Props) 
             <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
             <span className="r-code">{r.code}</span>
             <span className="r-name">{r.name}</span>
-            <span className="r-ratio">{pct(r.ratio)}</span>
+            <span className="r-ratio">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</span>
             <span className="r-sub">
-              {showTurnoverRank ? `代金#${r.turnoverRank ?? '-'}` : money(r.turnover, region)}
+              {isSurge
+                ? money(r.turnover, region)
+                : showTurnoverRank
+                ? `代金#${r.turnoverRank ?? '-'}`
+                : money(r.turnover, region)}
             </span>
           </li>
         ))}
@@ -46,13 +58,16 @@ export function RankingList({ rows, showTurnoverRank, density, region }: Props) 
     );
   }
 
-  // 強度バーは表示中リストの最大比率を基準にした相対値。
+  // 強度バーは表示中リストの最大値(比率 or 急増倍率)を基準にした相対値。
   const maxRatio = Math.max(...rows.map((r) => r.ratio), 1e-9);
+  const maxSurge = Math.max(...rows.map((r) => r.surge ?? 0), 1e-9);
 
   return (
     <ul className="cards">
       {rows.map((r, i) => {
-        const strength = Math.max(0.04, Math.min(1, r.ratio / maxRatio));
+        const strength = isSurge
+          ? Math.max(0.04, Math.min(1, (r.surge ?? 0) / maxSurge))
+          : Math.max(0.04, Math.min(1, r.ratio / maxRatio));
         return (
           <li key={r.code} className="card">
             <div className="card-top">
@@ -67,8 +82,10 @@ export function RankingList({ rows, showTurnoverRank, density, region }: Props) 
                 </div>
               </div>
               <div className="hero">
-                <div className="hero-val">{pct(r.ratio)}</div>
-                <div className="hero-cap">代金 / 時価総額</div>
+                <div className="hero-val">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</div>
+                <div className="hero-cap">
+                  {isSurge ? '売買代金 急増(平常比)' : '代金 / 時価総額'}
+                </div>
               </div>
             </div>
 
@@ -77,24 +94,43 @@ export function RankingList({ rows, showTurnoverRank, density, region }: Props) 
             </div>
 
             <div className="stats">
-              <div className="stat">
-                <span className="stat-label">売買代金</span>
-                <span className="stat-val">{money(r.turnover, region)}</span>
-              </div>
-              <div className="stat">
-                <span className="stat-label">時価総額</span>
-                <span className="stat-val">{money(r.marketCap, region)}</span>
-              </div>
-              {showTurnoverRank ? (
-                <div className="stat">
-                  <span className="stat-label">全市場 代金順位</span>
-                  <span className="stat-val accent">{r.turnoverRank ?? '-'}<i>位</i></span>
-                </div>
+              {isSurge ? (
+                <>
+                  <div className="stat">
+                    <span className="stat-label">直近代金</span>
+                    <span className="stat-val">{money(r.turnover, region)}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">平常代金</span>
+                    <span className="stat-val">{money(r.baseline ?? 0, region)}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">時価総額</span>
+                    <span className="stat-val">{money(r.marketCap, region)}</span>
+                  </div>
+                </>
               ) : (
-                <div className="stat">
-                  <span className="stat-label">データ被覆</span>
-                  <span className="stat-val">{Math.round(r.coverage * 100)}<i>%</i></span>
-                </div>
+                <>
+                  <div className="stat">
+                    <span className="stat-label">売買代金</span>
+                    <span className="stat-val">{money(r.turnover, region)}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">時価総額</span>
+                    <span className="stat-val">{money(r.marketCap, region)}</span>
+                  </div>
+                  {showTurnoverRank ? (
+                    <div className="stat">
+                      <span className="stat-label">全市場 代金順位</span>
+                      <span className="stat-val accent">{r.turnoverRank ?? '-'}<i>位</i></span>
+                    </div>
+                  ) : (
+                    <div className="stat">
+                      <span className="stat-label">データ被覆</span>
+                      <span className="stat-val">{Math.round(r.coverage * 100)}<i>%</i></span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </li>

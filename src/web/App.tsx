@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { MarketSegment, PeriodKey, RankRow, RankingDataset, Region } from '../core/types';
-import { PERIODS } from '../core/periods';
+import type {
+  MarketSegment,
+  PeriodKey,
+  RankRow,
+  RankingDataset,
+  Region,
+  SurgeHorizon,
+} from '../core/types';
+import { PERIODS, SURGE_HORIZONS } from '../core/periods';
 import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
 import { FilterSheet } from './FilterSheet';
 import { Logo } from './Logo';
 import { relTime } from './format';
 
-type TabKey = '1' | '2' | '3';
+type TabKey = '1' | '2' | '3' | '4';
 type MarketFilter = 'All' | MarketSegment;
 
 interface Filters {
@@ -16,10 +23,28 @@ interface Filters {
   turnoverMin: string;
 }
 
+const EMPTY_FILTERS: Filters = { capMin: '', capMax: '', turnoverMin: '' };
+
+function loadFilters(): Filters {
+  try {
+    const raw = localStorage.getItem('filters');
+    if (!raw) return { ...EMPTY_FILTERS };
+    const parsed = JSON.parse(raw);
+    return {
+      capMin: typeof parsed.capMin === 'string' ? parsed.capMin : '',
+      capMax: typeof parsed.capMax === 'string' ? parsed.capMax : '',
+      turnoverMin: typeof parsed.turnoverMin === 'string' ? parsed.turnoverMin : '',
+    };
+  } catch {
+    return { ...EMPTY_FILTERS };
+  }
+}
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: '1', label: '時価総額比' },
   { key: '2', label: '連日継続' },
   { key: '3', label: '全市場上位' },
+  { key: '4', label: '急増' },
 ];
 
 const MARKETS_JP: { key: MarketFilter; label: string }[] = [
@@ -72,13 +97,14 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>('1');
   const [period, setPeriod] = useState<PeriodKey>('1w');
+  const [surgeHorizon, setSurgeHorizon] = useState<SurgeHorizon>('1d');
   const [market, setMarket] = useState<MarketFilter>('All');
   const [density, setDensity] = useState<Density>(
     () => (localStorage.getItem('density') as Density) || 'card',
   );
   const [help, setHelp] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState<Filters>({ capMin: '', capMax: '', turnoverMin: '' });
+  const [filters, setFilters] = useState<Filters>(loadFilters);
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -103,11 +129,15 @@ export function App() {
     setRegion(r);
     localStorage.setItem('region', r);
     setMarket('All');
-    setFilters({ capMin: '', capMax: '', turnoverMin: '' });
     // まだキャッシュがない場合のみフェッチ。
     if (!cache[r]) {
       load(r).catch((e) => setError(String(e)));
     }
+  };
+
+  const changeFilters = (f: Filters) => {
+    setFilters(f);
+    localStorage.setItem('filters', JSON.stringify(f));
   };
 
   const refresh = async () => {
@@ -159,7 +189,13 @@ export function App() {
   const MARKETS = region === 'US' ? MARKETS_US : MARKETS_JP;
 
   const base: RankRow[] =
-    tab === '1' ? data.ranking1 : tab === '2' ? data.ranking2[period] : data.ranking3[period];
+    tab === '1'
+      ? data.ranking1
+      : tab === '2'
+      ? data.ranking2[period]
+      : tab === '3'
+      ? data.ranking3[period]
+      : data.ranking4[surgeHorizon];
   const byMarket = market === 'All' ? base : base.filter((r) => r.market === market);
   const viewRows = applyFilters(byMarket, filters, region);
 
@@ -234,7 +270,7 @@ export function App() {
           ))}
         </nav>
 
-        {tab !== '1' && (
+        {(tab === '2' || tab === '3') && (
           <nav className="chiprow">
             <span className="row-label">期間</span>
             {PERIODS.map((p) => (
@@ -244,6 +280,21 @@ export function App() {
                 onClick={() => setPeriod(p.key)}
               >
                 {p.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {tab === '4' && (
+          <nav className="chiprow">
+            <span className="row-label">急増</span>
+            {SURGE_HORIZONS.map((h) => (
+              <button
+                key={h.key}
+                className={h.key === surgeHorizon ? 'chip active' : 'chip'}
+                onClick={() => setSurgeHorizon(h.key)}
+              >
+                {h.label}
               </button>
             ))}
           </nav>
@@ -318,7 +369,13 @@ export function App() {
       </div>
 
       <main className="list-area">
-        <RankingList rows={viewRows} showTurnoverRank={tab === '3'} density={density} region={region} />
+        <RankingList
+          rows={viewRows}
+          showTurnoverRank={tab === '3'}
+          density={density}
+          region={region}
+          metric={tab === '4' ? 'surge' : 'ratio'}
+        />
       </main>
 
       <footer className="foot">
@@ -330,7 +387,7 @@ export function App() {
       {filterOpen && (
         <FilterSheet
           filters={filters}
-          onChange={setFilters}
+          onChange={changeFilters}
           onClose={() => setFilterOpen(false)}
           region={region}
         />

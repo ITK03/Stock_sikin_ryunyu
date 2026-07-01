@@ -4,8 +4,9 @@ import type {
   RankRow,
   RankingDataset,
   Region,
+  SurgeHorizon,
 } from './types';
-import { PERIODS } from './periods';
+import { PERIODS, SURGE_BASELINE_DAYS, SURGE_HORIZONS } from './periods';
 
 export interface RankingOptions {
   /** 各リストの最大表示件数。 */
@@ -229,6 +230,77 @@ function buildRanking3(
   return rows.slice(0, topN).map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
+/**
+ * ④ 売買代金急増(初動)。SBI等の「売買代金急増率」に相当。
+ * 直近N営業日(1/2/3)の平均売買代金を、その手前の過去25営業日平均(平常時)で割った
+ * 倍率で降順。分母(平常時)は全期間共通なので、2日/3日で上位=連日で急増が継続=初動。
+ */
+function buildSurge(
+  byCode: Map<string, CodeSeries>,
+  dates: string[],
+  latestDate: string,
+  topN: number,
+): Record<SurgeHorizon, RankRow[]> {
+  const baselineDates = dates.slice(-(SURGE_BASELINE_DAYS + 3), -3); // 直近3日の手前25日
+  const minBaseline = Math.ceil(SURGE_BASELINE_DAYS * 0.6);
+  const result = {} as Record<SurgeHorizon, RankRow[]>;
+
+  for (const def of SURGE_HORIZONS) {
+    const recentDates = dates.slice(-def.days); // 直近N営業日
+    const rows: Omit<RankRow, 'rank'>[] = [];
+
+    for (const s of byCode.values()) {
+      const byDate = new Map(s.bars.map((b) => [b.date, b]));
+
+      // 平常時基準: 手前25営業日の平均売買代金。
+      let bSum = 0;
+      let bCnt = 0;
+      for (const d of baselineDates) {
+        const b = byDate.get(d);
+        if (b && b.marketCap > 0) {
+          bSum += b.turnover;
+          bCnt += 1;
+        }
+      }
+      if (bCnt < minBaseline) continue;
+      const baseline = bSum / bCnt;
+      if (baseline <= 0) continue;
+
+      // 直近N日はすべて取引がある必要(連日性を担保)。
+      let rSum = 0;
+      let ok = true;
+      let latestBar: DailyBar | undefined;
+      for (const d of recentDates) {
+        const b = byDate.get(d);
+        if (!b || b.marketCap <= 0) {
+          ok = false;
+          break;
+        }
+        rSum += b.turnover;
+        if (d === latestDate) latestBar = b;
+      }
+      if (!ok || !latestBar) continue;
+
+      const recentAvg = rSum / def.days;
+      rows.push({
+        code: s.code,
+        name: s.name,
+        market: latestBar.market,
+        ratio: latestBar.marketCap > 0 ? latestBar.turnover / latestBar.marketCap : 0,
+        turnover: recentAvg,
+        marketCap: latestBar.marketCap,
+        coverage: bCnt / SURGE_BASELINE_DAYS,
+        surge: recentAvg / baseline,
+        baseline,
+      });
+    }
+
+    rows.sort((a, b) => (b.surge ?? 0) - (a.surge ?? 0));
+    result[def.key] = rows.slice(0, topN).map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+  return result;
+}
+
 export function computeRankings(
   bars: DailyBar[],
   options: Partial<RankingOptions> = {},
@@ -264,5 +336,6 @@ export function computeRankings(
     ranking1: buildRanking1(byCode, latestDate, opts.topN),
     ranking2,
     ranking3,
+    ranking4: buildSurge(byCode, dates, latestDate, opts.topN),
   };
 }

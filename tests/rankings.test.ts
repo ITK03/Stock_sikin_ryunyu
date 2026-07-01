@@ -112,6 +112,34 @@ describe('computeRankings メタ情報', () => {
   });
 });
 
+describe('computeRankings ④ 売買代金急増(初動)', () => {
+  it('直近が過去25日平均に対して急増した銘柄が上位、連日急増は2日/3日でも残る', () => {
+    const ds = dates(30);
+    const bars: DailyBar[] = [];
+    ds.forEach((d, i) => {
+      const last3 = i >= ds.length - 3;
+      const lastDay = i === ds.length - 1;
+      // FLAT: 常に一定(急増なし)。
+      bars.push(bar(d, 'FLAT', 100, 1e6));
+      // ONE: 最終日だけ急増(1日では上位、2日/3日では薄まる)。
+      bars.push(bar(d, 'ONE', lastDay ? 3000 : 100, 1e6));
+      // CONT: 直近3日連続で急増(初動)。
+      bars.push(bar(d, 'CONT', last3 ? 3000 : 100, 1e6));
+    });
+    const res = computeRankings(bars, { source: 'test' });
+
+    // 1日: 最終日が急増している ONE と CONT が FLAT より上。
+    expect(res.ranking4['1d'][0].code === 'ONE' || res.ranking4['1d'][0].code === 'CONT').toBe(true);
+    expect(res.ranking4['1d'].find((r) => r.code === 'FLAT')!.surge).toBeCloseTo(1, 1);
+
+    // 3日: 連日急増の CONT が単発の ONE より上位。
+    const surge3 = (c: string) => res.ranking4['3d'].find((r) => r.code === c)!.surge!;
+    expect(surge3('CONT')).toBeGreaterThan(surge3('ONE'));
+    // baseline(平常時)が付与される。
+    expect(res.ranking4['3d'][0].baseline).toBeGreaterThan(0);
+  });
+});
+
 describe('computeRankings ② 継続性(単発スパイク耐性)', () => {
   it('1日だけの出来高急増では順位が底上げされず、毎日コンスタントな銘柄が上位', () => {
     const ds = dates(10);
