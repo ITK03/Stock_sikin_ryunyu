@@ -108,9 +108,10 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // データを取得してキャッシュに保存する。bust=true でキャッシュバスト。
-  const load = (r: Region, bust = false) =>
-    fetch(dataUrl(r, bust), { cache: bust ? 'no-store' : 'default' })
+  // データを取得してキャッシュに保存する。データは日中に複数回更新されるため、
+  // 常に最新を取得する(古いデータと新しいアプリ本体の不整合による表示崩れを防ぐ)。
+  const load = (r: Region) =>
+    fetch(dataUrl(r, true), { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<RankingDataset>;
@@ -143,7 +144,7 @@ export function App() {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await load(region, true);
+      await load(region);
       flash('最新データに更新しました');
     } catch {
       flash('更新に失敗しました');
@@ -188,14 +189,15 @@ export function App() {
 
   const MARKETS = region === 'US' ? MARKETS_US : MARKETS_JP;
 
+  // 各ランキングは欠損しても落ちないよう防御的に参照する(古いデータ互換)。
   const base: RankRow[] =
-    tab === '1'
+    (tab === '1'
       ? data.ranking1
       : tab === '2'
-      ? data.ranking2[period]
+      ? data.ranking2?.[period]
       : tab === '3'
-      ? data.ranking3[period]
-      : data.ranking4[surgeHorizon];
+      ? data.ranking3?.[period]
+      : data.ranking4?.[surgeHorizon]) ?? [];
   const byMarket = market === 'All' ? base : base.filter((r) => r.market === market);
   const viewRows = applyFilters(byMarket, filters, region);
 
