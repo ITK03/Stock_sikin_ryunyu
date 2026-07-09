@@ -5,6 +5,8 @@ name: Build and Deploy
 # 時刻は UTC。JST = UTC+9。GitHub の cron は数分遅延することがある。
 on:
   schedule:
+    - cron: '30 0 * * 1-5'   # 09:30 JST 寄り直後(急増・初動の早期検知)
+    - cron: '30 1 * * 1-5'   # 10:30 JST
     - cron: '0 0-6 * * 1-5'  # JP場中 09:00〜15:00 JST を毎時更新
     - cron: '50 6 * * 1-5'   # 15:50 JST JP引け後(当日確定値)
     - cron: '30 20 * * 1-5'  # US引け後(ET 16:30頃) US当日値を更新

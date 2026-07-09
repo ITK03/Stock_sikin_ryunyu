@@ -298,6 +298,14 @@ body {
   white-space: nowrap;
 }
 
+/* ---------- Session note (急増タブ, 場中ビルド) ---------- */
+.session-note {
+  margin: 6px 2px 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
 /* ---------- Compact list ---------- */
 .rows {
   list-style: none;

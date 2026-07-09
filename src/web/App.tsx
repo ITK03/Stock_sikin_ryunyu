@@ -302,6 +302,10 @@ export function App() {
           </nav>
         )}
 
+        {tab === '4' && data.sessionProgress !== undefined && data.sessionProgress < 1 && (
+          <p className="session-note">場中データ: 当日の売買代金は終日ペースに換算しています</p>
+        )}
+
         <nav className="chiprow markets">
           <span className="row-label">市場</span>
           {MARKETS.map((m) => (

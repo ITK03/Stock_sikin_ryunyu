@@ -21,6 +21,8 @@ export interface RankingOptions {
   source: string;
   region: Region;
   generatedAt?: string;
+  /** 場中ビルド情報。date=当日(取引所ローカル 'YYYY-MM-DD')、progress=セッション経過率(0..1]。 */
+  intraday?: { date: string; progress: number };
 }
 
 const DEFAULTS = {
@@ -240,12 +242,23 @@ function buildSurge(
   dates: string[],
   latestDate: string,
   topN: number,
+  intraday?: { date: string; progress: number },
 ): Record<SurgeHorizon, RankRow[]> {
-  const baselineDates = dates.slice(-(SURGE_BASELINE_DAYS + 3), -3); // 直近3日の手前25日
   const minBaseline = Math.ceil(SURGE_BASELINE_DAYS * 0.6);
   const result = {} as Record<SurgeHorizon, RankRow[]>;
 
+  // 場中ビルドでは当日の累計売買代金を終日ペースに換算してから急増判定する
+  // (寄り直後は分母(経過率)を0.15で床止めし、換算値が極端に膨らむのを防ぐ)。
+  const projectedTurnover = (b: DailyBar): number => {
+    if (!intraday || b.date !== intraday.date) return b.turnover;
+    return b.turnover / Math.max(intraday.progress, 0.15);
+  };
+
   for (const def of SURGE_HORIZONS) {
+    // 基準(平常時)の窓は集計期間ごとに手前へずらす: 1日なら昨日まで、
+    // 3日なら3日前までを基準に含めることで、数日前から噴いている銘柄の
+    // 基準が上がり(=急増率が下がり)、当日始まった銘柄(初動)が浮かぶ。
+    const baselineDates = dates.slice(-(SURGE_BASELINE_DAYS + def.days), -def.days);
     const recentDates = dates.slice(-def.days); // 直近N営業日
     const rows: Omit<RankRow, 'rank'>[] = [];
 
@@ -276,7 +289,7 @@ function buildSurge(
           ok = false;
           break;
         }
-        rSum += b.turnover;
+        rSum += projectedTurnover(b);
         if (d === latestDate) latestBar = b;
       }
       if (!ok || !latestBar) continue;
@@ -336,6 +349,7 @@ export function computeRankings(
     ranking1: buildRanking1(byCode, latestDate, opts.topN),
     ranking2,
     ranking3,
-    ranking4: buildSurge(byCode, dates, latestDate, opts.topN),
+    ranking4: buildSurge(byCode, dates, latestDate, opts.topN, opts.intraday),
+    sessionProgress: opts.intraday?.progress ?? 1,
   };
 }

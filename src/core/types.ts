@@ -74,4 +74,6 @@ export interface RankingDataset {
   ranking3: Record<PeriodKey, RankRow[]>;
   /** ④ 売買代金急増(初動)。直近N日平均 ÷ 過去25営業日平均 が大きい順。 */
   ranking4: Record<SurgeHorizon, RankRow[]>;
+  /** 場中ビルド時のセッション経過率(0..1)。1=引け後/完全な日足。 */
+  sessionProgress?: number;
 }

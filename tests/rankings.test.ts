@@ -138,6 +138,39 @@ describe('computeRankings ④ 売買代金急増(初動)', () => {
     // baseline(平常時)が付与される。
     expect(res.ranking4['3d'][0].baseline).toBeGreaterThan(0);
   });
+
+  it('場中はペース換算で早期検知できる(sessionProgress投影)', () => {
+    const ds = dates(30);
+    const lastDate = ds[ds.length - 1];
+    const bars: DailyBar[] = [];
+    ds.forEach((d) => {
+      const isLast = d === lastDate;
+      // FLAT: 普段100。最終日は場中20%経過なりの実額(20)しかまだ無い(=通常ペース、急増なし)。
+      bars.push(bar(d, 'FLAT', isLast ? 20 : 100, 1e6));
+      // PACE: 普段は100だが、最終日は場中20%経過ですでに100(=終日ペースなら500、初動)。
+      bars.push(bar(d, 'PACE', 100, 1e6));
+    });
+
+    const plain = computeRankings(bars, { source: 'test' });
+    const projected = computeRankings(bars, {
+      source: 'test',
+      intraday: { date: lastDate, progress: 0.2 },
+    });
+
+    // 投影なし: 最終日も普段通りの100なので急増なし(≈1.0)。
+    const surgePlain = plain.ranking4['1d'].find((r) => r.code === 'PACE')!.surge!;
+    expect(surgePlain).toBeCloseTo(1.0, 1);
+
+    // 投影あり: 100 / 0.2 = 500 を過去25日平均100と比較 → 5倍。
+    const surgeProjected = projected.ranking4['1d'].find((r) => r.code === 'PACE')!.surge!;
+    expect(surgeProjected).toBeCloseTo(5.0, 1);
+
+    // 投影ありでは PACE が FLAT より上位に来る。
+    expect(projected.ranking4['1d'][0].code).toBe('PACE');
+
+    // 場中の経過率がデータセットに反映される。
+    expect(projected.sessionProgress).toBe(0.2);
+  });
 });
 
 describe('computeRankings ② 継続性(単発スパイク耐性)', () => {
