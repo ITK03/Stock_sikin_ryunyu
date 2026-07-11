@@ -77,3 +77,109 @@ export interface RankingDataset {
   /** 場中ビルド時のセッション経過率(0..1)。1=引け後/完全な日足。 */
   sessionProgress?: number;
 }
+
+// ---------------------------------------------------------------------------
+// 外部データソース(他リポジトリが生成するデータの型)。
+// IO非依存の型のみ。取得(fetch)は src/web 側で行う。
+// ---------------------------------------------------------------------------
+
+/** 開示の重要度。 */
+export type DisclosureImpact = 'high' | 'medium' | 'low';
+
+/** 開示の株価インパクトの向き。 */
+export type DisclosureDirection = 'positive' | 'negative' | 'neutral' | 'unknown';
+
+/** 決算開示に付与されることがある要約(任意)。 */
+export interface EarningsSummary {
+  period: string;
+  figures: { label: string; value: string; yoy?: string }[];
+  dividend?: string;
+  forecast?: string;
+  comment?: string;
+  source: 'llm' | 'regex';
+}
+
+/**
+ * 適時開示 1件(Stock_open_news 生成)。
+ * code は4-5桁の証券コード文字列だが、不明な場合は空文字。
+ */
+export interface Disclosure {
+  id: string;
+  time: string; // ISO8601 (JST, +09:00)
+  code: string;
+  company: string;
+  title: string;
+  pdf_url: string;
+  exchange: string;
+  markets: string;
+  source: string;
+  category: string;
+  score: number; // 0-100
+  impact: DisclosureImpact;
+  direction: DisclosureDirection;
+  urgent: boolean;
+  summary: string;
+  reasons: string[];
+  analyzed_by: string;
+  analyzed_at: string;
+  confidence: number; // 0-100
+  is_correction: boolean;
+  tags: string[];
+  earnings?: EarningsSummary;
+}
+
+/** docs/data/disclosures.json のトップレベル形。 */
+export interface DisclosuresFeed {
+  updated_at: string;
+  count: number;
+  items: Disclosure[];
+}
+
+// sector-monitor データ契約 schema_version 2(2026-07時点)。
+// 旧: 単一 sector.json + markets.{JP,US} + 銘柄ごとの ticker/price 埋め込み。
+// 新: 地域ごとに sector_jp.json / sector_us.json を分割(数MB規模のため)。
+// members は各セクター上位30件のみ(count が全構成数)。ticker/price フィールドは無い。
+// JP/US はタブ切替時に遅延fetchし、初期表示では両方読み込まない。
+
+/** セクター構成銘柄 1件(sector-monitor 生成, schema v2)。price は含まれない。 */
+export interface SectorMember {
+  code: string;
+  name: string;
+  tier: string;
+  change_pct: number | null;
+}
+
+/** セクター(テーマ)1件。members は上位30件のみ、count が全構成数。 */
+export interface SectorEntry {
+  name: string;
+  change_pct: number | null;
+  count: number;
+  members: SectorMember[];
+}
+
+/** sector_jp.json / sector_us.json のトップレベル形(地域ごとに1ファイル)。 */
+export interface SectorFile {
+  schema_version: number;
+  generated_at: string;
+  market: Region;
+  sectors: SectorEntry[];
+}
+
+/**
+ * ticker_index.json の1エントリ(銘柄コード→所属セクター逆引き)。日本株のみ・
+ * 所属セクターは全件(sector_jp.json の上位30件制限を受けない)。
+ * n=名称, c=騰落率(null可), p=現在値(null可), s=[セクター名, Tier] の配列。
+ */
+export interface TickerIndexEntry {
+  n: string;
+  c: number | null;
+  p: number | null;
+  s: [string, string][];
+}
+
+/** ticker_index.json のトップレベル形。 */
+export interface TickerIndexFile {
+  schema_version: number;
+  generated_at: string;
+  tickers: Record<string, TickerIndexEntry>;
+}
