@@ -158,4 +158,73 @@ describe('buildStockProfile', () => {
     const p = buildStockProfile('7203', { disclosures });
     expect(p!.disclosures).toHaveLength(1);
   });
+
+  it('ticker_index のキーが "6758.T" 形式でもフォールバックで一致させる', () => {
+    const tickerIndex: TickerIndexFile = {
+      schema_version: 2,
+      generated_at: '2026-07-11T10:00:00Z',
+      tickers: {
+        '6758.T': { n: 'ソニーG', c: 2.1, p: 12345, s: [['半導体', 'S']] },
+      },
+    };
+    const p = buildStockProfile('6758', { tickerIndex });
+    expect(p!.name).toBe('ソニーG');
+    expect(p!.sectors).toHaveLength(1);
+  });
+
+  it('セクター構成銘柄の code が ".T" 付き・小文字でも一致させる', () => {
+    const sectorUS: SectorFile = {
+      schema_version: 2,
+      generated_at: '2026-07-11T10:00:00Z',
+      market: 'US',
+      sectors: [
+        {
+          name: 'Semiconductors',
+          change_pct: 1.5,
+          count: 50,
+          members: [{ code: 'nvda.US', name: 'NVIDIA Corp', tier: 'S', change_pct: 3.2 }],
+        },
+      ],
+    };
+    const p = buildStockProfile('NVDA', { sectorUS });
+    expect(p!.name).toBe('NVIDIA Corp');
+    expect(p!.sectors).toHaveLength(1);
+  });
+
+  it('クラス株(BRK.B)は BRK と混同しない', () => {
+    const sectorUS: SectorFile = {
+      schema_version: 2,
+      generated_at: '2026-07-11T10:00:00Z',
+      market: 'US',
+      sectors: [
+        {
+          name: 'Financials',
+          change_pct: 0.5,
+          count: 10,
+          members: [{ code: 'BRK.B', name: 'Berkshire Hathaway B', tier: 'S', change_pct: 1.0 }],
+        },
+      ],
+    };
+    expect(buildStockProfile('BRK.B', { sectorUS })!.name).toBe('Berkshire Hathaway B');
+    expect(buildStockProfile('BRK', { sectorUS })!.name).toBeNull();
+  });
+
+  it('5桁コード(ETF等)の開示・ランキングも突き合わせられる', () => {
+    const rankingsJP = makeRankings([{ code: '13010', name: 'ETFサンプル', turnover: 300 }]);
+    const disclosures: DisclosuresFeed = {
+      updated_at: '2026-07-11T10:00:00+09:00',
+      count: 1,
+      items: [makeDisclosure({ id: 'e', code: '13010' })],
+    };
+    const p = buildStockProfile('13010.T', { rankingsJP, disclosures });
+    expect(p!.code).toBe('13010');
+    expect(p!.name).toBe('ETFサンプル');
+    expect(p!.disclosures).toHaveLength(1);
+  });
+
+  it('開示 items が壊れた形(配列以外)でも落ちない', () => {
+    const broken = { updated_at: '', count: 0, items: null } as unknown as DisclosuresFeed;
+    const p = buildStockProfile('7203', { disclosures: broken });
+    expect(p!.disclosures).toEqual([]);
+  });
 });

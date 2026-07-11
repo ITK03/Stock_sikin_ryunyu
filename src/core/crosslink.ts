@@ -60,6 +60,11 @@ export interface StockProfile {
   disclosures: Disclosure[];
 }
 
+/** 行の code が正規化後に一致するか(完全一致を先に試す高速パス付き)。 */
+function rowCodeMatches(rowCode: string, code: string): boolean {
+  return rowCode === code || normalizeCode(rowCode) === code;
+}
+
 function findRegionRankingInfo(
   code: string,
   region: Region,
@@ -67,15 +72,15 @@ function findRegionRankingInfo(
 ): RegionRankingInfo | null {
   if (!ds) return null;
 
-  const row1 = ds.ranking1?.find((r) => r.code === code);
+  const row1 = ds.ranking1?.find((r) => rowCodeMatches(r.code, code));
   const ranking1 = row1?.rank;
 
   const ranking2: RankingHit[] = [];
   const ranking3: RankingHit[] = [];
   for (const period of PERIOD_KEYS) {
-    const row2 = ds.ranking2?.[period]?.find((r) => r.code === code);
+    const row2 = ds.ranking2?.[period]?.find((r) => rowCodeMatches(r.code, code));
     if (row2) ranking2.push({ period, rank: row2.rank });
-    const row3 = ds.ranking3?.[period]?.find((r) => r.code === code);
+    const row3 = ds.ranking3?.[period]?.find((r) => rowCodeMatches(r.code, code));
     if (row3) ranking3.push({ period, rank: row3.rank });
   }
 
@@ -86,12 +91,12 @@ function findRegionRankingInfo(
 /** ランキングデータセットの中から、その銘柄コードの名称を探す(どのリストでもよい)。 */
 function nameFromRankings(code: string, ds: RankingDataset | undefined): string | null {
   if (!ds) return null;
-  const direct = ds.ranking1?.find((r) => r.code === code);
+  const direct = ds.ranking1?.find((r) => rowCodeMatches(r.code, code));
   if (direct) return direct.name;
   for (const period of PERIOD_KEYS) {
-    const row2 = ds.ranking2?.[period]?.find((r) => r.code === code);
+    const row2 = ds.ranking2?.[period]?.find((r) => rowCodeMatches(r.code, code));
     if (row2) return row2.name;
-    const row3 = ds.ranking3?.[period]?.find((r) => r.code === code);
+    const row3 = ds.ranking3?.[period]?.find((r) => rowCodeMatches(r.code, code));
     if (row3) return row3.name;
   }
   return null;
@@ -106,13 +111,24 @@ interface SectorLookup {
 
 /** ticker_index.json(日本株のみ・所属セクター全件)から検索する。 */
 function fromTickerIndex(code: string, tickerIndex: TickerIndexFile | null | undefined): SectorLookup | null {
-  const e = tickerIndex?.tickers?.[code];
+  const tickers = tickerIndex?.tickers;
+  if (!tickers) return null;
+  let e = tickers[code];
+  if (!e) {
+    // キーが "6758.T" 等の表記ゆれで格納されている場合に備えたフォールバック。
+    for (const k of Object.keys(tickers)) {
+      if (normalizeCode(k) === code) {
+        e = tickers[k];
+        break;
+      }
+    }
+  }
   if (!e) return null;
   return {
     name: e.n,
     price: e.p,
     changePct: e.c,
-    sectors: e.s.map(([name, tier]) => ({ name, tier, market: 'JP' as Region })),
+    sectors: (e.s ?? []).map(([name, tier]) => ({ name, tier, market: 'JP' as Region })),
   };
 }
 
@@ -129,8 +145,8 @@ function fromSectorFileMembers(
   const sectors: StockSectorMembership[] = [];
   let name: string | null = null;
   let changePct: number | null = null;
-  for (const sec of sectorFile.sectors) {
-    const m = sec.members.find((mm) => mm.code === code);
+  for (const sec of sectorFile.sectors ?? []) {
+    const m = (sec.members ?? []).find((mm) => rowCodeMatches(mm.code, code));
     if (m) {
       sectors.push({ name: sec.name, tier: m.tier, market: region });
       name = name ?? m.name;
@@ -177,7 +193,9 @@ export function buildStockProfile(rawCode: string, sources: CrosslinkSources): S
     nameFromRankings(code, sources.rankingsUS) ??
     null;
 
-  const disclosures = (sources.disclosures?.items ?? [])
+  // items が壊れた形(配列以外)でも落ちないよう防御的に扱う。
+  const items = Array.isArray(sources.disclosures?.items) ? sources.disclosures!.items : [];
+  const disclosures = items
     .filter((d) => normalizeCode(d.code) === code)
     .slice()
     .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));

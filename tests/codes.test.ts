@@ -26,6 +26,26 @@ describe('normalizeCode', () => {
     expect(normalizeCode('7203円')).toBeNull();
     expect(normalizeCode('N/A')).toBeNull();
   });
+
+  it('5桁コード(ETF等)もそのまま扱う', () => {
+    expect(normalizeCode('13010')).toBe('13010');
+    expect(normalizeCode('13010.T')).toBe('13010');
+  });
+
+  it('小文字の取引所サフィックスも除去する', () => {
+    expect(normalizeCode('6758.t')).toBe('6758');
+  });
+
+  it('クラス株表記(.B / -B)は取引所サフィックスではないので保持する', () => {
+    expect(normalizeCode('BRK.B')).toBe('BRK.B');
+    expect(normalizeCode('brk-b')).toBe('BRK-B');
+  });
+
+  it('末尾が区切り文字だけになる不正な値は null', () => {
+    expect(normalizeCode('.T')).toBeNull();
+    expect(normalizeCode('BRK.')).toBeNull();
+    expect(normalizeCode('BRK-')).toBeNull();
+  });
 });
 
 describe('isJpCode', () => {
