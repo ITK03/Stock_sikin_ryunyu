@@ -27,6 +27,18 @@ export function pct(v: number): string {
   return `${(v * 100).toFixed(2)}%`;
 }
 
+/** 騰落率(%単位の値, 例 2.1)を符号付きで表記。null/undefined は「—」。 */
+export function signedPct(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+}
+
+/** 価格を地域通貨で簡潔に表記。null/undefined は「—」。 */
+export function priceText(v: number | null | undefined, region: Region): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return region === 'US' ? `$${v.toFixed(2)}` : `${v.toLocaleString('ja-JP', { maximumFractionDigits: 1 })}円`;
+}
+
 export const MARKET_LABEL: Record<MarketSegment, string> = {
   Prime: 'プライム',
   Standard: 'スタンダード',
@@ -36,6 +48,22 @@ export const MARKET_LABEL: Record<MarketSegment, string> = {
   AMEX: 'AMEX',
   Other: 'その他',
 };
+
+/**
+ * "+09:00" 付きの ISO8601 文字列から時刻(HH:MM)部分だけを、タイムゾーン変換せず
+ * 文字列operationで取り出す(開示データは常にJST表記のため、閲覧者のローカルTZに
+ * 依存させたくない)。形式が想定外の場合は空文字。
+ */
+export function jstTime(iso: string): string {
+  const m = /T(\d{2}:\d{2})/.exec(iso);
+  return m ? m[1] : '';
+}
+
+/** 同様に日付(MM/DD)部分だけを取り出す。 */
+export function jstDate(iso: string): string {
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[1]}/${m[2]}` : '';
+}
 
 /** ISO時刻を「◯分前 / ◯時間前」表記へ。 */
 export function relTime(iso: string): string {

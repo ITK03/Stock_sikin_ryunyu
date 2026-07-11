@@ -11,6 +11,8 @@ interface Props {
   region: Region;
   /** ④のとき 'surge'(急増倍率表示)。既定は 'ratio'(比率%表示)。 */
   metric?: 'ratio' | 'surge';
+  /** 指定時、銘柄コードをタップ可能にして銘柄詳細を開く。 */
+  onSelectCode?: (code: string) => void;
 }
 
 const segClass: Record<string, string> = {
@@ -32,12 +34,21 @@ const surgeText = (surge: number | undefined) => {
   return `${pctInc >= 0 ? '+' : ''}${pctInc.toLocaleString()}%`;
 };
 
-export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio' }: Props) {
+export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio', onSelectCode }: Props) {
   if (rows.length === 0) {
     return <p className="empty">該当する銘柄がありません。</p>;
   }
 
   const isSurge = metric === 'surge';
+
+  const CodeTag = ({ code, className }: { code: string; className: string }) =>
+    onSelectCode ? (
+      <button type="button" className={`${className} code-tap`} onClick={() => onSelectCode(code)}>
+        {code}
+      </button>
+    ) : (
+      <span className={className}>{code}</span>
+    );
 
   if (density === 'compact') {
     return (
@@ -45,7 +56,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
         {rows.map((r, i) => (
           <li key={r.code} className="row">
             <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
-            <span className="r-code">{r.code}</span>
+            <CodeTag code={r.code} className="r-code" />
             <span className="r-name">{r.name}</span>
             <span className="r-ratio">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</span>
             <span className="r-sub">
@@ -78,7 +89,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
               <div className="ident">
                 <div className="name">{r.name}</div>
                 <div className="sub">
-                  <span className="code">{r.code}</span>
+                  <CodeTag code={r.code} className="code" />
                   <span className={`seg ${segClass[r.market] ?? 'seg-other'}`}>
                     {MARKET_LABEL[r.market]}
                   </span>
