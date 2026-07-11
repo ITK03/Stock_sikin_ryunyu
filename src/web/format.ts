@@ -65,9 +65,15 @@ export function jstDate(iso: string): string {
   return m ? `${m[1]}/${m[2]}` : '';
 }
 
-/** ISO時刻を「◯分前 / ◯時間前」表記へ。 */
+/**
+ * ISO時刻を「◯分前 / ◯時間前」表記へ。
+ * パース不能な値は空文字("NaN分前"を出さない)。生成時刻が端末時計より未来の場合
+ * (時計ずれ・TZオフセット無し表記)は「たった今」に丸める。
+ */
 export function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  const diff = Date.now() - t;
   const min = Math.floor(diff / 60000);
   if (min < 1) return 'たった今';
   if (min < 60) return `${min}分前`;

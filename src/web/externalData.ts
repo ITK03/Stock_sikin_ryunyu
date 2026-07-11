@@ -32,10 +32,21 @@ function sessionCacheGet<T>(key: string, ttlMs: number): T | null {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const env = JSON.parse(raw) as CacheEnvelope<T>;
+    const env = JSON.parse(raw) as Partial<CacheEnvelope<T>> | null;
+    // 破損データ(形が違う・tが数値でない等)はキャッシュ無し扱いにして捨てる。
+    if (env === null || typeof env !== 'object' || typeof env.t !== 'number' || !('v' in env) || env.v == null) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
     if (Date.now() - env.t > ttlMs) return null;
-    return env.v;
+    return env.v as T;
   } catch {
+    // JSONパース失敗など。壊れたエントリは次回のために削除を試みる。
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // sessionStorage 自体が使えない環境では何もしない。
+    }
     return null;
   }
 }
@@ -49,19 +60,30 @@ function sessionCacheSet<T>(key: string, v: T): void {
   }
 }
 
-/** 候補URLを順に試し、最初に成功した JSON を返す。全滅時は最後のエラーを投げる。 */
+/** 1候補あたりの取得タイムアウト。応答しないURLで次の候補へのフォールバックが止まるのを防ぐ。 */
+const FETCH_TIMEOUT_MS = 15 * 1000;
+
+/**
+ * 候補URLを順に試し、最初に成功した JSON を返す。全滅時は最後のエラーを投げる。
+ * 各候補は AbortController でタイムアウトさせる(ハングしたURLに全体が引きずられない)。
+ */
 async function fetchFirstOk<T>(urls: string[]): Promise<T> {
   let lastErr: unknown = new Error('候補URLがありません');
   for (const url of urls) {
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', signal: ac.signal });
       if (!res.ok) {
         lastErr = new Error(`HTTP ${res.status}`);
         continue;
       }
+      // JSONパース失敗(壊れたレスポンス)も次の候補URLへフォールバックする。
       return (await res.json()) as T;
     } catch (e) {
-      lastErr = e;
+      lastErr = e instanceof DOMException && e.name === 'AbortError' ? new Error('タイムアウト') : e;
+    } finally {
+      window.clearTimeout(timer);
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
