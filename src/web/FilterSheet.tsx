@@ -1,3 +1,4 @@
+import { useSheetBehavior } from './useSheet';
 import type { Region } from '../core/types';
 
 interface FilterValues {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function FilterSheet({ filters, onChange, onClose, region }: Props) {
+  useSheetBehavior(onClose);
   const set = (key: keyof FilterValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...filters, [key]: e.target.value });
 

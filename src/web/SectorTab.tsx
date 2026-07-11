@@ -56,6 +56,8 @@ export function SectorTab({ onSelectCode }: Props) {
     setMarket(m);
     setQuery('');
     setVisibleCount(PAGE_SIZE);
+    // 市場をまたいで同名セクターが誤って展開済みにならないようリセットする。
+    setExpanded(new Set());
   };
 
   const allSectors = useMemo(() => (data ? sortSectors(data.sectors) : []), [data]);

@@ -24,11 +24,16 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
   const [query, setQuery] = useState('');
 
   const items = useMemo(() => {
-    const all = data?.items ?? [];
+    const all = Array.isArray(data?.items) ? data!.items : [];
     const qCode = normalizeCode(query);
     return all
       .filter((d) => d.score >= minScore)
-      .filter((d) => (qCode ? normalizeCode(d.code) === qCode : true))
+      .filter((d) => {
+        if (!qCode) return true;
+        // 前方一致にする(「72」まで入力した時点で 7203 等が出るように)。
+        const dc = normalizeCode(d.code);
+        return dc !== null && dc.startsWith(qCode);
+      })
       .slice()
       .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
   }, [data, minScore, query]);

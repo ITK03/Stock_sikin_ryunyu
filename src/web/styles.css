@@ -696,6 +696,10 @@ body {
 
 .main-area { min-height: 40vh; }
 
+/* 訪問済みタブはアンマウントせず hidden で隠す(状態保持)。表示中はレイアウトに影響させない。 */
+.tab-host { display: contents; }
+.tab-host[hidden] { display: none; }
+
 .tab-pane { display: flex; flex-direction: column; }
 
 /* Inflowタブの地域切替+基準日行(旧appbar相当。Logo/タイトルは上位シェルへ移設)。 */

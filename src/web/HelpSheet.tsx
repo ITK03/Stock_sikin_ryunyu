@@ -1,9 +1,11 @@
+import { useSheetBehavior } from './useSheet';
 interface Props {
   topK: number;
   onClose: () => void;
 }
 
 export function HelpSheet({ topK, onClose }: Props) {
+  useSheetBehavior(onClose);
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">

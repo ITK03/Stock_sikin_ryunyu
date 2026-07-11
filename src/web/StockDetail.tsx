@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buildStockProfile } from '../core/crosslink';
-import type { DisclosuresFeed, RankingDataset, SectorFile, TickerIndexFile } from '../core/types';
+import { isJpCode } from '../core/codes';
+import type { DisclosuresFeed, RankingDataset, Region, SectorFile, TickerIndexFile } from '../core/types';
 import { PERIODS } from '../core/periods';
 import { useLazyExternalJson } from './externalData';
 import { SECTOR_US_URL, TICKER_INDEX_URL } from './externalSources';
@@ -8,6 +9,7 @@ import { SAMPLE_SECTOR_US, SAMPLE_TICKER_INDEX } from '../data/sampleSector';
 import { priceText, signedPct } from './format';
 import { TierBadge } from './TierBadge';
 import { DisclosureItem } from './DisclosureItem';
+import { useSheetBehavior } from './useSheet';
 
 interface Props {
   code: string;
@@ -19,7 +21,50 @@ interface Props {
 
 const periodLabel = (key: string) => PERIODS.find((p) => p.key === key)?.label ?? key;
 
+// 資金流入タブを一度も開いていない状態で銘柄詳細を開いた場合のフォールバック。
+// 自リポジトリの rankings*.json をここで読み込む(モジュールスコープで1回だけ)。
+// サンプルモードでも実ファイル(build:data:sample の生成物)を読むため分岐しない。
+const rankingsFallbackCache = new Map<Region, Promise<RankingDataset>>();
+
+function loadRankingsOnce(region: Region): Promise<RankingDataset> {
+  const cached = rankingsFallbackCache.get(region);
+  if (cached) return cached;
+  const file = region === 'US' ? 'rankings.us.json' : 'rankings.json';
+  const p = fetch(`${import.meta.env.BASE_URL}data/${file}`, { cache: 'no-store' })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<RankingDataset>;
+    })
+    .catch((e) => {
+      rankingsFallbackCache.delete(region); // 失敗時は次回の再試行を可能にする
+      throw e;
+    });
+  rankingsFallbackCache.set(region, p);
+  return p;
+}
+
+/** 上位(App)からデータが渡ってこない場合のみ、該当地域のランキングを遅延取得する。 */
+function useRankingsFallback(region: Region, provided: RankingDataset | undefined, needed: boolean) {
+  const [ds, setDs] = useState<RankingDataset | null>(null);
+  useEffect(() => {
+    if (provided || !needed) return;
+    let cancelled = false;
+    loadRankingsOnce(region)
+      .then((v) => {
+        if (!cancelled) setDs(v);
+      })
+      .catch(() => {
+        // 順位はベストエフォート表示のため、取得失敗は「データなし」のままにする。
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [region, provided, needed]);
+  return provided ?? ds ?? undefined;
+}
+
 export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose }: Props) {
+  useSheetBehavior(onClose);
   // ticker_index(日本株の横断インデックス)・sector_us.json は数MB規模になり得るため、
   // 銘柄詳細を最初に開いたとき(=このコンポーネントが初めてマウントされたとき)だけ
   // 遅延fetchする。sector_us.json はセクタータブで既に取得済みならメモリキャッシュを再利用する。
@@ -36,16 +81,22 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
     enabled: true,
   });
 
+  // 日本株コードなら JP ランキング、それ以外(米国ティッカー)なら US ランキングだけを
+  // フォールバック対象にする(両方読むと無駄な転送になるため)。
+  const jp = isJpCode(code);
+  const effRankingsJP = useRankingsFallback('JP', rankingsJP, jp);
+  const effRankingsUS = useRankingsFallback('US', rankingsUS, !jp);
+
   const profile = useMemo(
     () =>
       buildStockProfile(code, {
-        rankingsJP,
-        rankingsUS,
+        rankingsJP: effRankingsJP,
+        rankingsUS: effRankingsUS,
         tickerIndex: tickerIndexState.data,
         sectorUS: sectorUSState.data,
         disclosures,
       }),
-    [code, rankingsJP, rankingsUS, tickerIndexState.data, sectorUSState.data, disclosures],
+    [code, effRankingsJP, effRankingsUS, tickerIndexState.data, sectorUSState.data, disclosures],
   );
 
   // 所属セクター/現在値はまだ読み込み中の可能性があるので、「データなし」と誤解させない。

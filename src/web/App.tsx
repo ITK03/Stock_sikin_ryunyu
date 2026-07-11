@@ -17,12 +17,20 @@ const TITLE: Record<MainTabKey, string> = {
 };
 
 function loadMainTab(): MainTabKey {
-  const v = localStorage.getItem('mainTab');
-  return v === 'sector' || v === 'disclosures' || v === 'inflow' ? v : 'inflow';
+  // localStorage はプライベートモード等で例外を投げうるため防御する。
+  try {
+    const v = localStorage.getItem('mainTab');
+    return v === 'sector' || v === 'disclosures' || v === 'inflow' ? v : 'inflow';
+  } catch {
+    return 'inflow';
+  }
 }
 
 export function App() {
   const [mainTab, setMainTab] = useState<MainTabKey>(loadMainTab);
+  // 一度でも表示したタブはアンマウントせず hidden で隠す(タブ切替のたびに
+  // 状態(選択中の期間・スクロール等)が失われ、データを再フェッチするのを防ぐ)。
+  const [visited, setVisited] = useState<Set<MainTabKey>>(() => new Set([loadMainTab()]));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [rankingsCache, setRankingsCache] = useState<Partial<Record<Region, RankingDataset>>>({});
 
@@ -38,7 +46,12 @@ export function App() {
 
   const changeTab = (t: MainTabKey) => {
     setMainTab(t);
-    localStorage.setItem('mainTab', t);
+    setVisited((prev) => (prev.has(t) ? prev : new Set(prev).add(t)));
+    try {
+      localStorage.setItem('mainTab', t);
+    } catch {
+      // 保存できなくても動作には影響しない。
+    }
   };
 
   const onDatasetLoaded = (region: Region, dataset: RankingDataset) => {
@@ -68,12 +81,20 @@ export function App() {
       </nav>
 
       <main className="main-area">
-        {mainTab === 'inflow' && (
-          <InflowTab onSelectCode={setSelectedCode} onDatasetLoaded={onDatasetLoaded} />
+        {visited.has('inflow') && (
+          <div className="tab-host" hidden={mainTab !== 'inflow'}>
+            <InflowTab onSelectCode={setSelectedCode} onDatasetLoaded={onDatasetLoaded} />
+          </div>
         )}
-        {mainTab === 'sector' && <SectorTab onSelectCode={setSelectedCode} />}
-        {mainTab === 'disclosures' && (
-          <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
+        {visited.has('sector') && (
+          <div className="tab-host" hidden={mainTab !== 'sector'}>
+            <SectorTab onSelectCode={setSelectedCode} />
+          </div>
+        )}
+        {visited.has('disclosures') && (
+          <div className="tab-host" hidden={mainTab !== 'disclosures'}>
+            <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
+          </div>
         )}
       </main>
 

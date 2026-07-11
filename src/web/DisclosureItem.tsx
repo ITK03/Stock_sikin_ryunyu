@@ -1,4 +1,5 @@
 import type { Disclosure } from '../core/types';
+import { isJpCode } from '../core/codes';
 import { jstDate, jstTime } from './format';
 
 interface Props {
@@ -30,7 +31,9 @@ const IMPACT_CLASS: Record<Disclosure['impact'], string> = {
 
 /** 開示 1件の表示行。DisclosuresTab / StockDetail 双方から共有する。 */
 export function DisclosureItem({ d, onSelectCode, showDate = true }: Props) {
-  const hasCode = d.code.trim() !== '';
+  // 実フィードには "Copy" のような証券コードでないゴミ値が混ざることがある。
+  // 契約上コードは4-5桁の数字なので、日本株コードとして妥当な場合のみ表示・タップ可能にする。
+  const hasCode = isJpCode(d.code);
   return (
     <li className="disc-item">
       <div className="disc-top">
