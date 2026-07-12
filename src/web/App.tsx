@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import type { DisclosuresFeed, RankingDataset, Region } from '../core/types';
 import { Logo } from './Logo';
-import { InflowTab } from './InflowTab';
+import { HomeTab } from './HomeTab';
 import type { SectorFocus } from './SectorTab';
 import { BottomTabBar, type MainTabKey } from './BottomTabBar';
 import { useExternalJson } from './externalData';
@@ -9,11 +9,13 @@ import { DISCLOSURES_URLS, DISCLOSURE_RADAR_URL, SECTOR_MONITOR_STREAMLIT_URL } 
 import { SAMPLE_DISCLOSURES } from '../data/sampleDisclosures';
 import { WatchlistProvider } from './watchlist';
 
-// 初期表示は資金流入タブのみでよいため、セクター/開示タブと銘柄詳細は
+// 起動時に表示するのはホーム(概況)タブのみでよいため、他タブと銘柄詳細・検索は
 // タブ単位で遅延読み込みして初期バンドルを小さくする(モバイル回線での体感改善)。
+const InflowTab = lazy(() => import('./InflowTab').then((m) => ({ default: m.InflowTab })));
 const SectorTab = lazy(() => import('./SectorTab').then((m) => ({ default: m.SectorTab })));
 const DisclosuresTab = lazy(() => import('./DisclosuresTab').then((m) => ({ default: m.DisclosuresTab })));
 const StockDetail = lazy(() => import('./StockDetail').then((m) => ({ default: m.StockDetail })));
+const SearchSheet = lazy(() => import('./SearchSheet').then((m) => ({ default: m.SearchSheet })));
 
 function LazyFallback() {
   return (
@@ -25,6 +27,7 @@ function LazyFallback() {
 }
 
 const TITLE: Record<MainTabKey, string> = {
+  home: '今日の概況',
   inflow: '資金流入株',
   sector: 'セクター騰落',
   disclosures: '適時開示',
@@ -34,9 +37,9 @@ function loadMainTab(): MainTabKey {
   // localStorage はプライベートモード等で例外を投げうるため防御する。
   try {
     const v = localStorage.getItem('mainTab');
-    return v === 'sector' || v === 'disclosures' || v === 'inflow' ? v : 'inflow';
+    return v === 'home' || v === 'sector' || v === 'disclosures' || v === 'inflow' ? v : 'home';
   } catch {
-    return 'inflow';
+    return 'home';
   }
 }
 
@@ -47,6 +50,7 @@ export function App() {
   const [visited, setVisited] = useState<Set<MainTabKey>>(() => new Set([loadMainTab()]));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [rankingsCache, setRankingsCache] = useState<Partial<Record<Region, RankingDataset>>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // 開示は数百件〜1千件程度で小さいため、ここで一度だけ取得し各タブ・銘柄詳細(横断連携)へ
   // 状態として配る(タブごとに個別フェッチすると二重リクエストになるため)。
@@ -90,6 +94,17 @@ export function App() {
             <h1>{TITLE[mainTab]}</h1>
           </div>
         </div>
+        <button
+          type="button"
+          className="header-search-btn"
+          onClick={() => setSearchOpen(true)}
+          aria-label="銘柄を検索"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2.2" />
+            <path d="M20 20l-4.3-4.3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </button>
       </header>
 
       <nav className="ext-links">
@@ -104,9 +119,23 @@ export function App() {
       </nav>
 
       <main className="main-area">
+        {visited.has('home') && (
+          <div className="tab-host" hidden={mainTab !== 'home'}>
+            <HomeTab
+              onSelectCode={setSelectedCode}
+              onGoTab={changeTab}
+              onOpenSector={openSector}
+              disclosuresState={disclosuresState}
+              rankingsCache={rankingsCache}
+              onDatasetLoaded={onDatasetLoaded}
+            />
+          </div>
+        )}
         {visited.has('inflow') && (
           <div className="tab-host" hidden={mainTab !== 'inflow'}>
-            <InflowTab onSelectCode={setSelectedCode} onDatasetLoaded={onDatasetLoaded} />
+            <Suspense fallback={<LazyFallback />}>
+              <InflowTab onSelectCode={setSelectedCode} onDatasetLoaded={onDatasetLoaded} />
+            </Suspense>
           </div>
         )}
         {visited.has('sector') && (
@@ -136,6 +165,18 @@ export function App() {
             disclosures={disclosuresState.data}
             onClose={() => setSelectedCode(null)}
             onOpenSector={openSector}
+          />
+        </Suspense>
+      )}
+
+      {searchOpen && (
+        <Suspense fallback={null}>
+          <SearchSheet
+            rankingsJP={rankingsCache.JP}
+            rankingsUS={rankingsCache.US}
+            disclosures={disclosuresState.data}
+            onSelectCode={setSelectedCode}
+            onClose={() => setSearchOpen(false)}
           />
         </Suspense>
       )}

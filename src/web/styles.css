@@ -1092,3 +1092,93 @@ button.sector-jump:active { opacity: 0.7; }
   color: #1c1917;
   border-color: transparent;
 }
+
+/* ---------- ヘッダー検索(横断銘柄検索) ---------- */
+.header-search-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.header-search-btn:active { transform: scale(0.94); }
+
+.search-sheet-input { width: 100%; margin-bottom: 4px; }
+.search-hint { padding: 14px 2px; }
+.search-results { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+.search-results li + li { border-top: 1px solid var(--line-soft); }
+.search-result-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 4px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.search-result-row:active { background: var(--surface-2); }
+.search-result-code {
+  flex: none;
+  width: 52px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+.search-result-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-result-region { flex: none; font-size: 10px; font-weight: 700; color: var(--muted); }
+
+/* ---------- ホームタブ(今日の概況) ---------- */
+.home-pane { display: flex; flex-direction: column; gap: 22px; padding-top: 4px; }
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 9px;
+}
+.home-section-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.home-section-count { font-size: 11px; font-weight: 700; color: var(--muted); }
+.home-section-foot { margin: 6px 2px 0; font-size: 10.5px; text-align: right; }
+
+.row-tap { cursor: pointer; }
+.row-tap:active { background: var(--surface-2); }
+
+.home-disc-list { gap: 8px; }
+.home-disc-list .disc-item { padding: 10px 12px; }
+
+.home-sector-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.home-sector-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--surface) 0%, #0f1828 100%);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.home-sector-row:active { transform: scale(0.98); }
+.home-sector-row .sector-chg { font-size: 13.5px; }
+
+.home-skel { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
