@@ -1020,3 +1020,70 @@ body {
 }
 .detail-disc-list { margin-top: 2px; }
 .detail-disc-list .disc-item { padding: 10px 12px; }
+
+/* ---------- ウォッチリスト ---------- */
+.star-btn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+.star-btn:active { transform: scale(1.25); }
+.star-btn.on { color: #fbbf24; }
+.star-btn.star-lg { font-size: 20px; margin-left: auto; margin-right: 8px; }
+.sheet-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.chip.watch { color: #fbbf24; border-color: rgba(251, 191, 36, 0.35); }
+.chip.watch.active {
+  background: linear-gradient(120deg, #fbbf24, #f59e0b);
+  color: #1c1917;
+  border-color: transparent;
+}
+
+/* ウォッチ銘柄の開示を強調 */
+.disc-item.watched { border-left: 3px solid #fbbf24; }
+.disc-watch-mark { color: #fbbf24; font-size: 12px; }
+
+/* 銘柄詳細: セクター名タップでセクタータブへジャンプ */
+button.sector-jump {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent-2);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(56, 189, 248, 0.4);
+  text-underline-offset: 3px;
+}
+button.sector-jump:active { opacity: 0.7; }
+
+.disc-more { margin: 8px auto 2px; display: block; }
+
+/* ---------- 開示: 日付切替・速報フィルタ ---------- */
+.disc-toprow { display: flex; gap: 8px; }
+.disc-toprow .disc-search { flex: 1; min-width: 0; }
+.disc-day {
+  flex: none;
+  max-width: 45%;
+  padding: 10px 10px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.chip.urgent-chip { color: #fca5a5; border-color: rgba(252, 165, 165, 0.35); }
+.chip.urgent-chip.active {
+  background: linear-gradient(120deg, #f87171, #fb923c);
+  color: #1c1917;
+  border-color: transparent;
+}

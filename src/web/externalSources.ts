@@ -6,6 +6,20 @@ export const DISCLOSURES_URLS = [
   'https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/disclosures.json',
 ];
 
+// 開示の日付別アーカイブ索引(過去日に遡って閲覧するための日付一覧)。
+export const DISCLOSURES_ARCHIVE_INDEX_URLS = [
+  'https://itk03.github.io/Stock_open_news/data/archive/index.json',
+  'https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/archive/index.json',
+];
+
+/** 指定日(YYYY-MM-DD)の開示アーカイブの候補URL。disclosures.json と同形。 */
+export function disclosuresArchiveUrls(date: string): string[] {
+  return [
+    `https://itk03.github.io/Stock_open_news/data/archive/${date}.json`,
+    `https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/archive/${date}.json`,
+  ];
+}
+
 // セクター(sector-monitor, データ契約 schema_version 2): 専用ブランチ `data` のルート直下。
 // 旧 itk03.github.io 系のセクターURLは廃止された。地域ごとにファイルが分割され、
 // 数MB規模になり得るため JP/US はタブ切替時に遅延fetchする(externalData.ts 側で制御)。

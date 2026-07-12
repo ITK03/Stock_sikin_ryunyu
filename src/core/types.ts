@@ -135,6 +135,12 @@ export interface DisclosuresFeed {
   items: Disclosure[];
 }
 
+/** docs/data/archive/index.json(日付別アーカイブの索引)のトップレベル形。 */
+export interface DisclosuresArchiveIndex {
+  updated_at: string;
+  dates: { date: string; count: number }[];
+}
+
 // sector-monitor データ契約 schema_version 2(2026-07時点)。
 // 旧: 単一 sector.json + markets.{JP,US} + 銘柄ごとの ticker/price 埋め込み。
 // 新: 地域ごとに sector_jp.json / sector_us.json を分割(数MB規模のため)。

@@ -1,13 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Region, SectorEntry, SectorFile } from '../core/types';
 import { useLazyExternalJson } from './externalData';
 import { SECTOR_JP_URL, SECTOR_US_URL } from './externalSources';
 import { SAMPLE_SECTOR_JP, SAMPLE_SECTOR_US } from '../data/sampleSector';
 import { relTime, signedPct } from './format';
 import { TierBadge } from './TierBadge';
+import { WatchStar, useWatchlist } from './watchlist';
+
+/** 銘柄詳細のセクター名タップ等から「このセクターを開いて」と指示するための値。 */
+export interface SectorFocus {
+  name: string;
+  market: Region;
+  /** 同じセクターに再ジャンプしても効くよう、毎回変わる値(タイムスタンプ等)。 */
+  nonce: number;
+}
 
 interface Props {
   onSelectCode: (code: string) => void;
+  focus?: SectorFocus | null;
 }
 
 const PAGE_SIZE = 40;
@@ -30,11 +40,13 @@ function sortSectors(sectors: SectorEntry[]): SectorEntry[] {
   });
 }
 
-export function SectorTab({ onSelectCode }: Props) {
+export function SectorTab({ onSelectCode, focus }: Props) {
   const [market, setMarket] = useState<Region>('JP');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [watchOnly, setWatchOnly] = useState(false);
+  const watchlist = useWatchlist();
 
   // JP/USはタブ切替時に初めて取得する遅延fetch。数MB規模になり得るため、
   // 選択中の市場だけ enabled にする(両方を初期表示で読み込まない)。
@@ -52,6 +64,17 @@ export function SectorTab({ onSelectCode }: Props) {
   });
   const { data, loading, error, sample, reload } = market === 'JP' ? jpState : usState;
 
+  // 銘柄詳細からのジャンプ指示: 市場を合わせ、該当セクターで絞り込み+展開する。
+  useEffect(() => {
+    if (!focus) return;
+    setMarket(focus.market);
+    setQuery(focus.name);
+    setWatchOnly(false);
+    setVisibleCount(PAGE_SIZE);
+    setExpanded(new Set([focus.name]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.nonce]);
+
   const changeMarket = (m: Region) => {
     setMarket(m);
     setQuery('');
@@ -62,11 +85,19 @@ export function SectorTab({ onSelectCode }: Props) {
 
   const allSectors = useMemo(() => (data ? sortSectors(data.sectors) : []), [data]);
 
-  const filtered = useMemo(() => {
+  const byQuery = useMemo(() => {
     const q = query.trim();
     if (!q) return allSectors;
     return allSectors.filter((s) => s.name.includes(q));
   }, [allSectors, query]);
+
+  // 「ウォッチのみ」: ウォッチ銘柄を含むセクターだけを、構成銘柄もウォッチ分に絞って表示。
+  const filtered = useMemo(() => {
+    if (!watchOnly) return byQuery;
+    return byQuery
+      .map((s) => ({ ...s, members: s.members.filter((m) => watchlist.has(m.code)) }))
+      .filter((s) => s.members.length > 0);
+  }, [byQuery, watchOnly, watchlist]);
 
   const visible = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visible.length;
@@ -119,13 +150,20 @@ export function SectorTab({ onSelectCode }: Props) {
             US
           </button>
         </nav>
+        <button
+          className={watchOnly ? 'chip watch active' : 'chip watch'}
+          onClick={() => setWatchOnly((v) => !v)}
+          aria-pressed={watchOnly}
+        >
+          ★ウォッチ
+        </button>
         <div className="sector-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
           {data && <span className="asof-date">{relTime(data.generated_at)}更新</span>}
         </div>
       </div>
 
-      {allSectors.length > 15 && (
+      {(allSectors.length > 15 || query !== '') && (
         <input
           className="disc-search sector-search"
           type="search"
@@ -140,7 +178,9 @@ export function SectorTab({ onSelectCode }: Props) {
 
       {filtered.length === 0 ? (
         <p className="empty">
-          {market === 'US' && allSectors.length === 0
+          {watchOnly
+            ? 'ウォッチ銘柄を含むセクターがありません。'
+            : market === 'US' && allSectors.length === 0
             ? 'US市場のセクターデータはまだありません。'
             : '該当するセクター/テーマがありません。'}
         </p>
@@ -148,7 +188,8 @@ export function SectorTab({ onSelectCode }: Props) {
         <>
           <ul className="sector-list">
             {visible.map((s) => {
-              const isOpen = expanded.has(s.name);
+              // ウォッチのみ表示中は絞り込んだ結果を常に展開して見せる。
+              const isOpen = watchOnly || expanded.has(s.name);
               return (
                 <li key={s.name} className="sector-card">
                   <button className="sector-row" onClick={() => toggle(s.name)} aria-expanded={isOpen}>
@@ -167,6 +208,7 @@ export function SectorTab({ onSelectCode }: Props) {
                     <ul className="member-list">
                       {s.members.map((m) => (
                         <li key={m.code} className="member-row">
+                          <WatchStar code={m.code} />
                           <TierBadge tier={m.tier} />
                           <button
                             type="button"
@@ -179,7 +221,7 @@ export function SectorTab({ onSelectCode }: Props) {
                           <span className={`member-chg ${changeClass(m.change_pct)}`}>{signedPct(m.change_pct)}</span>
                         </li>
                       ))}
-                      {s.count > s.members.length && (
+                      {!watchOnly && s.count > s.members.length && (
                         <li className="member-more dim">他 {s.count - s.members.length} 銘柄(上位{s.members.length}件のみ表示)</li>
                       )}
                     </ul>

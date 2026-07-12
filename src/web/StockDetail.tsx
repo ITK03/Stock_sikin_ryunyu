@@ -10,6 +10,7 @@ import { priceText, signedPct } from './format';
 import { TierBadge } from './TierBadge';
 import { DisclosureItem } from './DisclosureItem';
 import { useSheetBehavior } from './useSheet';
+import { WatchStar } from './watchlist';
 
 interface Props {
   code: string;
@@ -17,7 +18,12 @@ interface Props {
   rankingsUS?: RankingDataset;
   disclosures: DisclosuresFeed | null;
   onClose: () => void;
+  /** 所属セクター名タップでセクタータブの該当セクターへジャンプする。 */
+  onOpenSector?: (name: string, market: Region) => void;
 }
+
+/** 開示リストの初期表示件数(「もっと見る」で増やす)。 */
+const DISC_PAGE = 20;
 
 const periodLabel = (key: string) => PERIODS.find((p) => p.key === key)?.label ?? key;
 
@@ -63,8 +69,11 @@ function useRankingsFallback(region: Region, provided: RankingDataset | undefine
   return provided ?? ds ?? undefined;
 }
 
-export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose }: Props) {
+export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose, onOpenSector }: Props) {
   useSheetBehavior(onClose);
+  const [discLimit, setDiscLimit] = useState(DISC_PAGE);
+  // 別銘柄に切り替わったら「もっと見る」の展開状態をリセットする。
+  useEffect(() => setDiscLimit(DISC_PAGE), [code]);
   // ticker_index(日本株の横断インデックス)・sector_us.json は数MB規模になり得るため、
   // 銘柄詳細を最初に開いたとき(=このコンポーネントが初めてマウントされたとき)だけ
   // 遅延fetchする。sector_us.json はセクタータブで既に取得済みならメモリキャッシュを再利用する。
@@ -107,6 +116,7 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="sheet-head">
           <h2>{profile ? profile.name ?? profile.code : code}</h2>
+          {profile && <WatchStar code={profile.code} className="star-lg" />}
           <button className="sheet-close" onClick={onClose} aria-label="閉じる">×</button>
         </div>
 
@@ -141,7 +151,17 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
                   {profile.sectors.map((s, i) => (
                     <li key={`${s.market}-${s.name}-${i}`} className="detail-sector-row">
                       <TierBadge tier={s.tier} />
-                      <span className="detail-sector-name">{s.name}</span>
+                      {onOpenSector ? (
+                        <button
+                          type="button"
+                          className="detail-sector-name sector-jump"
+                          onClick={() => onOpenSector(s.name, s.market)}
+                        >
+                          {s.name}
+                        </button>
+                      ) : (
+                        <span className="detail-sector-name">{s.name}</span>
+                      )}
                       <span className="detail-sector-market">{s.market}</span>
                     </li>
                   ))}
@@ -189,11 +209,21 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
               {profile.disclosures.length === 0 ? (
                 <p className="dim">データなし</p>
               ) : (
-                <ul className="disc-list detail-disc-list">
-                  {profile.disclosures.slice(0, 20).map((d) => (
-                    <DisclosureItem key={d.id} d={d} />
-                  ))}
-                </ul>
+                <>
+                  <ul className="disc-list detail-disc-list">
+                    {profile.disclosures.slice(0, discLimit).map((d) => (
+                      <DisclosureItem key={d.id} d={d} />
+                    ))}
+                  </ul>
+                  {profile.disclosures.length > discLimit && (
+                    <button
+                      className="filter-reset disc-more"
+                      onClick={() => setDiscLimit((n) => n + DISC_PAGE)}
+                    >
+                      もっと見る(残り{profile.disclosures.length - discLimit}件)
+                    </button>
+                  )}
+                </>
               )}
             </section>
           </div>
