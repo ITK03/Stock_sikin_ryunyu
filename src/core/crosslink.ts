@@ -8,6 +8,7 @@
 //    ベストエフォートで所属セクター/騰落率を拾う(現在値は含まれないため取得不可)。
 
 import { normalizeCode } from './codes';
+import { dedupeDisclosures } from './disclosures';
 import { PERIOD_KEYS } from './periods';
 import type {
   Disclosure,
@@ -194,8 +195,9 @@ export function buildStockProfile(rawCode: string, sources: CrosslinkSources): S
     null;
 
   // items が壊れた形(配列以外)でも落ちないよう防御的に扱う。
+  // 実データでは複数ソースから同一開示が別idで重複混入することがあるため、事前に統合する。
   const items = Array.isArray(sources.disclosures?.items) ? sources.disclosures!.items : [];
-  const disclosures = items
+  const disclosures = dedupeDisclosures(items)
     .filter((d) => normalizeCode(d.code) === code)
     .slice()
     .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));

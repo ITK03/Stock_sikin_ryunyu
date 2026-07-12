@@ -3,6 +3,7 @@ import type { DisclosuresArchiveIndex, DisclosuresFeed } from '../core/types';
 import { useExternalJson, useLazyExternalJson, type ExternalDataState } from './externalData';
 import { DISCLOSURES_ARCHIVE_INDEX_URLS, disclosuresArchiveUrls } from './externalSources';
 import { normalizeCode } from '../core/codes';
+import { dedupeDisclosures } from '../core/disclosures';
 import { relTime } from './format';
 import { DisclosureItem } from './DisclosureItem';
 import { useWatchlist } from './watchlist';
@@ -60,7 +61,10 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
   const { data, loading, error, sample, reload } = isLive ? state : archiveState;
 
   const items = useMemo(() => {
-    const all = Array.isArray(data?.items) ? data!.items : [];
+    const raw = Array.isArray(data?.items) ? data!.items : [];
+    // 実データでは複数ソース(yanoshin/scraper)から同一開示が別idで重複混入することがあるため、
+    // (time, code, title) が完全一致する行は1件に統合してから表示する。
+    const all = dedupeDisclosures(raw);
     const qCode = normalizeCode(query);
     return all
       .filter((d) => d.score >= minScore)
