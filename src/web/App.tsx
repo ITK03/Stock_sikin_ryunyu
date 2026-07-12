@@ -1,14 +1,28 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { DisclosuresFeed, RankingDataset, Region } from '../core/types';
 import { Logo } from './Logo';
 import { InflowTab } from './InflowTab';
-import { SectorTab } from './SectorTab';
-import { DisclosuresTab } from './DisclosuresTab';
-import { StockDetail } from './StockDetail';
+import type { SectorFocus } from './SectorTab';
 import { BottomTabBar, type MainTabKey } from './BottomTabBar';
 import { useExternalJson } from './externalData';
 import { DISCLOSURES_URLS, DISCLOSURE_RADAR_URL, SECTOR_MONITOR_STREAMLIT_URL } from './externalSources';
 import { SAMPLE_DISCLOSURES } from '../data/sampleDisclosures';
+import { WatchlistProvider } from './watchlist';
+
+// 初期表示は資金流入タブのみでよいため、セクター/開示タブと銘柄詳細は
+// タブ単位で遅延読み込みして初期バンドルを小さくする(モバイル回線での体感改善)。
+const SectorTab = lazy(() => import('./SectorTab').then((m) => ({ default: m.SectorTab })));
+const DisclosuresTab = lazy(() => import('./DisclosuresTab').then((m) => ({ default: m.DisclosuresTab })));
+const StockDetail = lazy(() => import('./StockDetail').then((m) => ({ default: m.StockDetail })));
+
+function LazyFallback() {
+  return (
+    <div className="inline-state">
+      <span className="spinner" />
+      <p className="state-sub">読み込み中…</p>
+    </div>
+  );
+}
 
 const TITLE: Record<MainTabKey, string> = {
   inflow: '資金流入株',
@@ -58,7 +72,16 @@ export function App() {
     setRankingsCache((prev) => ({ ...prev, [region]: dataset }));
   };
 
+  // 銘柄詳細の所属セクター名タップ → セクタータブの該当セクターへジャンプ。
+  const [sectorFocus, setSectorFocus] = useState<SectorFocus | null>(null);
+  const openSector = (name: string, market: Region) => {
+    setSelectedCode(null);
+    setSectorFocus({ name, market, nonce: Date.now() });
+    changeTab('sector');
+  };
+
   return (
+    <WatchlistProvider>
     <div className="screen">
       <header className="appbar">
         <div className="brand">
@@ -88,12 +111,16 @@ export function App() {
         )}
         {visited.has('sector') && (
           <div className="tab-host" hidden={mainTab !== 'sector'}>
-            <SectorTab onSelectCode={setSelectedCode} />
+            <Suspense fallback={<LazyFallback />}>
+              <SectorTab onSelectCode={setSelectedCode} focus={sectorFocus} />
+            </Suspense>
           </div>
         )}
         {visited.has('disclosures') && (
           <div className="tab-host" hidden={mainTab !== 'disclosures'}>
-            <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
+            <Suspense fallback={<LazyFallback />}>
+              <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
+            </Suspense>
           </div>
         )}
       </main>
@@ -101,14 +128,18 @@ export function App() {
       <BottomTabBar active={mainTab} onChange={changeTab} />
 
       {selectedCode && (
-        <StockDetail
-          code={selectedCode}
-          rankingsJP={rankingsCache.JP}
-          rankingsUS={rankingsCache.US}
-          disclosures={disclosuresState.data}
-          onClose={() => setSelectedCode(null)}
-        />
+        <Suspense fallback={null}>
+          <StockDetail
+            code={selectedCode}
+            rankingsJP={rankingsCache.JP}
+            rankingsUS={rankingsCache.US}
+            disclosures={disclosuresState.data}
+            onClose={() => setSelectedCode(null)}
+            onOpenSector={openSector}
+          />
+        </Suspense>
       )}
     </div>
+    </WatchlistProvider>
   );
 }
