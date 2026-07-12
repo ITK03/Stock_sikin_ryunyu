@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="資金流入株">
+  <defs>
+    <linearGradient id="stroke" x1="40" y1="130" x2="152" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38bdf8" />
+      <stop offset="1" stop-color="#2ee6a6" />
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="192" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16223c" />
+      <stop offset="1" stop-color="#0b1326" />
+    </linearGradient>
+  </defs>
+  <!-- maskable: 安全領域(中心80%円)に収まるよう余白を広めに取る -->
+  <rect width="192" height="192" fill="url(#tile)" />
+  <path d="M46 128 L84 104 L106 117 L146 66"
+    fill="none" stroke="url(#stroke)" stroke-width="12"
+    stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M122 64 L149 61 L146 87"
+    fill="none" stroke="url(#stroke)" stroke-width="12"
+    stroke-linecap="round" stroke-linejoin="round" />
+</svg>
