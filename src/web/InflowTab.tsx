@@ -189,9 +189,8 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
 
   if (!data) {
     return (
-      <div className="inline-state">
-        <span className="spinner" />
-        <p className="state-sub">読み込み中…</p>
+      <div className="tab-pane">
+        <RankingSkeleton />
       </div>
     );
   }
@@ -410,5 +409,20 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
       )}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
+  );
+}
+
+/** 初回読み込み中のカード形スケルトン(セクター/開示タブと同じ視覚言語に統一)。 */
+function RankingSkeleton() {
+  return (
+    <ul className="cards" aria-hidden>
+      {[0, 1, 2, 3].map((i) => (
+        <li key={i} className="card skeleton">
+          <div className="skel-line skel-w60" />
+          <div className="skel-line skel-w30" />
+          <div className="skel-line skel-w80" />
+        </li>
+      ))}
+    </ul>
   );
 }
