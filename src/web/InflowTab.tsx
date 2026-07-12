@@ -12,6 +12,7 @@ import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
 import { FilterSheet } from './FilterSheet';
 import { relTime } from './format';
+import { useWatchlist } from './watchlist';
 
 // 「資金流入」タブ本体。既存の資金流入ランキング機能そのもの(挙動は変更しない)。
 // 統合ダッシュボード化にあたり、Logo/アプリ名の表示は上位の App シェルへ移した。
@@ -116,6 +117,8 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
   const [filters, setFilters] = useState<Filters>(loadFilters);
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [watchOnly, setWatchOnly] = useState(false);
+  const watchlist = useWatchlist();
 
   // データを取得してキャッシュに保存する。データは日中に複数回更新されるため、
   // 常に最新を取得する(古いデータと新しいアプリ本体の不整合による表示崩れを防ぐ)。
@@ -205,7 +208,8 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
       ? data.ranking3?.[period]
       : data.ranking4?.[surgeHorizon]) ?? [];
   const byMarket = market === 'All' ? base : base.filter((r) => r.market === market);
-  const viewRows = applyFilters(byMarket, filters, region);
+  const filteredRows = applyFilters(byMarket, filters, region);
+  const viewRows = watchOnly ? filteredRows.filter((r) => watchlist.has(r.code)) : filteredRows;
 
   const filterActive = isFilterActive(filters);
 
@@ -315,6 +319,13 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
               {m.label}
             </button>
           ))}
+          <button
+            className={watchOnly ? 'chip watch active' : 'chip watch'}
+            onClick={() => setWatchOnly((v) => !v)}
+            aria-pressed={watchOnly}
+          >
+            ★ウォッチ
+          </button>
         </nav>
 
         <div className="actions">

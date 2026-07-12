@@ -1,5 +1,6 @@
 import type { RankRow, Region } from '../core/types';
 import { MARKET_LABEL, money, pct } from './format';
+import { WatchStar } from './watchlist';
 
 export type Density = 'card' | 'compact';
 
@@ -56,6 +57,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
         {rows.map((r, i) => (
           <li key={r.code} className="row">
             <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
+            <WatchStar code={r.code} />
             <CodeTag code={r.code} className="r-code" />
             <span className="r-name">{r.name}</span>
             <span className="r-ratio">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</span>
@@ -89,6 +91,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
               <div className="ident">
                 <div className="name">{r.name}</div>
                 <div className="sub">
+                  <WatchStar code={r.code} />
                   <CodeTag code={r.code} className="code" />
                   <span className={`seg ${segClass[r.market] ?? 'seg-other'}`}>
                     {MARKET_LABEL[r.market]}

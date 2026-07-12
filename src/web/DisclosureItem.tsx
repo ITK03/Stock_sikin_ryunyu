@@ -7,6 +7,8 @@ interface Props {
   onSelectCode?: (code: string) => void;
   /** 銘柄詳細内での表示など、日付を省いて時刻のみにしたい場合。既定は日付+時刻。 */
   showDate?: boolean;
+  /** ウォッチ銘柄の開示として強調表示する。 */
+  watched?: boolean;
 }
 
 const DIRECTION_CLASS: Record<Disclosure['direction'], string> = {
@@ -30,13 +32,14 @@ const IMPACT_CLASS: Record<Disclosure['impact'], string> = {
 };
 
 /** 開示 1件の表示行。DisclosuresTab / StockDetail 双方から共有する。 */
-export function DisclosureItem({ d, onSelectCode, showDate = true }: Props) {
+export function DisclosureItem({ d, onSelectCode, showDate = true, watched = false }: Props) {
   // 実フィードには "Copy" のような証券コードでないゴミ値が混ざることがある。
   // 契約上コードは4-5桁の数字なので、日本株コードとして妥当な場合のみ表示・タップ可能にする。
   const hasCode = isJpCode(d.code);
   return (
-    <li className="disc-item">
+    <li className={watched ? 'disc-item watched' : 'disc-item'}>
       <div className="disc-top">
+        {watched && <span className="disc-watch-mark" aria-label="ウォッチ銘柄">★</span>}
         <span className="disc-time">
           {showDate && jstDate(d.time) ? `${jstDate(d.time)} ` : ''}
           {jstTime(d.time) || '—'}
