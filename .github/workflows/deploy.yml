@@ -12,7 +12,7 @@ on:
     - cron: '30 20 * * 1-5'  # US引け後(ET 16:30頃) US当日値を更新
   workflow_dispatch: {}
   push:
-    branches: [main, claude/jp-stock-inflow-tool-evy4mz]
+    branches: [main]
 
 permissions:
   contents: read
