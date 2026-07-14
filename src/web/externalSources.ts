@@ -20,14 +20,24 @@ export function disclosuresArchiveUrls(date: string): string[] {
   ];
 }
 
-// セクター(sector-monitor, データ契約 schema_version 2): 専用ブランチ `data` のルート直下。
-// 旧 itk03.github.io 系のセクターURLは廃止された。地域ごとにファイルが分割され、
-// 数MB規模になり得るため JP/US はタブ切替時に遅延fetchする(externalData.ts 側で制御)。
-export const SECTOR_JP_URL = ['https://raw.githubusercontent.com/ITK03/sector-monitor/data/sector_jp.json'];
-export const SECTOR_US_URL = ['https://raw.githubusercontent.com/ITK03/sector-monitor/data/sector_us.json'];
+// セクター(sector-monitor 生成 → Stock_sikin_ryunyu/public/data/ に同期)。
+// sector-monitor は private なため、本リポジトリ(public)経由で配信する。
+// raw.githubusercontent.com は push 直後から反映される(CDN 5分キャッシュ)。
+// GitHub Pages(dist/data/)は次回ビルドまでラグがあるためフォールバック。
+export const SECTOR_JP_URL = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/sector_jp.json',
+  'https://itk03.github.io/Stock_sikin_ryunyu/data/sector_jp.json',
+];
+export const SECTOR_US_URL = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/sector_us.json',
+  'https://itk03.github.io/Stock_sikin_ryunyu/data/sector_us.json',
+];
 
 // 銘柄横断インデックス(日本株のみ・所属セクターは全件)。銘柄詳細を最初に開いたときに遅延fetch。
-export const TICKER_INDEX_URL = ['https://raw.githubusercontent.com/ITK03/sector-monitor/data/ticker_index.json'];
+export const TICKER_INDEX_URL = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/ticker_index.json',
+  'https://itk03.github.io/Stock_sikin_ryunyu/data/ticker_index.json',
+];
 
 /** 開示レーダー本家(Stock_open_news の GitHub Pages)。 */
 export const DISCLOSURE_RADAR_URL = 'https://itk03.github.io/Stock_open_news/';
