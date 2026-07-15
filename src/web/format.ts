@@ -33,6 +33,11 @@ export function signedPct(v: number | null | undefined): string {
   return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 }
 
+export function signedPct1(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+}
+
 /** 価格を地域通貨で簡潔に表記。null/undefined は「—」。 */
 export function priceText(v: number | null | undefined, region: Region): string {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';

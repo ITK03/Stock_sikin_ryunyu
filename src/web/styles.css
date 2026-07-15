@@ -353,11 +353,21 @@ body {
 .r-name {
   flex: 1;
   min-width: 0;
+  max-width: 7em;
   font-size: 13.5px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.r-chg {
+  flex: none;
+  width: 52px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .r-ratio {
   flex: none;
@@ -391,6 +401,13 @@ body {
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
   padding: 13px 14px 12px;
+  cursor: default;
+}
+.card-tap {
+  cursor: pointer;
+}
+.card-tap:active {
+  background: linear-gradient(180deg, var(--surface-2) 0%, #131e36 100%);
   box-shadow: var(--shadow);
 }
 
@@ -422,6 +439,12 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 10em;
+}
+.chg-inline {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .sub { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
 .code { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }

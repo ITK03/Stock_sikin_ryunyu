@@ -67,6 +67,19 @@ function tradingDates(bars: DailyBar[]): string[] {
 const ratio = (b: DailyBar): number =>
   b.marketCap > 0 ? b.turnover / b.marketCap : 0;
 
+function buildChangePctMap(byCode: Map<string, CodeSeries>): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const s of byCode.values()) {
+    if (s.bars.length < 2) continue;
+    const cur = s.bars[s.bars.length - 1];
+    const prev = s.bars[s.bars.length - 2];
+    if (prev.close > 0) {
+      m.set(s.code, Math.round(((cur.close - prev.close) / prev.close) * 1000) / 10);
+    }
+  }
+  return m;
+}
+
 function median(vals: number[]): number {
   if (vals.length === 0) return 0;
   const s = [...vals].sort((a, b) => a - b);
@@ -110,11 +123,12 @@ function buildRanking1(
   byCode: Map<string, CodeSeries>,
   latestDate: string,
   topN: number,
+  changePctMap: Map<string, number>,
 ): RankRow[] {
   const rows: Omit<RankRow, 'rank'>[] = [];
   for (const s of byCode.values()) {
     const bar = s.bars[s.bars.length - 1];
-    if (!bar || bar.date !== latestDate) continue; // 最新営業日に取引のある銘柄のみ
+    if (!bar || bar.date !== latestDate) continue;
     if (bar.marketCap <= 0) continue;
     rows.push({
       code: s.code,
@@ -124,6 +138,7 @@ function buildRanking1(
       turnover: bar.turnover,
       marketCap: bar.marketCap,
       coverage: 1,
+      changePct: changePctMap.get(s.code),
     });
   }
   rows.sort((a, b) => b.ratio - a.ratio);
@@ -136,8 +151,9 @@ interface WindowStat {
   market: DailyBar['market'];
   avgRatio: number;
   avgTurnover: number;
-  marketCap: number; // 期間内の最新時価総額
+  marketCap: number;
   coverage: number;
+  changePct?: number;
 }
 
 /**
@@ -152,6 +168,7 @@ function windowStats(
   tradingDays: number,
   latestDate: string,
   minCoverage: number,
+  changePctMap: Map<string, number>,
 ): WindowStat[] {
   const window = dates.slice(-tradingDays);
   const windowSet = new Set(window);
@@ -185,6 +202,7 @@ function windowStats(
       avgTurnover: winsorMean(turnovers),
       marketCap: latestBar.marketCap,
       coverage,
+      changePct: changePctMap.get(s.code),
     });
   }
   return stats;
@@ -197,6 +215,7 @@ function toRows(stats: WindowStat[]): Omit<RankRow, 'rank'>[] {
     market: s.market,
     ratio: s.avgRatio,
     turnover: s.avgTurnover,
+    changePct: s.changePct,
     marketCap: s.marketCap,
     coverage: s.coverage,
   }));
@@ -242,6 +261,7 @@ function buildSurge(
   dates: string[],
   latestDate: string,
   topN: number,
+  changePctMap: Map<string, number>,
   intraday?: { date: string; progress: number },
 ): Record<SurgeHorizon, RankRow[]> {
   const minBaseline = Math.ceil(SURGE_BASELINE_DAYS * 0.6);
@@ -305,6 +325,7 @@ function buildSurge(
         coverage: bCnt / SURGE_BASELINE_DAYS,
         surge: recentAvg / baseline,
         baseline,
+        changePct: changePctMap.get(s.code),
       });
     }
 
@@ -322,6 +343,7 @@ export function computeRankings(
   const byCode = groupByCode(bars);
   const dates = tradingDates(bars);
   const latestDate = dates[dates.length - 1] ?? '';
+  const changePctMap = buildChangePctMap(byCode);
 
   const ranking2 = {} as Record<PeriodKey, RankRow[]>;
   const ranking3 = {} as Record<PeriodKey, RankRow[]>;
@@ -333,6 +355,7 @@ export function computeRankings(
       period.tradingDays,
       latestDate,
       opts.minCoverage,
+      changePctMap,
     );
     ranking2[period.key] = buildRanking2(stats, opts.topN);
     ranking3[period.key] = buildRanking3(stats, opts.topK, opts.topN);
@@ -346,10 +369,10 @@ export function computeRankings(
     topK: opts.topK,
     topN: opts.topN,
     source: opts.source,
-    ranking1: buildRanking1(byCode, latestDate, opts.topN),
+    ranking1: buildRanking1(byCode, latestDate, opts.topN, changePctMap),
     ranking2,
     ranking3,
-    ranking4: buildSurge(byCode, dates, latestDate, opts.topN, opts.intraday),
+    ranking4: buildSurge(byCode, dates, latestDate, opts.topN, changePctMap, opts.intraday),
     sessionProgress: opts.intraday?.progress ?? 1,
   };
 }

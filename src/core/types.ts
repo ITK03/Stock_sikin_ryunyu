@@ -44,6 +44,8 @@ export interface RankRow {
   surge?: number;
   /** 急増ランキング用: 過去25営業日平均の売買代金(平常時の水準)。 */
   baseline?: number;
+  /** 前日比(%)。最新営業日と前営業日の終値から算出。 */
+  changePct?: number;
 }
 
 export type PeriodKey = '3d' | '1w' | '2w' | '1m' | '3m' | '6m';
