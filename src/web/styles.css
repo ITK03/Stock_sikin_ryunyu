@@ -353,7 +353,6 @@ body {
 .r-name {
   flex: 1;
   min-width: 0;
-  max-width: 7em;
   font-size: 13.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -439,7 +438,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 10em;
 }
 .chg-inline {
   font-size: 10.5px;

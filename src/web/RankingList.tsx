@@ -58,6 +58,7 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
             <span className="r-code">{r.code}</span>
             <span className="r-name">{r.name}</span>
             <span className={`r-chg ${chgClass(r.changePct)}`}>{signedPct1(r.changePct)}</span>
+            <span className="r-sub">{money(r.turnover, region)}</span>
             <span className="r-ratio">{isSurge ? surgeText(r.surge) : pct(r.ratio)}</span>
           </li>
         ))}
