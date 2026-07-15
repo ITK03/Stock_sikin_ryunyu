@@ -44,8 +44,6 @@ export const DISCLOSURE_RADAR_URL = 'https://itk03.github.io/Stock_open_news/';
 
 /**
  * リアルタイム版セクターモニター(Streamlit)の公開URL。
- * sector-monitor リポジトリのドキュメントに share.streamlit.io へのデプロイ手順は
- * あるが、確認時点で本番公開URL(*.streamlit.app)は見つからなかったため空にしている。
  * 空の場合、ヘッダー/フッターのリンク自体を表示しない。
  */
-export const SECTOR_MONITOR_STREAMLIT_URL = '';
+export const SECTOR_MONITOR_STREAMLIT_URL = 'https://sector-monitor-zt4j9l8nx.streamlit.app';
