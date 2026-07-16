@@ -26,3 +26,30 @@ export function dedupeDisclosures(items: Disclosure[]): Disclosure[] {
   }
   return Array.from(best.values());
 }
+
+// ---------------------------------------------------------------------------
+// 材料分類(好材料/悪材料/特大)。
+// ---------------------------------------------------------------------------
+
+/**
+ * 特大とみなすスコア下限。重要度フィルタの最上段「85+」と同じ水準で、
+ * 大幅な上昇/下落が期待される開示だけが該当するように高めに設定。
+ */
+export const MEGA_SCORE = 85;
+
+/** 材料分類。mega-* は方向が明確かつスコアが MEGA_SCORE 以上。 */
+export type MaterialClass =
+  | 'mega-positive'
+  | 'positive'
+  | 'negative'
+  | 'mega-negative'
+  | 'other';
+
+/** 開示の方向とスコアから材料分類を決める純粋関数。 */
+export function materialClass(
+  d: Pick<Disclosure, 'direction' | 'score'>,
+): MaterialClass {
+  if (d.direction === 'positive') return d.score >= MEGA_SCORE ? 'mega-positive' : 'positive';
+  if (d.direction === 'negative') return d.score >= MEGA_SCORE ? 'mega-negative' : 'negative';
+  return 'other';
+}

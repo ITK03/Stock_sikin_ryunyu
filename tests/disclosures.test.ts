@@ -68,3 +68,21 @@ describe('dedupeDisclosures', () => {
     expect(dedupeDisclosures(items)).toHaveLength(2);
   });
 });
+
+import { materialClass } from '../src/core/disclosures';
+
+describe('materialClass', () => {
+  const d = (direction: any, score: number) => ({ direction, score });
+  it('スコア85以上かつ方向が明確なら特大', () => {
+    expect(materialClass(d('positive', 85))).toBe('mega-positive');
+    expect(materialClass(d('negative', 92))).toBe('mega-negative');
+  });
+  it('85未満は通常の好材料/悪材料', () => {
+    expect(materialClass(d('positive', 84))).toBe('positive');
+    expect(materialClass(d('negative', 50))).toBe('negative');
+  });
+  it('中立/判定不能はスコアに関わらずother', () => {
+    expect(materialClass(d('neutral', 95))).toBe('other');
+    expect(materialClass(d('unknown', 95))).toBe('other');
+  });
+});

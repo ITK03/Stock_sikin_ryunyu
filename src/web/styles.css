@@ -997,6 +997,29 @@ body {
 .dir-badge.dir-negative { color: var(--danger); background: rgba(255, 107, 122, 0.12); border-color: rgba(255, 107, 122, 0.3); }
 .dir-badge.dir-neutral { color: var(--text-dim); background: rgba(111, 125, 152, 0.12); border-color: var(--line); }
 .dir-badge.dir-unknown { color: var(--muted); background: rgba(111, 125, 152, 0.08); border-color: var(--line-soft); }
+/* 特大(スコア85+かつ方向が明確)は塗りつぶし+発光で一段強く。 */
+.dir-badge.dir-mega-positive {
+  color: #05231a;
+  background: linear-gradient(120deg, var(--accent), #b7f5dd);
+  border-color: transparent;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(46, 230, 166, 0.45);
+}
+.dir-badge.dir-mega-negative {
+  color: #2b060c;
+  background: linear-gradient(120deg, var(--danger), #ffb3bc);
+  border-color: transparent;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(255, 107, 122, 0.45);
+}
+/* 材料フィルタチップの色分け(選択時のみ着色)。 */
+.chip.mat-good.active { color: var(--accent); border-color: rgba(46, 230, 166, 0.5); background: rgba(46, 230, 166, 0.12); }
+.chip.mat-bad.active { color: var(--danger); border-color: rgba(255, 107, 122, 0.5); background: rgba(255, 107, 122, 0.12); }
+.chip.mat-mega.active {
+  color: var(--gold);
+  border-color: rgba(246, 198, 82, 0.55);
+  background: rgba(246, 198, 82, 0.14);
+}
 .disc-category { font-size: 10.5px; color: var(--muted); }
 .urgent-badge {
   font-size: 10px;

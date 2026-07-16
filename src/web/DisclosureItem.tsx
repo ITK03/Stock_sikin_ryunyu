@@ -1,5 +1,6 @@
 import type { Disclosure } from '../core/types';
 import { isJpCode } from '../core/codes';
+import { materialClass } from '../core/disclosures';
 import { jstDate, jstTime } from './format';
 
 interface Props {
@@ -60,7 +61,14 @@ export function DisclosureItem({ d, onSelectCode, showDate = true, watched = fal
       </div>
       <p className="disc-title">{d.title}</p>
       <div className="disc-bottom">
-        <span className={`dir-badge ${DIRECTION_CLASS[d.direction]}`}>{DIRECTION_LABEL[d.direction]}</span>
+        {(() => {
+          const mc = materialClass(d);
+          if (mc === 'mega-positive')
+            return <span className="dir-badge dir-mega-positive">🔥特大好材料</span>;
+          if (mc === 'mega-negative')
+            return <span className="dir-badge dir-mega-negative">⚠特大悪材料</span>;
+          return <span className={`dir-badge ${DIRECTION_CLASS[d.direction]}`}>{DIRECTION_LABEL[d.direction]}</span>;
+        })()}
         <span className="disc-category">{d.category}</span>
         {d.urgent && <span className="urgent-badge">速報</span>}
         {d.pdf_url && (

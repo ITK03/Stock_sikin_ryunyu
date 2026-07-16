@@ -3,7 +3,7 @@ import type { DisclosuresArchiveIndex, DisclosuresFeed } from '../core/types';
 import { useExternalJson, useLazyExternalJson, type ExternalDataState } from './externalData';
 import { DISCLOSURES_ARCHIVE_INDEX_URLS, disclosuresArchiveUrls } from './externalSources';
 import { normalizeCode } from '../core/codes';
-import { dedupeDisclosures } from '../core/disclosures';
+import { dedupeDisclosures, materialClass } from '../core/disclosures';
 import { relTime } from './format';
 import { DisclosureItem } from './DisclosureItem';
 import { useWatchlist } from './watchlist';
@@ -24,6 +24,16 @@ const THRESHOLDS = [
 /** 日付セレクタの「ライブ(最新)」を表す特別な値。 */
 const LIVE = 'live';
 
+/** 材料フィルタ。good/bad は特大を含む。mega は特大(好悪両方)のみ。 */
+type MaterialFilter = 'all' | 'mega' | 'good' | 'bad';
+
+const MATERIAL_FILTERS: { key: MaterialFilter; label: string }[] = [
+  { key: 'all', label: 'すべて' },
+  { key: 'mega', label: '🔥特大' },
+  { key: 'good', label: '好材料' },
+  { key: 'bad', label: '悪材料' },
+];
+
 const EMPTY_INDEX: DisclosuresArchiveIndex = { updated_at: '', dates: [] };
 const EMPTY_FEED: DisclosuresFeed = { updated_at: '', count: 0, items: [] };
 
@@ -38,6 +48,7 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
   const [query, setQuery] = useState('');
   const [watchOnly, setWatchOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
+  const [material, setMaterial] = useState<MaterialFilter>('all');
   const [day, setDay] = useState<string>(LIVE);
   const watchlist = useWatchlist();
 
@@ -68,6 +79,13 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
     const qCode = normalizeCode(query);
     return all
       .filter((d) => d.score >= minScore)
+      .filter((d) => {
+        if (material === 'all') return true;
+        const mc = materialClass(d);
+        if (material === 'mega') return mc === 'mega-positive' || mc === 'mega-negative';
+        if (material === 'good') return mc === 'positive' || mc === 'mega-positive';
+        return mc === 'negative' || mc === 'mega-negative';
+      })
       .filter((d) => (urgentOnly ? d.urgent : true))
       .filter((d) => (watchOnly ? watchlist.has(d.code) : true))
       .filter((d) => {
@@ -78,7 +96,7 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
       })
       .slice()
       .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
-  }, [data, minScore, query, watchOnly, urgentOnly, watchlist]);
+  }, [data, minScore, query, watchOnly, urgentOnly, material, watchlist]);
 
   if (loading && !data) {
     return (
@@ -156,6 +174,18 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
           >
             ★ウォッチ
           </button>
+        </nav>
+        <nav className="chiprow">
+          <span className="row-label">材料</span>
+          {MATERIAL_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={`chip mat-${f.key}${f.key === material ? ' active' : ''}`}
+              onClick={() => setMaterial(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
         </nav>
         <div className="disc-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
