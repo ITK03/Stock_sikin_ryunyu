@@ -64,6 +64,33 @@ function tradingDates(bars: DailyBar[]): string[] {
   return [...set].sort();
 }
 
+/** 日付ごとに、データが存在するユニーク銘柄数を数える。 */
+function dateCoverageCounts(bars: DailyBar[]): Map<string, number> {
+  const seen = new Set<string>();
+  const counts = new Map<string, number>();
+  for (const b of bars) {
+    const key = `${b.date}|${b.code}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    counts.set(b.date, (counts.get(b.date) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * 最新営業日を決定する。場中ビルド直後などデータ配信元(Yahoo)がまだ大半の銘柄の
+ * 当日足を返していない時間帯は、最新日として採用すると母数が数銘柄に激減してしまう
+ * (ランキングが数銘柄しか表示されない不具合の原因)。ユニバースの半数以上に当日足が
+ * 揃っている日まで遡って採用することで、配信途中の日は前営業日にフォールバックする。
+ */
+function pickLatestDate(dates: string[], counts: Map<string, number>, universeSize: number): string {
+  const threshold = universeSize * 0.5;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if ((counts.get(dates[i]) ?? 0) >= threshold) return dates[i];
+  }
+  return dates[dates.length - 1] ?? '';
+}
+
 const ratio = (b: DailyBar): number =>
   b.marketCap > 0 ? b.turnover / b.marketCap : 0;
 
@@ -342,7 +369,7 @@ export function computeRankings(
   const opts = { ...DEFAULTS, ...options };
   const byCode = groupByCode(bars);
   const dates = tradingDates(bars);
-  const latestDate = dates[dates.length - 1] ?? '';
+  const latestDate = pickLatestDate(dates, dateCoverageCounts(bars), byCode.size);
   const changePctMap = buildChangePctMap(byCode);
 
   const ranking2 = {} as Record<PeriodKey, RankRow[]>;
