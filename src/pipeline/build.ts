@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Region } from '../core/types.js';
 import { computeRankings } from '../core/rankings.js';
+import { buildPeriodReturns, buildQuotes } from '../core/feed.js';
 import { selectProvider } from '../data/provider.js';
 
 // データ取得 → ランキング計算 → public/data/rankings(.us).json 出力。
@@ -13,6 +14,16 @@ const LOOKBACK_DAYS = 130;
 const OUT_FILE: Record<Region, string> = {
   JP: 'rankings.json',
   US: 'rankings.us.json',
+};
+
+// 地域 → 救済フィード出力ファイル名(小文字接尾辞、GitHub Pages で配信)。
+const QUOTES_FILE: Record<Region, string> = {
+  JP: 'quotes_jp.json',
+  US: 'quotes_us.json',
+};
+const PERIOD_RETURNS_FILE: Record<Region, string> = {
+  JP: 'period_returns_jp.json',
+  US: 'period_returns_us.json',
 };
 
 // 地域 → 取引所ローカルタイムゾーン。
@@ -98,6 +109,19 @@ async function buildRegion(region: Region, forceSample: boolean, outDir: string)
   writeFileSync(outPath, JSON.stringify(dataset));
   console.log(
     `[build:${region}] wrote ${outPath} (asOf=${dataset.asOfDate}, universe=${dataset.universe})`,
+  );
+
+  // 救済フィード(GitHub Pages配信用の軽量JSON)。rankings とは独立の純粋関数で計算。
+  const quotes = buildQuotes(bars, dataset.generatedAt);
+  const quotesPath = resolve(outDir, QUOTES_FILE[region]);
+  writeFileSync(quotesPath, JSON.stringify(quotes));
+  console.log(`[build:${region}] wrote ${quotesPath} (quotes=${Object.keys(quotes.quotes).length})`);
+
+  const periodReturns = buildPeriodReturns(bars, dataset.generatedAt);
+  const periodReturnsPath = resolve(outDir, PERIOD_RETURNS_FILE[region]);
+  writeFileSync(periodReturnsPath, JSON.stringify(periodReturns));
+  console.log(
+    `[build:${region}] wrote ${periodReturnsPath} (returns=${Object.keys(periodReturns.returns).length})`,
   );
 }
 
