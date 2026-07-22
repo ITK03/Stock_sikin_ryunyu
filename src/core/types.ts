@@ -163,6 +163,8 @@ export interface SectorEntry {
   change_pct: number | null;
   count: number;
   members: SectorMember[];
+  /** 構成2銘柄以下(sector-monitor側の export_snapshot.py が付与)。 */
+  thin?: boolean;
 }
 
 /** sector_jp.json / sector_us.json のトップレベル形(地域ごとに1ファイル)。 */
