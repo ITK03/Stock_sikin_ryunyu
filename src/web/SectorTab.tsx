@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Region, SectorEntry, SectorFile } from '../core/types';
+import { sortSectorsByStrength } from '../core/sectorStrength';
 import { useLazyExternalJson } from './externalData';
 import { SECTOR_JP_URL, SECTOR_US_URL } from './externalSources';
 import { SAMPLE_SECTOR_JP, SAMPLE_SECTOR_US } from '../data/sampleSector';
@@ -22,6 +23,10 @@ interface Props {
 
 const PAGE_SIZE = 40;
 
+type SectorSort = 'strength' | 'change';
+
+const SORT_KEY = 'sectorSort';
+
 function changeClass(v: number | null | undefined): string {
   if (v === null || v === undefined) return 'chg-flat';
   if (v > 0) return 'chg-up';
@@ -40,12 +45,22 @@ function sortSectors(sectors: SectorEntry[]): SectorEntry[] {
   });
 }
 
+/** count<3 のセクターに表示する補助バッジ(誇大な騰落率の理由が一目で分かるように)。 */
+function tinySectorLabel(count: number): string | null {
+  if (count === 1) return '単一銘柄';
+  if (count === 2) return '2銘柄';
+  return null;
+}
+
 export function SectorTab({ onSelectCode, focus }: Props) {
   const [market, setMarket] = useState<Region>('JP');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [watchOnly, setWatchOnly] = useState(false);
+  const [sectorSort, setSectorSort] = useState<SectorSort>(
+    () => (localStorage.getItem(SORT_KEY) as SectorSort) || 'strength',
+  );
   const watchlist = useWatchlist();
 
   // JP/USはタブ切替時に初めて取得する遅延fetch。数MB規模になり得るため、
@@ -83,7 +98,15 @@ export function SectorTab({ onSelectCode, focus }: Props) {
     setExpanded(new Set());
   };
 
-  const allSectors = useMemo(() => (data ? sortSectors(data.sectors) : []), [data]);
+  const changeSort = (v: SectorSort) => {
+    setSectorSort(v);
+    localStorage.setItem(SORT_KEY, v);
+  };
+
+  const allSectors = useMemo(() => {
+    if (!data) return [];
+    return sectorSort === 'strength' ? sortSectorsByStrength(data.sectors) : sortSectors(data.sectors);
+  }, [data, sectorSort]);
 
   const byQuery = useMemo(() => {
     const q = query.trim();
@@ -157,6 +180,22 @@ export function SectorTab({ onSelectCode, focus }: Props) {
         >
           ★ウォッチ
         </button>
+        <nav className="region-toggle sector-sort-toggle" role="group" aria-label="並び順">
+          <button
+            className={sectorSort === 'strength' ? 'region-btn active' : 'region-btn'}
+            onClick={() => changeSort('strength')}
+            aria-pressed={sectorSort === 'strength'}
+          >
+            勢い
+          </button>
+          <button
+            className={sectorSort === 'change' ? 'region-btn active' : 'region-btn'}
+            onClick={() => changeSort('change')}
+            aria-pressed={sectorSort === 'change'}
+          >
+            騰落率
+          </button>
+        </nav>
         <div className="sector-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
           {data && <span className="asof-date">{relTime(data.generated_at)}更新</span>}
@@ -196,6 +235,9 @@ export function SectorTab({ onSelectCode, focus }: Props) {
                     <div className="sector-ident">
                       <span className="sector-name">{s.name}</span>
                       <span className="sector-count">{s.count}銘柄</span>
+                      {tinySectorLabel(s.count) && (
+                        <span className="sector-tiny-badge">{tinySectorLabel(s.count)}</span>
+                      )}
                     </div>
                     <div className="sector-right">
                       <span className={`sector-chg ${changeClass(s.change_pct)}`}>{signedPct(s.change_pct)}</span>

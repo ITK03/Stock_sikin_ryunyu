@@ -3,6 +3,7 @@ import type { DisclosuresFeed, RankingDataset, Region, SectorFile } from '../cor
 import type { MainTabKey } from './BottomTabBar';
 import { dedupeDisclosures } from '../core/disclosures';
 import { isJpCode } from '../core/codes';
+import { sortSectorsByStrength } from '../core/sectorStrength';
 import { useLazyExternalJson } from './externalData';
 import { SECTOR_JP_URL } from './externalSources';
 import { SAMPLE_SECTOR_JP } from '../data/sampleSector';
@@ -75,11 +76,7 @@ export function HomeTab({ onSelectCode, onGoTab, onOpenSector, disclosuresState,
   const sectorTop5 = useMemo(() => {
     const sectors = sectorState.data?.sectors;
     if (!Array.isArray(sectors)) return [];
-    return sectors
-      .filter((s) => s.change_pct !== null)
-      .slice()
-      .sort((a, b) => (b.change_pct ?? 0) - (a.change_pct ?? 0))
-      .slice(0, 5);
+    return sortSectorsByStrength(sectors.filter((s) => s.change_pct !== null)).slice(0, 5);
   }, [sectorState.data]);
 
   // ウォッチ銘柄: 名称・順位は資金流入データにあれば付与(無ければコードのみ表示)。
