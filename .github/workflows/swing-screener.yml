@@ -37,30 +37,36 @@ jobs:
       - name: Unit tests (screener)
         working-directory: swing
         run: python -m pytest tests/test_screener.py -q
+      - name: Seed paper_log from data branch (積み上げ状態の継続性)
+        run: |
+          set -eu
+          # paper_log は積み上げ式の状態。前回分を data ブランチから取り込んでから
+          # スクリーナーに更新させる(dataブランチが無い初回は main のseedを使う)。
+          if git ls-remote --exit-code origin data >/dev/null 2>&1; then
+            sha="$(git ls-remote origin data | cut -f1)"
+            git fetch -q origin data || true
+            git show "${sha}:paper_log.json" > swing/site/data/paper_log.json 2>/dev/null || true
+          fi
       - name: Run screener
         working-directory: swing
         run: python -m screener.run --source fetch --out site
-      - name: Publish signals.json / paper_log.json to public/data
+      - name: Publish to data branch (orphan, single commit, force-push)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -eu
+          # signals.json(最新)と paper_log.json(検証ログ)を data ブランチへ単一コミットで
+          # force-push する。履歴は常に1コミット=main/dataとも無限肥大化しない。
           test -s swing/site/data/signals.json
-          cp swing/site/data/signals.json public/data/signals.json
-          # 検証ログ(自動ペーパートレードの pending/open/closed 明細)もフロントへ配信。
           test -s swing/site/data/paper_log.json
-          cp swing/site/data/paper_log.json public/data/paper_log.json
-      - name: Commit data back to main
-        run: |
+          TMP="$(mktemp -d)"
+          cp swing/site/data/signals.json swing/site/data/paper_log.json "$TMP"/
+          cd "$TMP"
+          git init -q -b data
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # paper_log は積み上げ式の状態なので毎回コミットして永続化する。
-          git add public/data/signals.json public/data/paper_log.json swing/site/data/paper_log.json
-          if git diff --cached --quiet; then
-            echo "変更なし。スキップ。"
-            exit 0
-          fi
-          git commit -m "swing: シグナル更新(定時実行) [skip ci]"
-          for i in 1 2 3 4; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            echo "push retry $i"; sleep $((2 ** i))
-          done
-          exit 1
+          git add signals.json paper_log.json
+          git commit -q -m "swing: シグナル/検証ログ更新 [skip ci]"
+          git push --force -q \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:data
