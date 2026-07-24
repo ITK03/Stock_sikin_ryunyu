@@ -3,14 +3,26 @@ import type { SwingSignalsFeed, SwingStrategy } from '../core/types';
 import { useExternalJson } from './externalData';
 import { SWING_SIGNALS_URLS } from './externalSources';
 import { priceText, relTime } from './format';
+import { SwingPaperLogView } from './SwingPaperLog';
+import { SwingPositions } from './SwingPositions';
 import { WatchStar } from './watchlist';
 
 // スイングタブ。Twitter_Master 由来のスクリーナーが出力する signals.json を表示する。
 // 銘柄名タップで横断の銘柄詳細を開く(既存タブと同じ onSelectCode 連携)。
+// 上部のサブ切替で「シグナル(買い候補・手仕舞い)」「保有ポジション(ユーザー手動管理)」
+// 「検証ログ(自動ペーパートレードの明細)」の3ビューを切り替える。
 
 interface Props {
   onSelectCode: (code: string) => void;
 }
+
+type SwingView = 'signals' | 'positions' | 'paperlog';
+
+const VIEW_LABEL: Record<SwingView, string> = {
+  signals: 'シグナル',
+  positions: '保有ポジション',
+  paperlog: '検証ログ',
+};
 
 const EMPTY_FEED: SwingSignalsFeed = {
   version: 1,
@@ -40,6 +52,7 @@ export function SwingTab({ onSelectCode }: Props) {
     sampleData: EMPTY_FEED,
   });
 
+  const [view, setView] = useState<SwingView>('signals');
   const [stratId, setStratId] = useState<string | null>(null);
   const [showRule, setShowRule] = useState(false);
   const [showRisks, setShowRisks] = useState(false);
@@ -50,69 +63,47 @@ export function SwingTab({ onSelectCode }: Props) {
     return strategies.find((s) => s.id === stratId) ?? strategies[0];
   }, [strategies, stratId]);
 
-  if (loading && !data) {
-    return (
-      <div className="tab-pane">
-        <div className="inline-state"><span className="spinner" /><p className="state-sub">読み込み中…</p></div>
-      </div>
-    );
-  }
+  const viewSwitcher = (
+    <nav className="segmented swing-view-seg" role="tablist" aria-label="表示切替">
+      {(Object.keys(VIEW_LABEL) as SwingView[]).map((v) => (
+        <button
+          key={v}
+          role="tab"
+          aria-selected={v === view}
+          className={v === view ? 'seg-btn active' : 'seg-btn'}
+          onClick={() => setView(v)}
+        >
+          {VIEW_LABEL[v]}
+        </button>
+      ))}
+    </nav>
+  );
 
-  if (error && !data) {
-    return (
-      <div className="tab-pane">
+  const renderSignals = () => {
+    if (loading && !data) {
+      return <div className="inline-state"><span className="spinner" /><p className="state-sub">読み込み中…</p></div>;
+    }
+
+    if (error && !data) {
+      return (
         <div className="inline-state">
           <p className="state-title">スイングデータを取得できませんでした</p>
           <p className="state-sub">{error}</p>
           <button className="filter-reset" onClick={reload}>再試行</button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (!selected) {
+    if (!selected) {
+      return <p className="empty">スイングのシグナルがまだありません。</p>;
+    }
+
+    const oos = selected.oos_stats;
+    const exits = selected.universe_status.filter((u) => u.exit);
+    const paperByStrat = data?.paper_log_summary.by_strategy[selected.id];
+
     return (
-      <div className="tab-pane">
-        <p className="empty">スイングのシグナルがまだありません。</p>
-      </div>
-    );
-  }
-
-  const oos = selected.oos_stats;
-  const exits = selected.universe_status.filter((u) => u.exit);
-  const paperByStrat = data?.paper_log_summary.by_strategy[selected.id];
-
-  return (
-    <div className="tab-pane">
-      <div className="controls">
-        <div className="swing-status">
-          {sample && <span className="chip sample-chip">サンプル</span>}
-          {data && data.status !== 'ok' && (
-            <span className="swing-badge warn">
-              データ遅延の可能性{data.status_reason ? `(${data.status_reason})` : ''}
-            </span>
-          )}
-          <span className="asof-date">
-            {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
-          </span>
-        </div>
-
-        <nav className="segmented" role="tablist" aria-label="戦略">
-          {strategies.map((s) => (
-            <button
-              key={s.id}
-              role="tab"
-              aria-selected={s.id === selected.id}
-              className={s.id === selected.id ? 'seg-btn active' : 'seg-btn'}
-              onClick={() => setStratId(s.id)}
-            >
-              {s.display_name.replace(/（.*$/, '')}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="list-area">
+      <>
         {/* 戦略の概要とバックテスト成績 */}
         <div className="swing-meta">
           <div className="swing-meta-name">{selected.display_name}</div>
@@ -234,10 +225,56 @@ export function SwingTab({ onSelectCode }: Props) {
             </ol>
           </>
         )}
+      </>
+    );
+  };
+
+  return (
+    <div className="tab-pane">
+      <div className="controls">
+        {viewSwitcher}
+
+        {view === 'signals' && (
+          <>
+            <div className="swing-status">
+              {sample && <span className="chip sample-chip">サンプル</span>}
+              {data && data.status !== 'ok' && (
+                <span className="swing-badge warn">
+                  データ遅延の可能性{data.status_reason ? `(${data.status_reason})` : ''}
+                </span>
+              )}
+              <span className="asof-date">
+                {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
+              </span>
+            </div>
+
+            {strategies.length > 0 && (
+              <nav className="segmented" role="tablist" aria-label="戦略">
+                {strategies.map((s) => (
+                  <button
+                    key={s.id}
+                    role="tab"
+                    aria-selected={selected ? s.id === selected.id : false}
+                    className={selected && s.id === selected.id ? 'seg-btn active' : 'seg-btn'}
+                    onClick={() => setStratId(s.id)}
+                  >
+                    {s.display_name.replace(/（.*$/, '')}
+                  </button>
+                ))}
+              </nav>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="list-area">
+        {view === 'signals' && renderSignals()}
+        {view === 'positions' && <SwingPositions feed={data} onSelectCode={onSelectCode} />}
+        {view === 'paperlog' && <SwingPaperLogView onSelectCode={onSelectCode} />}
       </div>
 
       <footer className="foot">
-        <span>更新 {data ? relTime(data.generated_at) : '—'}</span>
+        {view === 'signals' && <span>更新 {data ? relTime(data.generated_at) : '—'}</span>}
         <span className="swing-foot-note">投資助言ではありません。自己責任で。</span>
       </footer>
     </div>

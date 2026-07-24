@@ -40,17 +40,20 @@ jobs:
       - name: Run screener
         working-directory: swing
         run: python -m screener.run --source fetch --out site
-      - name: Publish signals.json to public/data
+      - name: Publish signals.json / paper_log.json to public/data
         run: |
           set -eu
           test -s swing/site/data/signals.json
           cp swing/site/data/signals.json public/data/signals.json
+          # 検証ログ(自動ペーパートレードの pending/open/closed 明細)もフロントへ配信。
+          test -s swing/site/data/paper_log.json
+          cp swing/site/data/paper_log.json public/data/paper_log.json
       - name: Commit data back to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # paper_log は積み上げ式の状態なので毎回コミットして永続化する。
-          git add public/data/signals.json swing/site/data/paper_log.json
+          git add public/data/signals.json public/data/paper_log.json swing/site/data/paper_log.json
           if git diff --cached --quiet; then
             echo "変更なし。スキップ。"
             exit 0

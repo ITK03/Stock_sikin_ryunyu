@@ -265,6 +265,58 @@ export interface SwingPaperLogSummary {
   by_strategy: Record<string, { closed_trades: number; win_rate: number; avg_ret: number }>;
 }
 
+// --- 検証ログ(自動ペーパートレード paper_log.json)の明細 ---
+
+/** 待機中: シグナルが出て翌営業日に指値発注する予定(未約定)。 */
+export interface SwingPaperPending {
+  id: string;
+  strategy_id: string;
+  code: string;
+  name: string;
+  signal_date: string;
+  trade_date: string;
+  limit_price: number;
+}
+
+/** 保有中(検証用): 約定して保有中のペーパーポジション。 */
+export interface SwingPaperOpen {
+  id: string;
+  strategy_id: string;
+  code: string;
+  name: string;
+  entry_date: string;
+  entry_price: number;
+  stop_price: number;
+  target_price: number;
+  deadline_date: string;
+  pending_exit: boolean;
+  exit_reason: string | null;
+}
+
+/** 確定: 手仕舞い済みのペーパートレード1件。 */
+export interface SwingPaperClosed {
+  id: string;
+  strategy_id: string;
+  code: string;
+  name: string;
+  entry_date: string;
+  entry_price: number;
+  exit_date: string;
+  exit_price: number;
+  exit_reason: string;
+  return_pct: number;
+  hold_days: number;
+}
+
+/** paper_log.json のトップレベル形(自動ペーパートレードの検証ログ)。 */
+export interface SwingPaperLog {
+  version: number;
+  updated_at: string;
+  pending: SwingPaperPending[];
+  open: SwingPaperOpen[];
+  closed: SwingPaperClosed[];
+}
+
 /** signals.json のトップレベル形。 */
 export interface SwingSignalsFeed {
   version: number;

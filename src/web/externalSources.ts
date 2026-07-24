@@ -41,6 +41,12 @@ export const SWING_SIGNALS_URLS = [
   'https://itk03.github.io/Stock_sikin_ryunyu/data/signals.json',
 ];
 
+// 検証ログ(自動ペーパートレードの pending/open/closed 明細)。
+export const SWING_PAPER_LOG_URLS = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/paper_log.json',
+  'https://itk03.github.io/Stock_sikin_ryunyu/data/paper_log.json',
+];
+
 // 銘柄横断インデックス(日本株のみ・所属セクターは全件)。銘柄詳細を最初に開いたときに遅延fetch。
 export const TICKER_INDEX_URL = [
   'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/ticker_index.json',
