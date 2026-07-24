@@ -1,7 +1,6 @@
 import { Suspense, lazy, useState } from 'react';
 import type { DisclosuresFeed, RankingDataset, Region } from '../core/types';
 import { Logo } from './Logo';
-import { HomeTab } from './HomeTab';
 import type { SectorFocus } from './SectorTab';
 import { BottomTabBar, type MainTabKey } from './BottomTabBar';
 import { useExternalJson } from './externalData';
@@ -13,6 +12,7 @@ import { WatchlistProvider } from './watchlist';
 // タブ単位で遅延読み込みして初期バンドルを小さくする(モバイル回線での体感改善)。
 const InflowTab = lazy(() => import('./InflowTab').then((m) => ({ default: m.InflowTab })));
 const SectorTab = lazy(() => import('./SectorTab').then((m) => ({ default: m.SectorTab })));
+const SwingTab = lazy(() => import('./SwingTab').then((m) => ({ default: m.SwingTab })));
 const DisclosuresTab = lazy(() => import('./DisclosuresTab').then((m) => ({ default: m.DisclosuresTab })));
 const StockDetail = lazy(() => import('./StockDetail').then((m) => ({ default: m.StockDetail })));
 const SearchSheet = lazy(() => import('./SearchSheet').then((m) => ({ default: m.SearchSheet })));
@@ -27,19 +27,23 @@ function LazyFallback() {
 }
 
 const TITLE: Record<MainTabKey, string> = {
-  home: '今日の概況',
-  inflow: '資金流入株',
-  sector: 'セクター騰落',
   disclosures: '適時開示',
+  inflow: '資金流入株',
+  swing: 'スイング',
+  sector: 'セクター騰落',
 };
+
+const DEFAULT_TAB: MainTabKey = 'inflow';
 
 function loadMainTab(): MainTabKey {
   // localStorage はプライベートモード等で例外を投げうるため防御する。
   try {
     const v = localStorage.getItem('mainTab');
-    return v === 'home' || v === 'sector' || v === 'disclosures' || v === 'inflow' ? v : 'home';
+    return v === 'sector' || v === 'disclosures' || v === 'inflow' || v === 'swing'
+      ? v
+      : DEFAULT_TAB;
   } catch {
-    return 'home';
+    return DEFAULT_TAB;
   }
 }
 
@@ -119,16 +123,11 @@ export function App() {
       </nav>
 
       <main className="main-area">
-        {visited.has('home') && (
-          <div className="tab-host" hidden={mainTab !== 'home'}>
-            <HomeTab
-              onSelectCode={setSelectedCode}
-              onGoTab={changeTab}
-              onOpenSector={openSector}
-              disclosuresState={disclosuresState}
-              rankingsCache={rankingsCache}
-              onDatasetLoaded={onDatasetLoaded}
-            />
+        {visited.has('disclosures') && (
+          <div className="tab-host" hidden={mainTab !== 'disclosures'}>
+            <Suspense fallback={<LazyFallback />}>
+              <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
+            </Suspense>
           </div>
         )}
         {visited.has('inflow') && (
@@ -138,17 +137,17 @@ export function App() {
             </Suspense>
           </div>
         )}
+        {visited.has('swing') && (
+          <div className="tab-host" hidden={mainTab !== 'swing'}>
+            <Suspense fallback={<LazyFallback />}>
+              <SwingTab onSelectCode={setSelectedCode} />
+            </Suspense>
+          </div>
+        )}
         {visited.has('sector') && (
           <div className="tab-host" hidden={mainTab !== 'sector'}>
             <Suspense fallback={<LazyFallback />}>
               <SectorTab onSelectCode={setSelectedCode} focus={sectorFocus} />
-            </Suspense>
-          </div>
-        )}
-        {visited.has('disclosures') && (
-          <div className="tab-host" hidden={mainTab !== 'disclosures'}>
-            <Suspense fallback={<LazyFallback />}>
-              <DisclosuresTab onSelectCode={setSelectedCode} state={disclosuresState} />
             </Suspense>
           </div>
         )}

@@ -1,0 +1,1575 @@
+<style>
+  :root {
+    --ground: #F7F7F5;
+    --surface: #FFFFFF;
+    --ink: #1C2330;
+    --muted: #5C6470;
+    --hairline: #E3E4E0;
+    --accent: #3A5BA0;
+    --red: #C4372F;
+    --green: #1E6E5C;
+    --amber: #B07A18;
+    --red-bg: rgba(196, 55, 47, .08);
+    --green-bg: rgba(30, 110, 92, .08);
+    --amber-bg: rgba(176, 122, 24, .12);
+    --accent-bg: rgba(58, 91, 160, .08);
+
+    --font-jp: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --fs-1: 12px;
+    --fs-2: 13px;
+    --fs-3: 15px;
+    --fs-4: 17px;
+    --fs-5: 22px;
+
+    --radius: 6px;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #14181F;
+      --surface: #1B212B;
+      --ink: #E6E8EA;
+      --muted: #98A0AB;
+      --hairline: #2A313D;
+      --accent: #7C9BD9;
+      --red: #E06055;
+      --green: #4CAF94;
+      --amber: #D9A441;
+      --red-bg: rgba(224, 96, 85, .14);
+      --green-bg: rgba(76, 175, 148, .14);
+      --amber-bg: rgba(217, 164, 65, .16);
+      --accent-bg: rgba(124, 155, 217, .14);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14181F;
+    --surface: #1B212B;
+    --ink: #E6E8EA;
+    --muted: #98A0AB;
+    --hairline: #2A313D;
+    --accent: #7C9BD9;
+    --red: #E06055;
+    --green: #4CAF94;
+    --amber: #D9A441;
+    --red-bg: rgba(224, 96, 85, .14);
+    --green-bg: rgba(76, 175, 148, .14);
+    --amber-bg: rgba(217, 164, 65, .16);
+    --accent-bg: rgba(124, 155, 217, .14);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F7F7F5;
+    --surface: #FFFFFF;
+    --ink: #1C2330;
+    --muted: #5C6470;
+    --hairline: #E3E4E0;
+    --accent: #3A5BA0;
+    --red: #C4372F;
+    --green: #1E6E5C;
+    --amber: #B07A18;
+    --red-bg: rgba(196, 55, 47, .08);
+    --green-bg: rgba(30, 110, 92, .08);
+    --amber-bg: rgba(176, 122, 24, .12);
+    --accent-bg: rgba(58, 91, 160, .08);
+  }
+
+  * , *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ground);
+    color: var(--ink);
+  }
+
+  body {
+    font-family: var(--font-jp);
+    font-size: var(--fs-3);
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px 16px 40px;
+    min-width: 0;
+  }
+
+  @media (min-width: 360px) {
+    #app { padding: 20px 16px 48px; }
+  }
+
+  a { color: var(--accent); }
+
+  *:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Header */
+  .app-header {
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .app-title {
+    margin: 0 0 10px;
+    font-size: var(--fs-2);
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+  .trade-line {
+    margin: 0 0 4px;
+    font-size: var(--fs-5);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .meta-line {
+    margin: 0;
+    font-size: var(--fs-1);
+    color: var(--muted);
+  }
+  .refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 10px;
+  }
+  .refresh-btn {
+    appearance: none;
+    font-family: var(--font-jp);
+    font-size: var(--fs-2);
+    font-weight: 700;
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .refresh-btn:disabled {
+    opacity: .6;
+    cursor: default;
+  }
+  .refresh-msg {
+    margin: 0;
+    font-size: var(--fs-1);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .refresh-msg[hidden] { display: none; }
+  .refresh-msg--ok { color: var(--green); }
+  .refresh-msg--error { color: var(--red); }
+
+  /* Status banner */
+  .status-banner {
+    padding: 10px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    font-size: var(--fs-2);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .status-banner--warn {
+    background: var(--amber-bg);
+    border-color: var(--amber);
+    color: var(--ink);
+  }
+  .status-banner--error {
+    background: var(--red-bg);
+    border-color: var(--red);
+    color: var(--ink);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 16px;
+  }
+  .tabs[hidden] { display: none; }
+  .tab {
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-family: var(--font-jp);
+    font-size: var(--fs-3);
+    padding: 10px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 1 auto;
+  }
+  .tab[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 700;
+  }
+
+  @media (max-width: 480px) {
+    .tab {
+      padding: 8px 8px;
+      font-size: var(--fs-2);
+    }
+  }
+
+  .panel[hidden] { display: none; }
+
+  /* Stats badges */
+  .stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .stat-badge {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--fs-1);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    color: var(--ink);
+  }
+  .stat-badge .label {
+    font-family: var(--font-jp);
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .stat-badge.badge-warn {
+    font-family: var(--font-jp);
+    background: var(--amber-bg);
+    border-color: var(--amber);
+    color: var(--amber);
+    font-weight: 700;
+  }
+
+  .rule-note {
+    font-size: var(--fs-1);
+    color: var(--muted);
+    margin: 4px 0 16px;
+    line-height: 1.5;
+  }
+
+  .section-eyebrow {
+    font-size: var(--fs-1);
+    letter-spacing: .06em;
+    color: var(--muted);
+    font-weight: 700;
+    margin: 20px 0 10px;
+  }
+
+  /* Buy candidate cards */
+  .candidates {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .candidate-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--red);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .candidate-card--minor {
+    opacity: .62;
+    border-left-color: var(--hairline);
+    padding: 7px 12px;
+  }
+  .candidate-rank {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--fs-5);
+    font-weight: 700;
+    color: var(--red);
+    min-width: 1.3em;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .candidate-card--minor .candidate-rank {
+    font-size: var(--fs-4);
+    color: var(--muted);
+  }
+  .candidate-body { flex: 1; min-width: 0; }
+  .candidate-code-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .code-chip {
+    appearance: none;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--fs-3);
+    font-weight: 700;
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .code-chip[data-copied="true"] {
+    background: var(--green-bg);
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .candidate-name {
+    font-size: var(--fs-3);
+    color: var(--ink);
+  }
+  .candidate-meta {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--fs-2);
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .candidate-meta .jp { font-family: var(--font-jp); }
+
+  .next-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 8px;
+    color: var(--muted);
+    font-size: var(--fs-1);
+    letter-spacing: .06em;
+  }
+  .next-divider::before, .next-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: var(--fs-3);
+    padding: 18px;
+    text-align: center;
+    border: 1px dashed var(--hairline);
+    border-radius: var(--radius);
+    margin: 0;
+  }
+
+  /* Universe table */
+  .universe-details {
+    margin-top: 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .universe-details summary {
+    cursor: pointer;
+    padding: 12px;
+    font-size: var(--fs-3);
+    font-weight: 700;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .universe-details summary::-webkit-details-marker { display: none; }
+  .universe-details summary::before {
+    content: "\25B8";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform .15s;
+  }
+  .universe-details[open] summary::before { transform: rotate(90deg); }
+
+  .universe-note {
+    font-size: var(--fs-1);
+    color: var(--muted);
+    line-height: 1.5;
+    padding: 0 12px 12px;
+    margin: 0;
+  }
+
+  .risks-details {
+    margin-top: 16px;
+    border-color: var(--amber);
+  }
+  .risks-details summary { color: var(--amber); }
+  .risks-list {
+    margin: 0;
+    padding: 0 16px 14px 30px;
+    font-size: var(--fs-2);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .risks-list li { margin-bottom: 6px; }
+  .risks-list li:last-child { margin-bottom: 0; }
+  .filter-row { padding: 0 12px 12px; }
+  .filter-input {
+    width: 100%;
+    font-family: var(--font-jp);
+    font-size: var(--fs-4);
+    padding: 8px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--ground);
+    color: var(--ink);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    padding-bottom: 12px;
+  }
+  table.universe-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: var(--fs-2);
+  }
+  .universe-table th, .universe-table td {
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+  .universe-table th {
+    color: var(--muted);
+    font-weight: 700;
+    font-size: var(--fs-1);
+  }
+  .universe-table td.num, .universe-table th.num { text-align: right; }
+  .universe-table td.mono, .universe-table th.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .universe-table tbody tr[hidden] { display: none; }
+  .universe-table tbody tr.row-exit {
+    background: var(--green-bg);
+  }
+  .universe-table tbody tr.row-exit td:first-child {
+    box-shadow: inset 3px 0 0 var(--green);
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: var(--fs-1);
+    font-family: var(--font-jp);
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .badge--buy { background: var(--red-bg); color: var(--red); }
+  .badge--exit { background: var(--green-bg); color: var(--green); }
+  .badge--trend {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--hairline);
+  }
+  .badge--none { color: var(--muted); }
+
+  /* Positions tab */
+  .storage-notice {
+    font-size: var(--fs-1);
+    color: var(--amber);
+    background: var(--amber-bg);
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .storage-notice[hidden] { display: none; }
+
+  /* 検証ログ (paper trading) tab */
+  .info-notice {
+    font-size: var(--fs-1);
+    color: var(--accent);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  table.verifylog-table { min-width: 620px; }
+
+  .position-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 20px;
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: var(--fs-2);
+    color: var(--muted);
+  }
+  .form-field input, .form-field select {
+    font-family: var(--font-jp);
+    font-size: var(--fs-3);
+    padding: 8px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--ground);
+    color: var(--ink);
+  }
+  .position-form .refresh-btn { align-self: flex-start; margin-top: 4px; }
+
+  table.positions-table { min-width: 820px; }
+
+  .pnl-pos { color: var(--green); }
+  .pnl-neg { color: var(--red); }
+
+  .judge-badge { font-size: var(--fs-1); }
+  .judge-stop { background: var(--red-bg); color: var(--red); }
+  .judge-tp { background: var(--green-bg); color: var(--green); }
+  .judge-expire { background: var(--amber-bg); color: var(--amber); }
+  .judge-exit { background: var(--green-bg); color: var(--green); }
+  .judge-hold {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--hairline);
+  }
+  .judge-nodata {
+    background: transparent;
+    color: var(--muted);
+    border: 1px dashed var(--hairline);
+  }
+  .judge-extra {
+    font-size: var(--fs-1);
+    color: var(--muted);
+    margin-top: 4px;
+    white-space: normal;
+  }
+
+  .fallback-note {
+    display: block;
+    font-size: var(--fs-1);
+    color: var(--muted);
+  }
+
+  .del-btn {
+    appearance: none;
+    font-family: var(--font-jp);
+    font-size: var(--fs-1);
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+
+  .io-textarea {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: var(--fs-1);
+    padding: 8px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--ground);
+    color: var(--ink);
+    resize: vertical;
+  }
+  .io-btn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Footer */
+  .app-footer {
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-1);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .app-footer p { margin: 0 0 6px; }
+  .app-footer p:last-child { margin-bottom: 0; }
+
+  .data-missing {
+    padding: 40px 16px;
+    text-align: center;
+    font-size: var(--fs-4);
+    color: var(--muted);
+    border: 1px dashed var(--hairline);
+    border-radius: var(--radius);
+  }
+</style>
+<div id="app">
+  <header class="app-header">
+    <p class="app-title">日本株スイングスクリーナー</p>
+    <div class="refresh-row">
+      <button type="button" id="refresh-btn" class="refresh-btn">🔄 更新</button>
+      <p class="refresh-msg" id="refresh-msg" hidden></p>
+    </div>
+    <p class="trade-line" id="trade-line"></p>
+    <p class="meta-line" id="meta-line"></p>
+  </header>
+  <div id="status-banner" class="status-banner" hidden></div>
+  <nav id="tabs" class="tabs" hidden></nav>
+  <main id="panels"></main>
+  <footer class="app-footer">
+    <p>本ツールは情報提供のみを目的とし、投資助言ではありません。投資判断は自己責任で。</p>
+    <p>データ: Yahoo Finance（約20分遅延の日足）</p>
+  </footer>
+</div>
+<script>
+window.SIGNALS = /*__SIGNALS_JSON__*/null;
+(function () {
+  "use strict";
+
+  var WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function parseYmd(s) {
+    var parts = String(s).split("-").map(Number);
+    return { y: parts[0], m: parts[1], d: parts[2] };
+  }
+
+  function weekdayOf(y, m, d) {
+    return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  }
+
+  function fmtMd(y, m, d) {
+    return m + "/" + d;
+  }
+
+  function formatGeneratedAt(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    try {
+      var parts = new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(d);
+      var get = function (type) {
+        var p = parts.filter(function (x) { return x.type === type; })[0];
+        return p ? p.value : "";
+      };
+      return get("year") + "-" + get("month") + "-" + get("day") + " " + get("hour") + ":" + get("minute");
+    } catch (e) {
+      return d.toISOString();
+    }
+  }
+
+  function formatTimeOnly(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    try {
+      var parts = new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(d);
+      var get = function (type) {
+        var p = parts.filter(function (x) { return x.type === type; })[0];
+        return p ? p.value : "";
+      };
+      return get("hour") + ":" + get("minute");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function isOlderThan36h(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return false;
+    return (Date.now() - d.getTime()) > 36 * 3600 * 1000;
+  }
+
+  function isStaleValidation(dateStr) {
+    if (!dateStr) return false;
+    var p = parseYmd(dateStr);
+    var validated = new Date(Date.UTC(p.y, p.m - 1, p.d));
+    if (isNaN(validated.getTime())) return false;
+    var diffDays = (Date.now() - validated.getTime()) / (1000 * 3600 * 24);
+    return diffDays > 180;
+  }
+
+  function fmtNum(n, maxFrac) {
+    if (typeof n !== "number" || isNaN(n)) return "-";
+    return n.toLocaleString("ja-JP", { maximumFractionDigits: (typeof maxFrac === "number" ? maxFrac : 0) });
+  }
+
+  // ---- 保有ポジション: 日付・営業日ユーティリティ ----
+  function dateFromYmd(s) {
+    var p = parseYmd(s);
+    return new Date(Date.UTC(p.y, p.m - 1, p.d));
+  }
+
+  function ymdFromDate(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function addDaysUTC(d, n) {
+    return new Date(d.getTime() + n * 86400000);
+  }
+
+  function isWeekdayDate(d) {
+    var wd = d.getUTCDay();
+    return wd !== 0 && wd !== 6;
+  }
+
+  // n営業日後の日付を返す（土日のみ考慮の簡易フォールバック。祝日は考慮しない）。
+  function weekdayBusinessDaysAfter(startYmd, n) {
+    var d = dateFromYmd(startYmd);
+    var count = 0;
+    var guard = 0;
+    while (count < n && guard < 5000) {
+      d = addDaysUTC(d, 1);
+      if (isWeekdayDate(d)) count++;
+      guard++;
+    }
+    return ymdFromDate(d);
+  }
+
+  // エントリー日(fillDateYmd)から10営業日目の日付と残り営業日数を計算する
+  // （エンジンのmax_hold=10と同じ数え方: エントリー日を0日目とし、10日後で期限フラグ）。
+  // data_date以前の経過分は土日のみ考慮の近似でカウントし、data_date以降は
+  // サーバ側 calendar.future_business_days（jpholiday考慮）を優先的に使う。
+  // future_business_daysの範囲(15件)を超える分は再び土日のみ考慮にフォールバックする。
+  function computeDeadline(fillDateYmd, dataDateYmd, futureBusinessDays) {
+    futureBusinessDays = futureBusinessDays || [];
+    var fillD = dateFromYmd(fillDateYmd);
+    var dataD = dateFromYmd(dataDateYmd);
+    if (fillD.getTime() > dataD.getTime()) {
+      // 未来日付のエントリー（通常は発生しない想定の保険）。
+      return { deadline: weekdayBusinessDaysAfter(fillDateYmd, 10), remainingDays: 10, expired: false, approximate: true };
+    }
+    var elapsed = 0;
+    var cur = fillD;
+    var guard = 0;
+    while (cur.getTime() < dataD.getTime() && guard < 5000) {
+      cur = addDaysUTC(cur, 1);
+      if (isWeekdayDate(cur)) elapsed++;
+      guard++;
+    }
+    var approximate = elapsed > 0; // data_date以前は土日のみ考慮の近似
+    var remaining = 10 - elapsed;
+    if (remaining <= 0) {
+      return { deadline: null, remainingDays: 0, expired: true, approximate: approximate };
+    }
+    var deadlineYmd;
+    if (remaining <= futureBusinessDays.length) {
+      deadlineYmd = futureBusinessDays[remaining - 1];
+    } else {
+      approximate = true;
+      var base = futureBusinessDays.length ? futureBusinessDays[futureBusinessDays.length - 1] : dataDateYmd;
+      deadlineYmd = weekdayBusinessDaysAfter(base, remaining - futureBusinessDays.length);
+    }
+    return { deadline: deadlineYmd, remainingDays: remaining, expired: false, approximate: approximate };
+  }
+
+  // ---- 保有ポジション: ローカル保存（localStorageが使えない環境ではメモリにフォールバック） ----
+  var POSITIONS_KEY = "jp_swing_positions_v1";
+  var memoryPositions = [];
+  var storageAvailable = (function () {
+    try {
+      var k = "__jp_swing_probe__";
+      window.localStorage.setItem(k, "1");
+      window.localStorage.removeItem(k);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  function loadPositions() {
+    if (storageAvailable) {
+      try {
+        var raw = window.localStorage.getItem(POSITIONS_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        storageAvailable = false;
+      }
+    }
+    return memoryPositions;
+  }
+
+  function savePositions(list) {
+    if (storageAvailable) {
+      try {
+        window.localStorage.setItem(POSITIONS_KEY, JSON.stringify(list));
+        return;
+      } catch (e) {
+        storageAvailable = false;
+      }
+    }
+    memoryPositions = list;
+  }
+
+  function statsRowHtml(strategy) {
+    var s = strategy.oos_stats || {};
+    var winRate = typeof s.win_rate === "number" ? (s.win_rate * 100).toFixed(1) + "%" : "-";
+    var pf = typeof s.profit_factor === "number" ? s.profit_factor.toFixed(2) : "-";
+    var maxDd = typeof s.max_dd === "number" ? (s.max_dd * 100).toFixed(1) + "%" : "-";
+    var period = s.period ? escapeHtml(s.period) : "-";
+    var html =
+      '<span class="stat-badge"><span class="label">勝率</span>' + winRate + '</span>' +
+      '<span class="stat-badge"><span class="label">PF</span>' + pf + '</span>' +
+      '<span class="stat-badge"><span class="label">最大DD</span>' + maxDd + '</span>' +
+      '<span class="stat-badge"><span class="label">検証期間</span>' + period + '</span>';
+    if (isStaleValidation(strategy.validated_at)) {
+      html += '<span class="stat-badge badge-warn">要再検証</span>';
+    }
+    return html;
+  }
+
+  function orderStr(c, usesLimit) {
+    if (usesLimit && typeof c.limit_price === "number") {
+      return '指値 ' + fmtNum(c.limit_price, 1) + '<span class="jp">円</span>';
+    }
+    return '<span class="jp">寄付成行</span>';
+  }
+
+  function candidateCardHtml(c, minor, usesLimit) {
+    var priceStr = fmtNum(c.close, 1);
+    var unitStr = fmtNum(c.unit_cost, 0);
+    return (
+      '<div class="candidate-card' + (minor ? ' candidate-card--minor' : '') + '">' +
+        '<div class="candidate-rank">' + escapeHtml(c.priority) + '</div>' +
+        '<div class="candidate-body">' +
+          '<div class="candidate-code-row">' +
+            '<button type="button" class="code-chip" data-code="' + escapeHtml(c.code) + '">' + escapeHtml(c.code) + '</button>' +
+            '<span class="candidate-name">' + escapeHtml(c.name) + '</span>' +
+          '</div>' +
+          '<div class="candidate-meta">' +
+            '終値 ' + priceStr + '<span class="jp">円</span> ・ ' + escapeHtml(c.rank_label) +
+            ' ・ <span class="jp">100株=</span>' + unitStr + '<span class="jp">円</span>' +
+          '</div>' +
+          '<div class="candidate-meta">' + orderStr(c, usesLimit) + '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function buyCandidatesHtml(strategy) {
+    var candidates = (strategy.buy_candidates || []).slice().sort(function (a, b) { return a.priority - b.priority; });
+    if (candidates.length === 0) {
+      return '<p class="empty-state">本日はシグナルなし</p>';
+    }
+    var usesLimit = strategy.limit_entry !== null && strategy.limit_entry !== undefined;
+    var top = candidates.filter(function (c) { return c.priority <= 5; });
+    var rest = candidates.filter(function (c) { return c.priority > 5; });
+    var html = "";
+    if (top.length) {
+      html += '<div class="candidates">' + top.map(function (c) { return candidateCardHtml(c, false, usesLimit); }).join("") + '</div>';
+    }
+    if (rest.length) {
+      html += '<div class="next-divider">次点</div>';
+      html += '<div class="candidates">' + rest.map(function (c) { return candidateCardHtml(c, true, usesLimit); }).join("") + '</div>';
+    }
+    return html;
+  }
+
+  function universeRowHtml(u) {
+    var badges = "";
+    if (u.entry && !u.exit) badges += '<span class="badge badge--buy">買い</span>';
+    if (u.exit) badges += '<span class="badge badge--exit">手仕舞い</span>';
+    if (u.trend_ok === false) badges += '<span class="badge badge--trend">トレンド外</span>';
+    if (!badges) badges = '<span class="badge--none">-</span>';
+    var codeKey = String(u.code || "").toLowerCase();
+    var nameKey = String(u.name || "").toLowerCase();
+    return (
+      '<tr class="' + (u.exit ? 'row-exit' : '') + '" data-code="' + escapeHtml(codeKey) + '" data-name="' + escapeHtml(nameKey) + '">' +
+        '<td class="mono">' + escapeHtml(u.code) + '</td>' +
+        '<td>' + escapeHtml(u.name) + '</td>' +
+        '<td class="num mono">' + fmtNum(u.close, 1) + '</td>' +
+        '<td class="mono">' + escapeHtml(u.rank_label) + '</td>' +
+        '<td>' + badges + '</td>' +
+      '</tr>'
+    );
+  }
+
+  function risksHtml(strategy) {
+    var risks = strategy.risks || [];
+    if (!risks.length) return "";
+    var items = risks.map(function (r) { return '<li>' + escapeHtml(r) + '</li>'; }).join("");
+    return (
+      '<details class="universe-details risks-details">' +
+        '<summary>&#9888; リスク・注意事項</summary>' +
+        '<ul class="risks-list">' + items + '</ul>' +
+      '</details>'
+    );
+  }
+
+  // ---- 保有ポジション: レンダリング ----
+  function buildUniverseMap(signals) {
+    var map = {};
+    (signals.strategies || []).forEach(function (s) {
+      (s.universe_status || []).forEach(function (r) {
+        if (r && r.code && !(r.code in map)) map[r.code] = r.name || r.code;
+      });
+    });
+    return map;
+  }
+
+  // 判定優先順位はエンジン(backtest/engine.py)と同一: stop > take_profit > max_hold > exit signal
+  function judgePosition(prices, universeRow, deadlineInfo) {
+    var conditions = [];
+    var stopHit = false, tpHit = false, exitHit = false;
+    if (universeRow && typeof universeRow.close === "number") {
+      if (universeRow.close <= prices.stopPrice) { stopHit = true; conditions.push("終値が損切り価格以下"); }
+      if (universeRow.close >= prices.tpPrice) { tpHit = true; conditions.push("終値が利確ライン以上"); }
+    }
+    if (universeRow && universeRow.exit) { exitHit = true; conditions.push("出口シグナル該当"); }
+    if (deadlineInfo.expired) conditions.push("保有期限(10営業日)到来");
+
+    var primary;
+    if (stopHit) primary = { label: "翌寄りで損切り売り", cls: "judge-stop" };
+    else if (tpHit) primary = { label: "翌寄りで利確売り", cls: "judge-tp" };
+    else if (deadlineInfo.expired) primary = { label: "期限到来・翌寄りで売り", cls: "judge-expire" };
+    else if (exitHit) primary = { label: "出口シグナル・翌寄りで売り", cls: "judge-exit" };
+    else if (!universeRow) primary = { label: "データなし", cls: "judge-nodata" };
+    else primary = { label: "継続保有", cls: "judge-hold" };
+
+    return { primary: primary, conditions: conditions };
+  }
+
+  function judgeBadgeHtml(judged) {
+    var extra = judged.conditions.length
+      ? '<div class="judge-extra">該当条件: ' + judged.conditions.map(escapeHtml).join("・") + '</div>'
+      : "";
+    return '<span class="badge judge-badge ' + judged.primary.cls + '">' + escapeHtml(judged.primary.label) + '</span>' + extra;
+  }
+
+  function positionRowHtml(pos, signals) {
+    var strategy = (signals.strategies || []).filter(function (s) { return s.id === pos.strategyId; })[0];
+    var universeRow = strategy
+      ? (strategy.universe_status || []).filter(function (r) { return r.code === pos.code; })[0] || null
+      : null;
+    var stopPrice = Math.round(pos.fillPrice * 0.85 * 10) / 10;
+    var tpPrice = Math.round(pos.fillPrice * 1.02 * 10) / 10;
+    var futureDays = (signals.calendar && signals.calendar.future_business_days) || [];
+    var deadlineInfo = computeDeadline(pos.fillDate, signals.data_date, futureDays);
+    var judged = judgePosition({ stopPrice: stopPrice, tpPrice: tpPrice }, universeRow, deadlineInfo);
+
+    var currentClose = universeRow && typeof universeRow.close === "number" ? universeRow.close : null;
+    var pnlPct = currentClose !== null ? (currentClose / pos.fillPrice - 1) * 100 : null;
+    var pnlClass = pnlPct === null ? "" : (pnlPct >= 0 ? "pnl-pos" : "pnl-neg");
+    var pnlStr = pnlPct !== null ? (pnlPct >= 0 ? "+" : "") + pnlPct.toFixed(1) + "%" : "データなし";
+
+    var deadlineStr = deadlineInfo.expired
+      ? "到来済み"
+      : escapeHtml(deadlineInfo.deadline) + (deadlineInfo.approximate ? '<span class="fallback-note">※祝日非考慮</span>' : "");
+    var remainStr = "残り" + deadlineInfo.remainingDays + "営業日";
+
+    var strategyName = strategy ? (strategy.display_name || strategy.id) : pos.strategyId;
+
+    return (
+      '<tr>' +
+        '<td><span class="mono">' + escapeHtml(pos.code) + '</span><br>' + escapeHtml(pos.name || "") + '</td>' +
+        '<td>' + escapeHtml(strategyName) + '</td>' +
+        '<td class="mono">' + escapeHtml(pos.fillDate) + '</td>' +
+        '<td class="num mono">' + fmtNum(pos.fillPrice, 1) + '</td>' +
+        '<td class="num mono">' + (currentClose !== null ? fmtNum(currentClose, 1) : 'データなし') + '</td>' +
+        '<td class="num mono ' + pnlClass + '">' + pnlStr + '</td>' +
+        '<td class="num mono">' + fmtNum(stopPrice, 1) + '</td>' +
+        '<td class="num mono">' + fmtNum(tpPrice, 1) + '</td>' +
+        '<td class="mono">' + deadlineStr + '<span class="fallback-note">' + remainStr + '</span></td>' +
+        '<td>' + judgeBadgeHtml(judged) + '</td>' +
+        '<td><button type="button" class="del-btn" data-id="' + escapeHtml(pos.id) + '">削除</button></td>' +
+      '</tr>'
+    );
+  }
+
+  function renderPositionsTable() {
+    var signals = window.SIGNALS;
+    var wrap = document.getElementById("positions-table-wrap");
+    if (!wrap || !signals) return;
+    var list = loadPositions();
+    if (!list.length) {
+      wrap.innerHTML = '<p class="empty-state">登録されたポジションはありません</p>';
+      return;
+    }
+    var rows = list.map(function (p) { return positionRowHtml(p, signals); }).join("");
+    wrap.innerHTML =
+      '<div class="table-scroll"><table class="universe-table positions-table">' +
+        '<thead><tr>' +
+          '<th>銘柄</th><th>戦略</th><th>約定日</th><th class="num">建値</th><th class="num">現在値</th>' +
+          '<th class="num">損益%</th><th class="num">損切り価格</th><th class="num">利確ライン</th>' +
+          '<th>期限</th><th>今夜の判定</th><th></th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
+  }
+
+  function positionsPanelHtml(signals) {
+    var strategies = signals.strategies || [];
+    var strategyOptions = strategies.map(function (s) {
+      return '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.display_name || s.id) + '</option>';
+    }).join("");
+    var universeMap = buildUniverseMap(signals);
+    var datalistOptions = Object.keys(universeMap).sort().map(function (c) {
+      return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c + " " + universeMap[c]) + '</option>';
+    }).join("");
+
+    return (
+      '<section class="panel" id="panel-positions" role="tabpanel" aria-labelledby="tab-positions" hidden>' +
+        '<p class="rule-note">判定はデータ日付 <span class="mono">' + escapeHtml(signals.data_date) +
+          '</span> の終値ベース。毎晩の自動更新後に確認してください</p>' +
+        '<p class="storage-notice" id="storage-notice"' + (storageAvailable ? " hidden" : "") + '>' +
+          'このブラウザではローカル保存が使えないため、ポジションはこのセッション内のみ保持されます。' +
+          '下部の「エクスポート」でJSONをコピーして手元に保存し、次回は「インポート」で読み込んでください。' +
+        '</p>' +
+        '<h2 class="section-eyebrow">ポジション登録</h2>' +
+        '<form id="position-form" class="position-form">' +
+          '<label class="form-field">戦略' +
+            '<select id="pf-strategy" required>' + strategyOptions + '</select>' +
+          '</label>' +
+          '<label class="form-field">銘柄コード' +
+            '<input type="text" id="pf-code" list="universe-codes" required placeholder="例: 7203" inputmode="numeric" autocomplete="off">' +
+          '</label>' +
+          '<datalist id="universe-codes">' + datalistOptions + '</datalist>' +
+          '<label class="form-field">約定日' +
+            '<input type="date" id="pf-date" value="' + escapeHtml(signals.trade_date || "") + '" required>' +
+          '</label>' +
+          '<label class="form-field">約定価格' +
+            '<input type="number" id="pf-price" step="0.1" min="0" required>' +
+          '</label>' +
+          '<label class="form-field">株数（任意・既定100）' +
+            '<input type="number" id="pf-shares" step="1" min="1" value="100">' +
+          '</label>' +
+          '<button type="submit" class="refresh-btn">保存</button>' +
+        '</form>' +
+        '<h2 class="section-eyebrow">保有ポジション</h2>' +
+        '<div id="positions-table-wrap"></div>' +
+        '<details class="universe-details">' +
+          '<summary>エクスポート / インポート</summary>' +
+          '<p class="universe-note">ローカル保存が使えない環境（一部のArtifact表示等）では、ここでJSONをコピーして手元に保存し、次回起動時に貼り付けて読み込んでください。</p>' +
+          '<div class="filter-row">' +
+            '<textarea id="io-textarea" class="io-textarea" rows="4" placeholder="[]"></textarea>' +
+          '</div>' +
+          '<div class="io-btn-row">' +
+            '<button type="button" id="io-export-btn" class="refresh-btn">エクスポート</button>' +
+            '<button type="button" id="io-import-btn" class="refresh-btn">インポート</button>' +
+            '<p class="refresh-msg" id="io-msg" hidden></p>' +
+          '</div>' +
+        '</details>' +
+      '</section>'
+    );
+  }
+
+  // ---- 検証ログ: 全シグナル自動ペーパートレードのレンダリング ----
+  // 「保有ポジション」タブ（ユーザー手動登録の実際の保有）とは完全に別物。
+  // 集計はまず signals.paper_log_summary（server側で計算・埋め込み済み）を使い、
+  // data/paper_log.json の取得に成功した場合はより詳細な決済一覧・保有中一覧を追加表示する。
+  var EXIT_REASON_LABEL = {
+    stop_loss: "損切り", take_profit: "利確", max_hold: "期限到来", exit_signal: "出口シグナル"
+  };
+
+  function fmtPct(n) {
+    if (typeof n !== "number" || isNaN(n)) return "-";
+    return (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
+  }
+
+  function fmtRate(n) {
+    return typeof n === "number" && !isNaN(n) ? (n * 100).toFixed(1) + "%" : "-";
+  }
+
+  function strategyDisplayName(signals, sid) {
+    var s = (signals.strategies || []).filter(function (x) { return x.id === sid; })[0];
+    return s ? (s.display_name || sid) : sid;
+  }
+
+  function computeClientPaperSummary(paperLog) {
+    var closed = (paperLog && paperLog.closed) || [];
+    if (!closed.length) return null;
+    var wins = 0, sum = 0;
+    var byStrategy = {};
+    closed.forEach(function (c) {
+      if (c.return_pct > 0) wins++;
+      sum += c.return_pct;
+      var b = byStrategy[c.strategy_id] || (byStrategy[c.strategy_id] = { closed_trades: 0, wins: 0, sum: 0 });
+      b.closed_trades++;
+      if (c.return_pct > 0) b.wins++;
+      b.sum += c.return_pct;
+    });
+    var byStrategyOut = {};
+    Object.keys(byStrategy).forEach(function (sid) {
+      var b = byStrategy[sid];
+      byStrategyOut[sid] = {
+        closed_trades: b.closed_trades,
+        win_rate: b.wins / b.closed_trades,
+        avg_ret: b.sum / b.closed_trades
+      };
+    });
+    return { closed_trades: closed.length, win_rate: wins / closed.length, avg_ret: sum / closed.length, by_strategy: byStrategyOut };
+  }
+
+  function verifyLogSummaryHtml(summary, signals) {
+    if (!summary || !summary.closed_trades) {
+      return '<p class="empty-state">検証中（まだ決済トレードがありません）</p>';
+    }
+    var overall =
+      '<div class="stats-row">' +
+        '<span class="stat-badge"><span class="label">決済件数</span>' + summary.closed_trades + '</span>' +
+        '<span class="stat-badge"><span class="label">勝率</span>' + fmtRate(summary.win_rate) + '</span>' +
+        '<span class="stat-badge"><span class="label">平均損益</span>' + fmtPct(summary.avg_ret) + '</span>' +
+      '</div>';
+    var byStrategy = summary.by_strategy || {};
+    var rows = Object.keys(byStrategy).map(function (sid) {
+      var b = byStrategy[sid];
+      return '<div class="stats-row">' +
+        '<span class="stat-badge"><span class="label">' + escapeHtml(strategyDisplayName(signals, sid)) + '</span>件数 ' + b.closed_trades + '</span>' +
+        '<span class="stat-badge">勝率 ' + fmtRate(b.win_rate) + '</span>' +
+        '<span class="stat-badge">平均損益 ' + fmtPct(b.avg_ret) + '</span>' +
+      '</div>';
+    }).join("");
+    return overall + rows;
+  }
+
+  function closedTradesTableHtml(closed, signals) {
+    if (!closed || !closed.length) {
+      return '<p class="empty-state">決済済みのトレードはまだありません</p>';
+    }
+    var sorted = closed.slice().sort(function (a, b) {
+      return a.exit_date < b.exit_date ? 1 : (a.exit_date > b.exit_date ? -1 : 0);
+    });
+    var rows = sorted.map(function (c) {
+      var pnlClass = c.return_pct >= 0 ? "pnl-pos" : "pnl-neg";
+      return '<tr>' +
+        '<td><span class="mono">' + escapeHtml(c.code) + '</span><br>' + escapeHtml(c.name || "") + '</td>' +
+        '<td>' + escapeHtml(strategyDisplayName(signals, c.strategy_id)) + '</td>' +
+        '<td class="mono">' + escapeHtml(c.entry_date) + '</td>' +
+        '<td class="mono">' + escapeHtml(c.exit_date) + '</td>' +
+        '<td>' + escapeHtml(EXIT_REASON_LABEL[c.exit_reason] || c.exit_reason || "-") + '</td>' +
+        '<td class="num mono ' + pnlClass + '">' + fmtPct(c.return_pct) + '</td>' +
+      '</tr>';
+    }).join("");
+    return (
+      '<div class="table-scroll"><table class="universe-table verifylog-table">' +
+        '<thead><tr><th>銘柄</th><th>戦略</th><th>エントリー日</th><th>エグジット日</th><th>理由</th><th class="num">損益%</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>'
+    );
+  }
+
+  function openPaperPositionsHtml(openList, signals) {
+    if (!openList || !openList.length) {
+      return '<p class="empty-state">保有中（検証用）のポジションはありません</p>';
+    }
+    var rows = openList.map(function (p) {
+      var statusBadge = p.pending_exit
+        ? '<span class="badge judge-badge judge-exit">手仕舞い待ち</span>'
+        : '<span class="badge judge-badge judge-hold">保有中</span>';
+      return '<tr>' +
+        '<td><span class="mono">' + escapeHtml(p.code) + '</span><br>' + escapeHtml(p.name || "") + '</td>' +
+        '<td>' + escapeHtml(strategyDisplayName(signals, p.strategy_id)) + '</td>' +
+        '<td class="mono">' + escapeHtml(p.entry_date) + '</td>' +
+        '<td class="num mono">' + fmtNum(p.entry_price, 1) + '</td>' +
+        '<td class="num mono">' + fmtNum(p.stop_price, 1) + '</td>' +
+        '<td class="num mono">' + (typeof p.target_price === "number" ? fmtNum(p.target_price, 1) : "-") + '</td>' +
+        '<td class="mono">' + escapeHtml(p.deadline_date) + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+      '</tr>';
+    }).join("");
+    return (
+      '<details class="universe-details">' +
+        '<summary>保有中(検証用) ' + openList.length + '件</summary>' +
+        '<p class="universe-note">シミュレーション上の保有です。実際の保有銘柄は「保有ポジション」タブで管理してください。</p>' +
+        '<div class="table-scroll"><table class="universe-table verifylog-table">' +
+          '<thead><tr><th>銘柄</th><th>戦略</th><th>エントリー日</th><th class="num">建値</th>' +
+            '<th class="num">損切り</th><th class="num">利確</th><th>期限</th><th>状態</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div>' +
+      '</details>'
+    );
+  }
+
+  function verifyLogPanelHtml(signals) {
+    return (
+      '<section class="panel" id="panel-verifylog" role="tabpanel" aria-labelledby="tab-verifylog" hidden>' +
+        '<p class="info-notice">この結果は自動シミュレーションです。実際に保有中の銘柄は「保有ポジション」タブをご覧ください。</p>' +
+        '<h2 class="section-eyebrow">サマリー</h2>' +
+        '<div id="verifylog-summary">' + verifyLogSummaryHtml(signals.paper_log_summary, signals) + '</div>' +
+        '<h2 class="section-eyebrow">決済済み一覧</h2>' +
+        '<div id="verifylog-closed"><p class="empty-state">読み込み中…</p></div>' +
+        '<h2 class="section-eyebrow">保有中(検証用)</h2>' +
+        '<div id="verifylog-open"><p class="empty-state">読み込み中…</p></div>' +
+      '</section>'
+    );
+  }
+
+  function loadPaperLog() {
+    var signals = window.SIGNALS;
+    var summaryEl = document.getElementById("verifylog-summary");
+    var closedEl = document.getElementById("verifylog-closed");
+    var openEl = document.getElementById("verifylog-open");
+    if (!closedEl && !openEl) return; // 検証ログタブがDOMに存在しない
+    fetch("data/paper_log.json?_=" + Date.now(), { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        window.PAPER_LOG = data;
+        var clientSummary = computeClientPaperSummary(data);
+        if (summaryEl) summaryEl.innerHTML = verifyLogSummaryHtml(clientSummary || (signals && signals.paper_log_summary), signals);
+        if (closedEl) closedEl.innerHTML = closedTradesTableHtml(data.closed, signals);
+        if (openEl) openEl.innerHTML = openPaperPositionsHtml(data.open, signals);
+      })
+      .catch(function () {
+        var msg = '<p class="empty-state">詳細な検証ログを取得できませんでした（このビューでは埋め込みサマリーのみ表示）</p>';
+        if (closedEl) closedEl.innerHTML = msg;
+        if (openEl) openEl.innerHTML = msg;
+      });
+  }
+
+  function panelHtml(strategy, idx, active) {
+    var universeRows = (strategy.universe_status || []).map(universeRowHtml).join("");
+    return (
+      '<section class="panel" id="panel-' + idx + '" role="tabpanel" aria-labelledby="tab-' + idx + '"' + (active ? "" : " hidden") + '>' +
+        '<div class="stats-row">' + statsRowHtml(strategy) + '</div>' +
+        '<p class="rule-note">' + escapeHtml(strategy.rule_note || "") + '</p>' +
+        '<h2 class="section-eyebrow">明日の買い候補</h2>' +
+        buyCandidatesHtml(strategy) +
+        risksHtml(strategy) +
+        '<details class="universe-details">' +
+          '<summary>全銘柄ステータス</summary>' +
+          '<p class="universe-note">保有銘柄がexit該当なら翌寄りで手仕舞い。損切り（建値-15%）と保有日数（10営業日）は各自の記録で管理</p>' +
+          '<div class="filter-row">' +
+            '<input type="text" class="filter-input" id="filter-' + idx + '" placeholder="コード・銘柄名で絞り込み" aria-label="コード・銘柄名で絞り込み">' +
+          '</div>' +
+          '<div class="table-scroll">' +
+            '<table class="universe-table" id="table-' + idx + '">' +
+              '<thead><tr><th>コード</th><th>銘柄名</th><th class="num">終値</th><th>指標</th><th>状態</th></tr></thead>' +
+              '<tbody>' + universeRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</details>' +
+      '</section>'
+    );
+  }
+
+  function tabsHtml(strategies) {
+    var strategyTabs = strategies.map(function (s, idx) {
+      return '<button type="button" class="tab" id="tab-' + idx + '" role="tab" aria-selected="' + (idx === 0 ? "true" : "false") +
+        '" aria-controls="panel-' + idx + '" data-idx="' + idx + '">' + escapeHtml(s.display_name || s.id) + '</button>';
+    }).join("");
+    var positionsTab =
+      '<button type="button" class="tab" id="tab-positions" role="tab" aria-selected="false" ' +
+      'aria-controls="panel-positions" data-idx="positions">保有ポジション</button>';
+    var verifyLogTab =
+      '<button type="button" class="tab" id="tab-verifylog" role="tab" aria-selected="false" ' +
+      'aria-controls="panel-verifylog" data-idx="verifylog">検証ログ</button>';
+    return strategyTabs + positionsTab + verifyLogTab;
+  }
+
+  function fallbackSelect(el) {
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* ignore */ }
+  }
+
+  function copyCode(btn) {
+    var text = btn.getAttribute("data-code");
+    var original = btn.textContent;
+    var showCopied = function () {
+      btn.textContent = "コピー済";
+      btn.setAttribute("data-copied", "true");
+      setTimeout(function () {
+        btn.textContent = original;
+        btn.removeAttribute("data-copied");
+      }, 1200);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied, function () { fallbackSelect(btn); });
+      } else {
+        fallbackSelect(btn);
+      }
+    } catch (e) {
+      fallbackSelect(btn);
+    }
+  }
+
+  // ---- 保有ポジション: フォーム・テーブルの操作 ----
+  function updatePricePrefill() {
+    var signals = window.SIGNALS;
+    if (!signals) return;
+    var strategySel = document.getElementById("pf-strategy");
+    var codeInput = document.getElementById("pf-code");
+    var priceInput = document.getElementById("pf-price");
+    if (!strategySel || !codeInput || !priceInput) return;
+    var code = codeInput.value.trim();
+    if (!code) return;
+    var strategy = (signals.strategies || []).filter(function (s) { return s.id === strategySel.value; })[0];
+    if (!strategy) return;
+    var cand = (strategy.buy_candidates || []).filter(function (c) { return c.code === code; })[0];
+    if (cand && typeof cand.limit_price === "number") {
+      priceInput.value = cand.limit_price;
+      return;
+    }
+    var row = (strategy.universe_status || []).filter(function (r) { return r.code === code; })[0];
+    if (row && typeof row.close === "number") {
+      priceInput.value = row.close;
+    }
+  }
+
+  function onPositionFormSubmit(e) {
+    e.preventDefault();
+    var signals = window.SIGNALS;
+    if (!signals) return;
+    var strategyId = document.getElementById("pf-strategy").value;
+    var code = document.getElementById("pf-code").value.trim();
+    var fillDate = document.getElementById("pf-date").value;
+    var fillPrice = parseFloat(document.getElementById("pf-price").value);
+    var sharesRaw = document.getElementById("pf-shares").value;
+    var shares = sharesRaw !== "" ? parseFloat(sharesRaw) : 100;
+    if (!strategyId || !code || !fillDate || !isFinite(fillPrice) || fillPrice <= 0) return;
+    if (!isFinite(shares) || shares <= 0) shares = 100;
+    var universeMap = buildUniverseMap(signals);
+    var list = loadPositions();
+    list.push({
+      id: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
+      strategyId: strategyId,
+      code: code,
+      name: universeMap[code] || "",
+      fillDate: fillDate,
+      fillPrice: fillPrice,
+      shares: shares
+    });
+    savePositions(list);
+    var form = document.getElementById("position-form");
+    if (form) form.reset();
+    renderPositionsTable();
+  }
+
+  function onPositionsTableClick(e) {
+    var el = e.target;
+    while (el && el !== e.currentTarget && !(el.classList && el.classList.contains("del-btn"))) {
+      el = el.parentNode;
+    }
+    if (!el || !el.classList || !el.classList.contains("del-btn")) return;
+    var id = el.getAttribute("data-id");
+    var list = loadPositions().filter(function (p) { return p.id !== id; });
+    savePositions(list);
+    renderPositionsTable();
+  }
+
+  function setIoMsg(text, kind) {
+    var el = document.getElementById("io-msg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "refresh-msg" + (kind ? " refresh-msg--" + kind : "");
+    el.hidden = !text;
+  }
+
+  function onExportClick() {
+    var ta = document.getElementById("io-textarea");
+    if (!ta) return;
+    ta.value = JSON.stringify(loadPositions(), null, 1);
+    setIoMsg("エクスポートしました。テキストをコピーして保存してください", "ok");
+  }
+
+  function onImportClick() {
+    var ta = document.getElementById("io-textarea");
+    if (!ta) return;
+    try {
+      var parsed = JSON.parse(ta.value || "[]");
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      savePositions(parsed);
+      renderPositionsTable();
+      setIoMsg("読み込みました（" + parsed.length + "件）", "ok");
+    } catch (e) {
+      setIoMsg("JSONの読み込みに失敗しました。内容を確認してください", "error");
+    }
+  }
+
+  function initPositionsTab() {
+    var form = document.getElementById("position-form");
+    if (form) form.addEventListener("submit", onPositionFormSubmit);
+    var strategySel = document.getElementById("pf-strategy");
+    if (strategySel) strategySel.addEventListener("change", updatePricePrefill);
+    var codeInput = document.getElementById("pf-code");
+    if (codeInput) {
+      codeInput.addEventListener("change", updatePricePrefill);
+      codeInput.addEventListener("input", updatePricePrefill);
+    }
+    var wrap = document.getElementById("positions-table-wrap");
+    if (wrap) wrap.addEventListener("click", onPositionsTableClick);
+    var exportBtn = document.getElementById("io-export-btn");
+    if (exportBtn) exportBtn.addEventListener("click", onExportClick);
+    var importBtn = document.getElementById("io-import-btn");
+    if (importBtn) importBtn.addEventListener("click", onImportClick);
+    renderPositionsTable();
+  }
+
+  function attachEvents() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var idx = tab.getAttribute("data-idx");
+        tabs.forEach(function (t) { t.setAttribute("aria-selected", t === tab ? "true" : "false"); });
+        Array.prototype.slice.call(document.querySelectorAll(".panel")).forEach(function (p) {
+          p.hidden = p.id !== ("panel-" + idx);
+        });
+      });
+    });
+
+    Array.prototype.slice.call(document.querySelectorAll(".code-chip")).forEach(function (btn) {
+      btn.addEventListener("click", function () { copyCode(btn); });
+    });
+
+    Array.prototype.slice.call(document.querySelectorAll(".filter-input")).forEach(function (input) {
+      var idx = input.id.split("-")[1];
+      var table = document.getElementById("table-" + idx);
+      if (!table) return;
+      var rows = Array.prototype.slice.call(table.querySelectorAll("tbody tr"));
+      input.addEventListener("input", function () {
+        var q = input.value.trim().toLowerCase();
+        rows.forEach(function (row) {
+          var match = !q || row.getAttribute("data-code").indexOf(q) !== -1 || row.getAttribute("data-name").indexOf(q) !== -1;
+          row.hidden = !match;
+        });
+      });
+    });
+
+    initPositionsTab();
+  }
+
+  function render() {
+    var app = document.getElementById("app");
+    if (!app) return;
+    var signals = window.SIGNALS;
+
+    var tradeLineEl = document.getElementById("trade-line");
+    var metaLineEl = document.getElementById("meta-line");
+    var bannerEl = document.getElementById("status-banner");
+    var tabsEl = document.getElementById("tabs");
+    var panelsEl = document.getElementById("panels");
+
+    if (!signals) {
+      tradeLineEl.textContent = "";
+      metaLineEl.textContent = "";
+      bannerEl.hidden = true;
+      tabsEl.hidden = true;
+      tabsEl.innerHTML = "";
+      panelsEl.innerHTML = '<p class="data-missing">データ未生成: ジェネレータを実行してください</p>';
+      return;
+    }
+
+    var t = parseYmd(signals.trade_date);
+    tradeLineEl.innerHTML = '<span class="mono">' + fmtMd(t.y, t.m, t.d) + '</span>（' + weekdayOf(t.y, t.m, t.d) + '） 寄付で執行';
+
+    metaLineEl.innerHTML = 'データ基準日: <span class="mono">' + escapeHtml(signals.data_date) +
+      '</span> / 更新: <span class="mono">' + escapeHtml(formatGeneratedAt(signals.generated_at)) + '</span>';
+
+    var old36h = isOlderThan36h(signals.generated_at);
+    if (signals.status !== "ok" || old36h) {
+      bannerEl.hidden = false;
+      bannerEl.textContent = "情報が古い可能性があります（最終更新 " + formatGeneratedAt(signals.generated_at) + "）";
+      bannerEl.className = "status-banner " + (signals.status === "error" ? "status-banner--error" : "status-banner--warn");
+    } else {
+      bannerEl.hidden = true;
+      bannerEl.className = "status-banner";
+    }
+
+    var strategies = signals.strategies || [];
+
+    // 戦略タブが1つ以下でも「保有ポジション」タブは常時表示するため、タブバー自体は常に出す。
+    tabsEl.hidden = false;
+    tabsEl.setAttribute("role", "tablist");
+    tabsEl.innerHTML = tabsHtml(strategies);
+
+    var strategyPanels = strategies.length
+      ? strategies.map(function (s, idx) { return panelHtml(s, idx, idx === 0); }).join("")
+      : '<p class="empty-state">掲載戦略がありません</p>';
+    panelsEl.innerHTML = strategyPanels + positionsPanelHtml(signals) + verifyLogPanelHtml(signals);
+
+    attachEvents();
+    loadPaperLog();
+  }
+
+  function setRefreshMsg(text, kind) {
+    var el = document.getElementById("refresh-msg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "refresh-msg" + (kind ? " refresh-msg--" + kind : "");
+    el.hidden = !text;
+  }
+
+  function refreshData() {
+    var btn = document.getElementById("refresh-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "🔄 更新中…";
+    }
+    setRefreshMsg("");
+    fetch("data/signals.json?_=" + Date.now(), { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        window.SIGNALS = data;
+        render();
+        setRefreshMsg("更新しました（データ日付 " + escapeHtml(data.data_date) + "）", "ok");
+      })
+      .catch(function () {
+        var s = window.SIGNALS;
+        var current = s
+          ? "（表示中: データ日付 " + escapeHtml(s.data_date) + " / 生成 " + escapeHtml(formatTimeOnly(s.generated_at)) + "）"
+          : "";
+        setRefreshMsg(
+          "このビューは埋め込みデータ表示のため手動更新できません。データは毎晩の自動バッチで更新されます" + current,
+          "info"
+        );
+      })
+      .then(function () {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "🔄 更新";
+        }
+      });
+  }
+
+  function initRefreshButton() {
+    var btn = document.getElementById("refresh-btn");
+    if (btn) btn.addEventListener("click", refreshData);
+  }
+
+  render();
+  initRefreshButton();
+})();
+</script>

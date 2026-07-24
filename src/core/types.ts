@@ -199,3 +199,85 @@ export interface TickerIndexFile {
   generated_at: string;
   tickers: Record<string, TickerIndexEntry>;
 }
+
+// ---------------------------------------------------------------------------
+// スイングスクリーナー(Twitter_Master 由来)の生成データ。
+// site/data/signals.json を統合ダッシュボード用に public/data/signals.json へ出力。
+// ---------------------------------------------------------------------------
+
+/** 戦略の検証時アウトオブサンプル成績。 */
+export interface SwingOosStats {
+  win_rate: number;
+  profit_factor: number;
+  max_dd: number;
+  period: string;
+  trades: number;
+}
+
+/** 翌営業日の買い候補(指値エントリー)。 */
+export interface SwingBuyCandidate {
+  code: string;
+  name: string;
+  close: number;
+  /** ランク指標の生値(戦略ごとに意味が異なる)。 */
+  rank_value: number;
+  /** 表示用のランクラベル(例: "RSI(2)=0.1")。 */
+  rank_label: string;
+  /** 1単元の概算コスト(円)。 */
+  unit_cost: number;
+  /** 推奨指値(円)。 */
+  limit_price: number;
+  /** 表示優先度(1が最優先)。 */
+  priority: number;
+}
+
+/** ユニバース内の各銘柄の現在状態(entry/exit シグナル等)。 */
+export interface SwingUniverseStatus {
+  code: string;
+  name: string;
+  close: number;
+  entry: boolean;
+  exit: boolean;
+  rank_label: string;
+  trend_ok: boolean;
+}
+
+/** 掲載戦略1件。 */
+export interface SwingStrategy {
+  id: string;
+  display_name: string;
+  description: string;
+  oos_stats: SwingOosStats;
+  validated_at: string;
+  rule_note: string;
+  /** 指値の前日終値からの割引率(例: 0.01 = -1%)。 */
+  limit_entry: number;
+  risks: string[];
+  buy_candidates: SwingBuyCandidate[];
+  universe_status: SwingUniverseStatus[];
+}
+
+/** ペーパートレード成績サマリ。 */
+export interface SwingPaperLogSummary {
+  closed_trades: number;
+  win_rate: number;
+  avg_ret: number;
+  by_strategy: Record<string, { closed_trades: number; win_rate: number; avg_ret: number }>;
+}
+
+/** signals.json のトップレベル形。 */
+export interface SwingSignalsFeed {
+  version: number;
+  generated_at: string;
+  /** シグナル算出に使ったデータの営業日。 */
+  data_date: string;
+  /** 買い候補を実際に発注する対象営業日(翌営業日)。 */
+  trade_date: string;
+  /** 'ok' 以外はデータ遅延・休場等で候補が不完全な可能性。 */
+  status: string;
+  status_reason: string;
+  universe_count: number;
+  strategies: SwingStrategy[];
+  calendar: { future_business_days: string[] };
+  paper_log_summary: SwingPaperLogSummary;
+}

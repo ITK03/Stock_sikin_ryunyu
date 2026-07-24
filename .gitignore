@@ -4,3 +4,13 @@ dist/
 .DS_Store
 .env
 .env.local
+
+# スイングスクリーナー(swing/)のローカル生成物・キャッシュ
+swing/.pytest_cache/
+swing/__pycache__/
+swing/**/__pycache__/
+swing/data/
+swing/site/index.html
+swing/site/artifact.html
+swing/site/jp-screener.html
+swing/site/data/signals.json

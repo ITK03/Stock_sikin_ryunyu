@@ -33,6 +33,14 @@ export const SECTOR_US_URL = [
   'https://itk03.github.io/Stock_sikin_ryunyu/data/sector_us.json',
 ];
 
+// スイングスクリーナー(swing/ で生成 → 本リポジトリ public/data/ にコミット)。
+// swing-screener ワークフローが commit するため、raw を優先(push直後に反映)し
+// Pages をフォールバックにする(セクターデータと同じ配信方式)。
+export const SWING_SIGNALS_URLS = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/signals.json',
+  'https://itk03.github.io/Stock_sikin_ryunyu/data/signals.json',
+];
+
 // 銘柄横断インデックス(日本株のみ・所属セクターは全件)。銘柄詳細を最初に開いたときに遅延fetch。
 export const TICKER_INDEX_URL = [
   'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/ticker_index.json',

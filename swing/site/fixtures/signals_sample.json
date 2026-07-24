@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "generated_at": "2026-07-10T17:35:12+09:00",
+  "data_date": "2026-07-10",
+  "trade_date": "2026-07-13",
+  "status": "ok",
+  "universe_count": 128,
+  "strategies": [
+    {
+      "id": "rsi2_dip",
+      "display_name": "RSI(2)押し目買い",
+      "description": "長期上昇トレンド中（終値>SMA200）の短期売られすぎ（RSI(2)<15）を買い、反発（RSI(2)>70）で売る",
+      "oos_stats": {"win_rate": 0.643, "profit_factor": 1.33, "max_dd": -0.255, "period": "2022-01〜2026-07", "trades": 985},
+      "validated_at": "2026-07-10",
+      "rule_note": "翌営業日の寄付で成行買い / RSI(2)>70で翌寄り売り / 災害ストップ-15% / 最大10営業日 / 等金額・最大5銘柄",
+      "buy_candidates": [
+        {"code": "6758", "name": "ソニーG", "close": 4123.0, "rank_value": 2.1, "rank_label": "RSI(2)=2.1", "unit_cost": 412300, "priority": 1},
+        {"code": "8035", "name": "東京エレクトロン", "close": 26150.0, "rank_value": 4.8, "rank_label": "RSI(2)=4.8", "unit_cost": 2615000, "priority": 2},
+        {"code": "7203", "name": "トヨタ自動車", "close": 3050.5, "rank_value": 7.3, "rank_label": "RSI(2)=7.3", "unit_cost": 305050, "priority": 3},
+        {"code": "8306", "name": "三菱UFJ", "close": 1830.0, "rank_value": 9.9, "rank_label": "RSI(2)=9.9", "unit_cost": 183000, "priority": 4},
+        {"code": "6501", "name": "日立製作所", "close": 4488.0, "rank_value": 11.4, "rank_label": "RSI(2)=11.4", "unit_cost": 448800, "priority": 5},
+        {"code": "9432", "name": "NTT", "close": 155.2, "rank_value": 12.8, "rank_label": "RSI(2)=12.8", "unit_cost": 15520, "priority": 6},
+        {"code": "4063", "name": "信越化学", "close": 6100.0, "rank_value": 14.2, "rank_label": "RSI(2)=14.2", "unit_cost": 610000, "priority": 7}
+      ],
+      "universe_status": [
+        {"code": "6758", "name": "ソニーG", "close": 4123.0, "entry": true, "exit": false, "rank_label": "RSI(2)=2.1", "trend_ok": true},
+        {"code": "7203", "name": "トヨタ自動車", "close": 3050.5, "entry": true, "exit": false, "rank_label": "RSI(2)=7.3", "trend_ok": true},
+        {"code": "9984", "name": "ソフトバンクG", "close": 9012.0, "entry": false, "exit": true, "rank_label": "RSI(2)=88.4", "trend_ok": true},
+        {"code": "8058", "name": "三菱商事", "close": 3555.0, "entry": false, "exit": false, "rank_label": "RSI(2)=41.0", "trend_ok": true},
+        {"code": "4502", "name": "武田薬品", "close": 4200.0, "entry": false, "exit": false, "rank_label": "RSI(2)=35.6", "trend_ok": false},
+        {"code": "6920", "name": "レーザーテック", "close": 21800.0, "entry": false, "exit": true, "rank_label": "RSI(2)=91.2", "trend_ok": true}
+      ]
+    }
+  ]
+}

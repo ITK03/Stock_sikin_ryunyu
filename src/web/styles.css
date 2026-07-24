@@ -1256,3 +1256,43 @@ button.sector-jump:active { opacity: 0.7; }
 .home-sector-row .sector-chg { font-size: 13.5px; }
 
 .home-skel { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+
+/* ---------- スイングタブ ---------- */
+.swing-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 2px 8px; }
+.swing-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.swing-badge.warn { color: var(--gold); background: rgba(246, 198, 82, 0.14); border: 1px solid rgba(246, 198, 82, 0.4); }
+
+.swing-meta {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  padding: 13px 14px;
+  margin: 4px 0 14px;
+}
+.swing-meta-name { font-size: 15px; font-weight: 800; letter-spacing: 0.01em; }
+.swing-desc { margin: 6px 0 10px; font-size: 12px; line-height: 1.6; color: var(--text-dim); }
+.swing-stats { display: flex; gap: 8px; }
+.swing-stat {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px;
+}
+.swing-stat-val { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.swing-stat-lab { font-size: 10px; color: var(--muted); }
+.swing-oos-period { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+.swing-paper { margin-top: 4px; font-size: 11px; color: var(--accent-2); font-weight: 600; }
+.swing-expanders { display: flex; gap: 8px; margin-top: 10px; }
+.swing-exp-btn {
+  flex: 1; padding: 7px 2px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--surface); color: var(--text-dim); font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.swing-exp-btn:active { transform: scale(0.98); }
+.swing-rule { margin: 10px 0 0; font-size: 11.5px; line-height: 1.7; color: var(--text-dim); }
+.swing-risks { margin: 10px 0 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+.swing-risks li { font-size: 11px; line-height: 1.6; color: var(--text-dim); }
+
+.swing-section-title { margin: 4px 2px 8px; font-size: 12.5px; font-weight: 800; color: var(--text-dim); }
+.swing-rank-label {
+  flex: none; font-size: 10.5px; font-weight: 700; color: var(--accent-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.swing-foot-note { color: var(--muted); font-size: 10.5px; }
