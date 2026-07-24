@@ -109,7 +109,8 @@ def compute_strategy(prices: dict[str, pd.DataFrame], entry: StrategyEntry,
                      data_date: date) -> dict:
     meta = entry.meta
     rd = meta.get("rank_display", {"label": "rank", "sign": 1, "fmt": "{:.2f}"})
-    limit_entry = meta.get("engine", {}).get("limit_entry")
+    engine = meta.get("engine", {}) or {}
+    limit_entry = engine.get("limit_entry")
     candidates, universe_status = [], []
     ts = pd.Timestamp(data_date)
 
@@ -158,6 +159,13 @@ def compute_strategy(prices: dict[str, pd.DataFrame], entry: StrategyEntry,
         "validated_at": meta.get("validated_at", ""),
         "rule_note": meta.get("rule_note", ""),
         "limit_entry": limit_entry,
+        # 手仕舞いルールの数値（保有ポジションの「今後どうするか」判定にフロントが使う）。
+        # take_profit=+利確率, stop_loss=災害ストップ率, max_hold=最大保有営業日。
+        "exit_rules": {
+            "take_profit": engine.get("take_profit"),
+            "stop_loss": engine.get("stop_loss"),
+            "max_hold": engine.get("max_hold"),
+        },
         "risks": meta.get("risks", []),
         "buy_candidates": candidates,
         "universe_status": universe_status,

@@ -1,14 +1,20 @@
-import { useState } from 'react';
-import type { SwingPaperLog } from '../core/types';
+import { useMemo, useState } from 'react';
+import type { SwingPaperLog, SwingSignalsFeed } from '../core/types';
+import { advisePaperOpen, summarizeClosed } from '../core/swingAdvice';
 import { useExternalJson } from './externalData';
 import { SWING_PAPER_LOG_URLS } from './externalSources';
+import { SwingAdviceBadge } from './SwingAdviceBadge';
 import { priceText, relTime } from './format';
 
 // 検証ログ(自動ペーパートレード paper_log.json)の明細表示。データ駆動・表示のみ
 // (ユーザー操作なし)。保有ポジション(SwingPositions.tsx, ユーザー手動管理)とは別物。
+// 検証は実データを蓄積し手法を洗練するためのもの。保有中には「今後どうするか」の
+// 助言を、確定ログには手仕舞い理由別の成績を出して改善の材料にする。
 
 interface Props {
   onSelectCode: (code: string) => void;
+  /** signals.json(現在値・データ日の補完に使う)。未取得でも表示は成立する。 */
+  feed?: SwingSignalsFeed | null;
 }
 
 const EMPTY_LOG: SwingPaperLog = { version: 1, updated_at: '', pending: [], open: [], closed: [] };
@@ -27,7 +33,10 @@ function exitReasonText(reason: string): string {
   return EXIT_REASON_LABEL[reason] ?? reason;
 }
 
-export function SwingPaperLogView({ onSelectCode }: Props) {
+const pctText = (v: number, digits = 0): string => `${(v * 100).toFixed(digits)}%`;
+const signedPct2 = (v: number): string => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+
+export function SwingPaperLogView({ onSelectCode, feed }: Props) {
   const { data, loading, error, sample, reload } = useExternalJson<SwingPaperLog>({
     cacheKey: 'ext:swing-paper-log',
     urls: [...SWING_PAPER_LOG_URLS, `${import.meta.env.BASE_URL}data/paper_log.json`],
@@ -35,6 +44,17 @@ export function SwingPaperLogView({ onSelectCode }: Props) {
   });
 
   const [showPending, setShowPending] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+
+  // code → 当日終値(open ポジションの助言に使う)と基準日。
+  const priceMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of feed?.strategies ?? []) {
+      for (const u of s.universe_status) if (!m.has(u.code)) m.set(u.code, u.close);
+    }
+    return m;
+  }, [feed]);
+  const asOfDate = feed?.data_date ?? null;
 
   if (loading && !data) {
     return (
@@ -56,6 +76,7 @@ export function SwingPaperLogView({ onSelectCode }: Props) {
   }
 
   const log = data ?? EMPTY_LOG;
+  const closedSummary = summarizeClosed(log.closed);
 
   return (
     <div className="swing-paperlog">
@@ -105,13 +126,73 @@ export function SwingPaperLogView({ onSelectCode }: Props) {
                   <span className="stat-val">{o.deadline_date}</span>
                 </div>
               </div>
-              {o.pending_exit && <div className="swing-pos-date">手仕舞い待ち{o.exit_reason ? `(${exitReasonText(o.exit_reason)})` : ''}</div>}
+              <div className="swing-pos-foot">
+                <span className="swing-pos-date">
+                  現在値 {priceMap.has(o.code) ? priceText(priceMap.get(o.code)!, 'JP') : '—'}
+                </span>
+                <SwingAdviceBadge advice={advisePaperOpen(o, priceMap.get(o.code) ?? null, asOfDate)} />
+              </div>
             </li>
           ))}
         </ul>
       )}
 
-      <h3 className="swing-section-title">確定ログ({log.closed.length})</h3>
+      <div className="swing-pending-head">
+        <h3 className="swing-section-title">確定ログ({log.closed.length})</h3>
+        {closedSummary.n > 0 && (
+          <button className="swing-exp-btn" onClick={() => setShowAnalysis((v) => !v)} aria-expanded={showAnalysis}>
+            {showAnalysis ? '成績分析 ▲' : '成績分析 ▼'}
+          </button>
+        )}
+      </div>
+
+      {/* 手法を洗練するための実データ分析: 全体成績と手仕舞い理由別の内訳。
+          「利確が薄く損切りが深い」等の癖を数値で確認し、利確幅・ストップ・
+          保有期間の見直し材料にする。 */}
+      {showAnalysis && closedSummary.n > 0 && (
+        <div className="card swing-analysis">
+          <div className="swing-analysis-overall">
+            <div className="swing-stat">
+              <span className="swing-stat-val">{closedSummary.n}</span>
+              <span className="swing-stat-lab">確定</span>
+            </div>
+            <div className="swing-stat">
+              <span className="swing-stat-val">{pctText(closedSummary.winRate)}</span>
+              <span className="swing-stat-lab">勝率</span>
+            </div>
+            <div className="swing-stat">
+              <span className={`swing-stat-val ${closedSummary.avgRet >= 0 ? 'chg-up' : 'chg-down'}`}>
+                {signedPct2(closedSummary.avgRet)}
+              </span>
+              <span className="swing-stat-lab">平均損益</span>
+            </div>
+          </div>
+          <table className="swing-analysis-table">
+            <thead>
+              <tr>
+                <th>手仕舞い</th>
+                <th>件数</th>
+                <th>勝率</th>
+                <th>平均</th>
+              </tr>
+            </thead>
+            <tbody>
+              {closedSummary.byReason.map((r) => (
+                <tr key={r.reason}>
+                  <td>{exitReasonText(r.reason)}</td>
+                  <td>{r.n}</td>
+                  <td>{pctText(r.winRate)}</td>
+                  <td className={r.avgRet >= 0 ? 'chg-up' : 'chg-down'}>{signedPct2(r.avgRet)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="swing-analysis-note">
+            実運用ペーパートレードの実データ。利確幅・損切り・保有期間の妥当性を検証し、手法の改善に用いる。
+          </p>
+        </div>
+      )}
+
       {log.closed.length === 0 ? (
         <p className="empty">確定した検証トレードはまだありません。</p>
       ) : (

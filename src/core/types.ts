@@ -242,6 +242,16 @@ export interface SwingUniverseStatus {
   trend_ok: boolean;
 }
 
+/** 戦略の手仕舞いルール(利確率・災害ストップ率・最大保有営業日)。 */
+export interface SwingExitRules {
+  /** 利確率(例: 0.02 = +2%)。null なら利確ルールなし。 */
+  take_profit: number | null;
+  /** 災害ストップ率(例: 0.15 = -15%)。 */
+  stop_loss: number | null;
+  /** 最大保有営業日数。 */
+  max_hold: number | null;
+}
+
 /** 掲載戦略1件。 */
 export interface SwingStrategy {
   id: string;
@@ -252,6 +262,8 @@ export interface SwingStrategy {
   rule_note: string;
   /** 指値の前日終値からの割引率(例: 0.01 = -1%)。 */
   limit_entry: number;
+  /** 手仕舞いルールの数値(保有ポジションの「今後どうするか」判定に使う)。 */
+  exit_rules?: SwingExitRules;
   risks: string[];
   buy_candidates: SwingBuyCandidate[];
   universe_status: SwingUniverseStatus[];

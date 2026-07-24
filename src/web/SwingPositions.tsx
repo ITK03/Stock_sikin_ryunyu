@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
-import type { SwingSignalsFeed } from '../core/types';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import type { SwingExitRules, SwingSignalsFeed } from '../core/types';
 import {
   makePositionId,
   normalizePositionCode,
@@ -9,6 +9,8 @@ import {
   serializePositions,
   type SwingPosition,
 } from '../core/positions';
+import { adviseManualPosition } from '../core/swingAdvice';
+import { SwingAdviceBadge } from './SwingAdviceBadge';
 import { priceText } from './format';
 
 // 保有ポジション(ユーザー手動管理)。localStorage に自己完結で保存する。
@@ -37,10 +39,22 @@ function saveRaw(raw: string): void {
   }
 }
 
+/** 買い候補タップ時にフォームへ前埋めする内容(SwingTab から受け取る)。 */
+export interface PositionPrefill {
+  strategyId: string;
+  code: string;
+  name: string;
+  /** 条件の株価(推奨指値)。取得単価の初期値に入れる。 */
+  price: number;
+}
+
 interface Props {
   /** 戦略選択肢・現在値/銘柄名の補完に使う。未取得(null)でもフォーム自体は使える。 */
   feed: SwingSignalsFeed | null;
   onSelectCode: (code: string) => void;
+  /** 買い候補タップ由来の前埋め。適用後は onPrefillConsumed で親がクリアする。 */
+  prefill?: PositionPrefill | null;
+  onPrefillConsumed?: () => void;
 }
 
 interface FormState {
@@ -53,10 +67,18 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { strategyId: '', code: '', fillDate: '', fillPrice: '', shares: '100' };
 
-export function SwingPositions({ feed, onSelectCode }: Props) {
+/** ローカルタイムの今日(YYYY-MM-DD)。toISOString はUTCで日付がずれるため自前で組む。 */
+function todayLocalISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function SwingPositions({ feed, onSelectCode, prefill, onPrefillConsumed }: Props) {
   const [positions, setPositions] = useState<SwingPosition[]>(() => parsePositions(loadRaw()));
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const persist = useCallback((next: SwingPosition[]) => {
     setPositions(next);
@@ -64,18 +86,42 @@ export function SwingPositions({ feed, onSelectCode }: Props) {
   }, []);
 
   const strategies = feed?.strategies ?? [];
+  const asOfDate = feed?.data_date ?? null;
 
-  // code → { close, name }。universe_status を優先し、買い候補の値でも補う。
+  // 買い候補タップ由来の前埋め: 銘柄・戦略・条件株価・今日の日付をフォームに入れ、
+  // フォームまでスクロールする。適用後は親にクリアを通知する(再適用の暴発を防ぐ)。
+  useEffect(() => {
+    if (!prefill) return;
+    setForm({
+      strategyId: prefill.strategyId,
+      code: prefill.code,
+      fillDate: todayLocalISO(),
+      fillPrice: prefill.price > 0 ? String(prefill.price) : '',
+      shares: '100',
+    });
+    setFormError(null);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    onPrefillConsumed?.();
+  }, [prefill, onPrefillConsumed]);
+
+  // code → { close, name, exit }。universe_status を優先し、買い候補の値でも補う。
   const priceMap = useMemo(() => {
-    const m = new Map<string, { close: number; name: string }>();
+    const m = new Map<string, { close: number; name: string; exit: boolean }>();
     for (const s of strategies) {
       for (const u of s.universe_status) {
-        if (!m.has(u.code)) m.set(u.code, { close: u.close, name: u.name });
+        if (!m.has(u.code)) m.set(u.code, { close: u.close, name: u.name, exit: u.exit });
       }
       for (const c of s.buy_candidates) {
-        if (!m.has(c.code)) m.set(c.code, { close: c.close, name: c.name });
+        if (!m.has(c.code)) m.set(c.code, { close: c.close, name: c.name, exit: false });
       }
     }
+    return m;
+  }, [strategies]);
+
+  // strategyId → 手仕舞いルール(利確/損切/最大保有)。助言判定に使う。
+  const rulesByStrat = useMemo(() => {
+    const m = new Map<string, SwingExitRules | undefined>();
+    for (const s of strategies) m.set(s.id, s.exit_rules);
     return m;
   }, [strategies]);
 
@@ -142,7 +188,7 @@ export function SwingPositions({ feed, onSelectCode }: Props) {
 
   return (
     <div className="swing-positions">
-      <form className="card swing-pos-form" onSubmit={handleAdd}>
+      <form ref={formRef} className="card swing-pos-form" onSubmit={handleAdd}>
         <div className="swing-pos-form-title">ポジションを追加</div>
         <div className="swing-pos-form-grid">
           <label className="swing-pos-field">
@@ -223,6 +269,14 @@ export function SwingPositions({ feed, onSelectCode }: Props) {
             const pnlAmount = positionPnlAmount(p, currentPrice);
             const pnlPct = positionPnlPct(p, currentPrice);
             const pnlCls = pnlAmount === null ? '' : pnlAmount >= 0 ? 'chg-up' : 'chg-down';
+            const advice = adviseManualPosition({
+              fillPrice: p.fillPrice,
+              fillDate: p.fillDate,
+              currentPrice,
+              rules: p.strategyId ? rulesByStrat.get(p.strategyId) : null,
+              exitSignal: info?.exit ?? false,
+              asOfDate,
+            });
             return (
               <li key={p.id} className="card card-tap swing-pos-card">
                 <button
@@ -275,7 +329,10 @@ export function SwingPositions({ feed, onSelectCode }: Props) {
                     <span className="stat-val">{currentPrice === null ? '—' : priceText(currentPrice, 'JP')}</span>
                   </div>
                 </div>
-                <div className="swing-pos-date">取得日 {p.fillDate}</div>
+                <div className="swing-pos-foot">
+                  <span className="swing-pos-date">取得日 {p.fillDate}</span>
+                  <SwingAdviceBadge advice={advice} />
+                </div>
               </li>
             );
           })}

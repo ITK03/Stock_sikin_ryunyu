@@ -4,7 +4,7 @@ import { useExternalJson } from './externalData';
 import { SWING_SIGNALS_URLS } from './externalSources';
 import { priceText, relTime } from './format';
 import { SwingPaperLogView } from './SwingPaperLog';
-import { SwingPositions } from './SwingPositions';
+import { SwingPositions, type PositionPrefill } from './SwingPositions';
 import { WatchStar } from './watchlist';
 
 // スイングタブ。Twitter_Master 由来のスクリーナーが出力する signals.json を表示する。
@@ -56,6 +56,15 @@ export function SwingTab({ onSelectCode }: Props) {
   const [stratId, setStratId] = useState<string | null>(null);
   const [showRule, setShowRule] = useState(false);
   const [showRisks, setShowRisks] = useState(false);
+  // 買い候補タップで保有ポジションフォームへ前埋めする受け渡し用。
+  const [prefill, setPrefill] = useState<PositionPrefill | null>(null);
+
+  // 「＋保有に追加」: 条件の株価(推奨指値)・銘柄・戦略・今日の日付を前埋めして
+  // 保有ポジションビューへ切り替える。ユーザーはそこから手動で編集できる。
+  const startAddPosition = (p: PositionPrefill) => {
+    setPrefill(p);
+    setView('positions');
+  };
 
   const strategies = data?.strategies ?? [];
   const selected: SwingStrategy | undefined = useMemo(() => {
@@ -197,6 +206,22 @@ export function SwingTab({ onSelectCode }: Props) {
                     <span className="stat-val">{signedPctText(-selected.limit_entry, 0)}</span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="swing-add-pos-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startAddPosition({
+                      strategyId: selected.id,
+                      code: c.code,
+                      name: c.name,
+                      // 条件の株価 = 推奨指値(無ければ現在値)。ここから手動編集できる。
+                      price: c.limit_price ?? c.close,
+                    });
+                  }}
+                >
+                  ＋ 保有に追加(指値 {priceText(c.limit_price ?? c.close, 'JP')})
+                </button>
               </li>
             ))}
           </ul>
@@ -269,8 +294,15 @@ export function SwingTab({ onSelectCode }: Props) {
 
       <div className="list-area">
         {view === 'signals' && renderSignals()}
-        {view === 'positions' && <SwingPositions feed={data} onSelectCode={onSelectCode} />}
-        {view === 'paperlog' && <SwingPaperLogView onSelectCode={onSelectCode} />}
+        {view === 'positions' && (
+          <SwingPositions
+            feed={data}
+            onSelectCode={onSelectCode}
+            prefill={prefill}
+            onPrefillConsumed={() => setPrefill(null)}
+          />
+        )}
+        {view === 'paperlog' && <SwingPaperLogView feed={data} onSelectCode={onSelectCode} />}
       </div>
 
       <footer className="foot">

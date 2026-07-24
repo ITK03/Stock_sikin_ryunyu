@@ -1362,8 +1362,66 @@ button.sector-jump:active { opacity: 0.7; }
 .swing-pos-del:active { transform: scale(0.92); color: var(--danger); }
 .swing-pos-date { margin-top: 9px; font-size: 10.5px; color: var(--muted); }
 
+/* 買い候補カードの「＋保有に追加」ボタン。カード全体のタップ(銘柄詳細)とは
+   別アクションなので、控えめな枠線ボタンで下段に置く。 */
+.swing-add-pos-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 2px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.swing-add-pos-btn:active { transform: scale(0.98); }
+
+/* 取得日 + 助言バッジの下段。 */
+.swing-pos-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+}
+.swing-pos-foot .swing-pos-date { margin-top: 0; }
+
+/* 「今後どうするか」助言バッジ(保有継続/利確/損切り/期限/手仕舞い)。 */
+.swing-advice {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+  max-width: 100%;
+}
+.swing-advice-label { font-weight: 800; white-space: nowrap; }
+.swing-advice-detail { font-size: 9.5px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; }
+.swing-advice-up { color: var(--accent); background: rgba(46, 230, 166, 0.12); border-color: rgba(46, 230, 166, 0.3); }
+.swing-advice-down { color: var(--danger); background: rgba(255, 107, 122, 0.12); border-color: rgba(255, 107, 122, 0.3); }
+.swing-advice-warn { color: #f5b451; background: rgba(245, 180, 81, 0.12); border-color: rgba(245, 180, 81, 0.32); }
+.swing-advice-neutral { color: var(--muted); background: rgba(111, 125, 152, 0.12); border-color: var(--line); }
+
 /* ---------- 検証ログ(自動ペーパートレード) ---------- */
 .swing-paperlog .swing-status { padding-top: 0; }
 .swing-pending-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 2px 8px; }
 .swing-pending-head .swing-section-title { margin: 0; }
 .swing-pending-head .swing-exp-btn { flex: none; padding: 5px 12px; }
+
+/* 確定ログの成績分析(手法洗練用)。全体成績 + 手仕舞い理由別の内訳表。 */
+.swing-analysis { margin: 2px 0 12px; }
+.swing-analysis-overall { display: flex; gap: 18px; margin-bottom: 12px; }
+.swing-analysis-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.swing-analysis-table th,
+.swing-analysis-table td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.swing-analysis-table th:first-child,
+.swing-analysis-table td:first-child { text-align: left; }
+.swing-analysis-table th { color: var(--muted); font-size: 10.5px; font-weight: 700; }
+.swing-analysis-note { margin: 10px 2px 0; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
