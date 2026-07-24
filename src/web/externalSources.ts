@@ -1,9 +1,11 @@
 // 同一オーナー(ITK03)の他リポジトリが公開するデータソース定義。
 
-// 開示(Stock_open_news): GitHub Pages を優先し、失敗時は raw.githubusercontent.com へ。
+// 開示の最新版(Stock_open_news): リポジトリ肥大化対策で「data」orphanブランチ
+// (force-push配信)へ移行済み。raw のdataブランチを読む。旧Pages URLは
+// フォールバックとして残す(移行前の環境でも動くように)。
 export const DISCLOSURES_URLS = [
+  'https://raw.githubusercontent.com/ITK03/Stock_open_news/data/disclosures.json',
   'https://itk03.github.io/Stock_open_news/data/disclosures.json',
-  'https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/disclosures.json',
 ];
 
 // 開示の日付別アーカイブ索引(過去日に遡って閲覧するための日付一覧)。
@@ -36,14 +38,17 @@ export const SECTOR_US_URL = [
 // スイングスクリーナー(swing/ で生成 → 本リポジトリ public/data/ にコミット)。
 // swing-screener ワークフローが commit するため、raw を優先(push直後に反映)し
 // Pages をフォールバックにする(セクターデータと同じ配信方式)。
+// スイング: signals.json / paper_log.json は肥大化対策で「data」orphanブランチ
+// (force-push配信)へ移行。raw のdataブランチを優先し、Pagesにバンドルされた
+// 前回デプロイ時点のコピーをフォールバックにする。
 export const SWING_SIGNALS_URLS = [
-  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/signals.json',
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data/signals.json',
   'https://itk03.github.io/Stock_sikin_ryunyu/data/signals.json',
 ];
 
 // 検証ログ(自動ペーパートレードの pending/open/closed 明細)。
 export const SWING_PAPER_LOG_URLS = [
-  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/paper_log.json',
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data/paper_log.json',
   'https://itk03.github.io/Stock_sikin_ryunyu/data/paper_log.json',
 ];
 
