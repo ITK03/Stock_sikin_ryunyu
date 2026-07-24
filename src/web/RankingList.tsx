@@ -11,6 +11,8 @@ interface Props {
   region: Region;
   metric?: 'ratio' | 'surge';
   onSelectCode?: (code: string) => void;
+  /** 順位変動(手前の同じ期間との差)を表示するか。②③期間ランキングのみ true。 */
+  showRankDelta?: boolean;
 }
 
 const segClass: Record<string, string> = {
@@ -34,7 +36,17 @@ const surgeText = (surge: number | undefined) => {
 const chgClass = (v: number | undefined) =>
   v === undefined ? '' : v > 0 ? 'chg-up' : v < 0 ? 'chg-down' : 'chg-flat';
 
-export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio', onSelectCode }: Props) {
+// 順位変動: +N(上昇)/-N(下降)/±0(変わらず)。手前でランク外なら ━。
+const rankDeltaText = (v: number | undefined): string => {
+  if (v === undefined) return '━';
+  if (v > 0) return `+${v}`;
+  if (v < 0) return `${v}`; // マイナス符号を含む
+  return '±0';
+};
+const rankDeltaClass = (v: number | undefined) =>
+  v === undefined ? 'rd-none' : v > 0 ? 'chg-up' : v < 0 ? 'chg-down' : 'chg-flat';
+
+export function RankingList({ rows, showTurnoverRank, density, region, metric = 'ratio', onSelectCode, showRankDelta }: Props) {
   if (rows.length === 0) {
     return <p className="empty">該当する銘柄がありません。</p>;
   }
@@ -54,6 +66,9 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
             onKeyDown={onSelectCode ? (e) => (e.key === 'Enter' || e.key === ' ') && onSelectCode(r.code) : undefined}
           >
             <span className={`r-rank ${medalClass(i + 1)}`}>{i + 1}</span>
+            {showRankDelta && (
+              <span className={`r-delta ${rankDeltaClass(r.rankDelta)}`}>{rankDeltaText(r.rankDelta)}</span>
+            )}
             <WatchStar code={r.code} />
             <span className="r-code">{r.code}</span>
             <span className="r-name">{r.name}</span>
@@ -85,7 +100,14 @@ export function RankingList({ rows, showTurnoverRank, density, region, metric = 
             onKeyDown={onSelectCode ? (e) => (e.key === 'Enter' || e.key === ' ') && onSelectCode(r.code) : undefined}
           >
             <div className="card-top">
-              <span className={`rankbadge ${medalClass(i + 1)}`}>{i + 1}</span>
+              <div className="rankcol">
+                <span className={`rankbadge ${medalClass(i + 1)}`}>{i + 1}</span>
+                {showRankDelta && (
+                  <span className={`rank-delta ${rankDeltaClass(r.rankDelta)}`}>
+                    {rankDeltaText(r.rankDelta)}
+                  </span>
+                )}
+              </div>
               <div className="ident">
                 <div className="name">{r.name}</div>
                 <div className="sub">

@@ -74,6 +74,37 @@ describe('computeRankings ② (期間平均)', () => {
     expect(codes).toContain('FULL');
     expect(codes).not.toContain('SPARSE');
   });
+
+  it('順位変動 rankDelta が手前の同期間との差で付く', () => {
+    const ds = dates(6); // 3日期間: 直近=04-06、手前=01-03
+    const bars: DailyBar[] = [];
+    ds.forEach((d, i) => {
+      const recent = i >= 3; // 04-06
+      // 手前(01-03): A>B。直近(04-06): B>A。C は直近のみ存在。
+      bars.push(bar(d, 'A', recent ? 10 : 50, 100));
+      bars.push(bar(d, 'B', recent ? 50 : 10, 100));
+      if (recent) bars.push(bar(d, 'C', 30, 100));
+    });
+    const res = computeRankings(bars, { source: 'test', minCoverage: 0.5 });
+    const r2 = res.ranking2['3d'];
+    const byCode = Object.fromEntries(r2.map((r) => [r.code, r]));
+    // 直近順位: B(1) C(2) A(3)
+    expect(r2.map((r) => r.code)).toEqual(['B', 'C', 'A']);
+    expect(byCode['B'].rankDelta).toBe(1); // 手前2位→1位: +1
+    expect(byCode['A'].rankDelta).toBe(-2); // 手前1位→3位: -2
+    expect(byCode['C'].rankDelta).toBeUndefined(); // 手前はランク外
+  });
+
+  it('履歴が手前の期間ぶんに満たなければ rankDelta は付かない', () => {
+    const ds = dates(4); // 3日期間の手前(計6日)に満たない
+    const bars: DailyBar[] = [];
+    ds.forEach((d) => {
+      bars.push(bar(d, 'A', 50, 100));
+      bars.push(bar(d, 'B', 10, 100));
+    });
+    const res = computeRankings(bars, { source: 'test', minCoverage: 0.5 });
+    for (const r of res.ranking2['3d']) expect(r.rankDelta).toBeUndefined();
+  });
 });
 
 describe('computeRankings ③ (全市場上位フィルタ)', () => {

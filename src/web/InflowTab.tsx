@@ -390,6 +390,7 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
           region={region}
           metric={tab === '4' ? 'surge' : 'ratio'}
           onSelectCode={onSelectCode}
+          showRankDelta={tab === '2' || tab === '3'}
         />
       </div>
 

@@ -342,6 +342,17 @@ body {
 .r-rank.medal-1 { color: var(--gold); }
 .r-rank.medal-2 { color: var(--silver); }
 .r-rank.medal-3 { color: var(--bronze); }
+/* 順位変動(一覧表示): 順位の右に小さく +N / -N / ━ */
+.r-delta {
+  flex: none;
+  width: 30px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.r-delta.rd-none { color: var(--muted); opacity: 0.6; }
 .r-code {
   flex: none;
   width: 36px;
@@ -411,6 +422,17 @@ body {
 }
 
 .card-top { display: flex; align-items: center; gap: 11px; }
+
+/* 順位バッジ＋順位変動を縦に積む列(カード表示) */
+.rankcol { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.rank-delta {
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.rank-delta.rd-none { color: var(--muted); opacity: 0.6; }
 
 .rankbadge {
   flex: none;

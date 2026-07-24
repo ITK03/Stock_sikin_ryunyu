@@ -175,8 +175,10 @@ export class YahooProvider implements DataProvider {
       }
     }
 
-    // 半年(約120営業日)を確実に含むため range=1y を取り、直近 lookbackDays に絞る。
-    const range = opts.lookbackDays > 120 ? '1y' : '6mo';
+    // lookbackDays を確実に含む range を選ぶ。約250営業日/年なので、
+    // 240営業日超(順位変動用の「手前の半年」を含む)は 2y、120超は 1y。
+    const range =
+      opts.lookbackDays > 240 ? '2y' : opts.lookbackDays > 120 ? '1y' : '6mo';
 
     const perCode = await mapLimit(universe, 8, async (u) => {
       // 株数が無い銘柄(ETF・新規上場等)も対象にする。時価総額は 0 となり

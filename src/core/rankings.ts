@@ -184,29 +184,29 @@ interface WindowStat {
 }
 
 /**
- * 期間(直近 tradingDays 営業日)について、銘柄ごとの期間スコア(継続性重視)と
+ * 指定した営業日ウィンドウについて、銘柄ごとの期間スコア(継続性重視)と
  * 売買代金(スパイク耐性のあるウィンザライズ平均)を算出。
- * 最新営業日に取引があり、かつ被覆率が minCoverage 以上の銘柄のみ対象。
- * avgRatio は継続性スコア、avgTurnover はウィンザライズ平均売買代金。
+ * anchorDate(ウィンドウの最終営業日)に取引があり、かつ被覆率が minCoverage
+ * 以上の銘柄のみ対象。avgRatio は継続性スコア、avgTurnover はウィンザライズ平均。
+ * windowDates を明示的に受け取るため、直近ウィンドウにも「1つ手前のウィンドウ」
+ * (順位変動の比較用)にも同じ関数を使える。
  */
 function windowStats(
   byCode: Map<string, CodeSeries>,
-  dates: string[],
-  tradingDays: number,
-  latestDate: string,
+  windowDates: string[],
+  anchorDate: string,
   minCoverage: number,
   changePctMap: Map<string, number>,
 ): WindowStat[] {
-  const window = dates.slice(-tradingDays);
-  const windowSet = new Set(window);
-  const denom = window.length || 1;
+  const windowSet = new Set(windowDates);
+  const denom = windowDates.length || 1;
   const stats: WindowStat[] = [];
 
   for (const s of byCode.values()) {
     const ratios: number[] = [];
     const turnovers: number[] = [];
     let latestBar: DailyBar | undefined;
-    let presentOnLatest = false;
+    let presentOnAnchor = false;
 
     for (const bar of s.bars) {
       if (!windowSet.has(bar.date)) continue;
@@ -214,10 +214,10 @@ function windowStats(
       ratios.push(ratio(bar));
       turnovers.push(bar.turnover);
       latestBar = bar; // bars は昇順なので最後が期間内最新
-      if (bar.date === latestDate) presentOnLatest = true;
+      if (bar.date === anchorDate) presentOnAnchor = true;
     }
 
-    if (!presentOnLatest || !latestBar) continue;
+    if (!presentOnAnchor || !latestBar) continue;
     const coverage = ratios.length / denom;
     if (coverage < minCoverage) continue;
 
@@ -235,6 +235,37 @@ function windowStats(
   return stats;
 }
 
+/** 順位変動 = 手前の期間での順位 − 現在の順位(+は上昇)。手前でランク外なら undefined。 */
+function rankDeltaOf(
+  prevRank: Map<string, number> | undefined,
+  code: string,
+  curRank: number,
+): number | undefined {
+  if (!prevRank) return undefined;
+  const p = prevRank.get(code);
+  return p === undefined ? undefined : p - curRank;
+}
+
+/** ②の基準(比率降順)でコード→順位を返す。topN で切らず全銘柄に順位を付ける。 */
+function rank2Map(stats: WindowStat[]): Map<string, number> {
+  const rows = [...stats].sort((a, b) => b.avgRatio - a.avgRatio);
+  const m = new Map<string, number>();
+  rows.forEach((s, i) => m.set(s.code, i + 1));
+  return m;
+}
+
+/** ③の基準(売買代金 topK 内→比率降順)でコード→順位を返す。 */
+function rank3Map(stats: WindowStat[], topK: number): Map<string, number> {
+  const byTurnover = [...stats].sort((a, b) => b.avgTurnover - a.avgTurnover);
+  const turnoverRank = new Map<string, number>();
+  byTurnover.forEach((s, i) => turnoverRank.set(s.code, i + 1));
+  const eligible = stats.filter((s) => (turnoverRank.get(s.code) ?? Infinity) <= topK);
+  eligible.sort((a, b) => b.avgRatio - a.avgRatio);
+  const m = new Map<string, number>();
+  eligible.forEach((s, i) => m.set(s.code, i + 1));
+  return m;
+}
+
 function toRows(stats: WindowStat[]): Omit<RankRow, 'rank'>[] {
   return stats.map((s) => ({
     code: s.code,
@@ -249,10 +280,18 @@ function toRows(stats: WindowStat[]): Omit<RankRow, 'rank'>[] {
 }
 
 /** ② 期間平均の比率が大きい順(連日続いている)。 */
-function buildRanking2(stats: WindowStat[], topN: number): RankRow[] {
+function buildRanking2(
+  stats: WindowStat[],
+  topN: number,
+  prevRank?: Map<string, number>,
+): RankRow[] {
   const rows = toRows(stats);
   rows.sort((a, b) => b.ratio - a.ratio);
-  return rows.slice(0, topN).map((r, i) => ({ ...r, rank: i + 1 }));
+  return rows.slice(0, topN).map((r, i) => ({
+    ...r,
+    rank: i + 1,
+    rankDelta: rankDeltaOf(prevRank, r.code, i + 1),
+  }));
 }
 
 /**
@@ -263,6 +302,7 @@ function buildRanking3(
   stats: WindowStat[],
   topK: number,
   topN: number,
+  prevRank?: Map<string, number>,
 ): RankRow[] {
   // 全市場の売買代金順位(期間平均ベース)を確定。
   const byTurnover = [...stats].sort((a, b) => b.avgTurnover - a.avgTurnover);
@@ -275,7 +315,11 @@ function buildRanking3(
     turnoverRank: turnoverRank.get(r.code),
   }));
   rows.sort((a, b) => b.ratio - a.ratio);
-  return rows.slice(0, topN).map((r, i) => ({ ...r, rank: i + 1 }));
+  return rows.slice(0, topN).map((r, i) => ({
+    ...r,
+    rank: i + 1,
+    rankDelta: rankDeltaOf(prevRank, r.code, i + 1),
+  }));
 }
 
 /**
@@ -376,16 +420,23 @@ export function computeRankings(
   const ranking3 = {} as Record<PeriodKey, RankRow[]>;
 
   for (const period of PERIODS) {
-    const stats = windowStats(
-      byCode,
-      dates,
-      period.tradingDays,
-      latestDate,
-      opts.minCoverage,
-      changePctMap,
-    );
-    ranking2[period.key] = buildRanking2(stats, opts.topN);
-    ranking3[period.key] = buildRanking3(stats, opts.topK, opts.topN);
+    const curWindow = dates.slice(-period.tradingDays);
+    const stats = windowStats(byCode, curWindow, latestDate, opts.minCoverage, changePctMap);
+
+    // 1つ手前の同じ長さの期間での順位(順位変動の比較用)。手前ウィンドウを
+    // 丸ごと取れる履歴があるときだけ算出し、無ければ rankDelta は undefined。
+    let prev2: Map<string, number> | undefined;
+    let prev3: Map<string, number> | undefined;
+    if (dates.length >= 2 * period.tradingDays) {
+      const prevWindow = dates.slice(-2 * period.tradingDays, -period.tradingDays);
+      const prevAnchor = prevWindow[prevWindow.length - 1];
+      const prevStats = windowStats(byCode, prevWindow, prevAnchor, opts.minCoverage, changePctMap);
+      prev2 = rank2Map(prevStats);
+      prev3 = rank3Map(prevStats, opts.topK);
+    }
+
+    ranking2[period.key] = buildRanking2(stats, opts.topN, prev2);
+    ranking3[period.key] = buildRanking3(stats, opts.topK, opts.topN, prev3);
   }
 
   return {

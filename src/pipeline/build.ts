@@ -7,8 +7,10 @@ import { buildPeriodReturns, buildQuotes } from '../core/feed.js';
 import { selectProvider } from '../data/provider.js';
 
 // データ取得 → ランキング計算 → public/data/rankings(.us).json 出力。
-// JP/US 両地域を生成する。半年(約120営業日)を見るため余裕をもって 130 営業日取得。
-const LOOKBACK_DAYS = 130;
+// JP/US 両地域を生成する。順位変動(1つ手前の同じ長さの期間との比較)のため、
+// 最長の半年(約120営業日)についても「手前の半年」= 計240営業日ぶんの履歴が要る。
+// 余裕をもって 260 営業日取得する(yahoo.ts が range=2y で取得)。
+const LOOKBACK_DAYS = 260;
 
 // 地域 → 出力ファイル名(US は .us 接尾辞、フロントは地域でロード先を切替)。
 const OUT_FILE: Record<Region, string> = {

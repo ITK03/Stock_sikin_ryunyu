@@ -46,6 +46,12 @@ export interface RankRow {
   baseline?: number;
   /** 前日比(%)。最新営業日と前営業日の終値から算出。 */
   changePct?: number;
+  /**
+   * 順位変動。1つ手前の同じ長さの期間での順位と比較した差(+は上昇/-は下降)。
+   * 例: 3日期間なら「3〜6日前の3日間」の順位からの変化。手前の期間で
+   * ランク外(データ不足/未取引)だった場合は undefined。②③期間ランキングのみ。
+   */
+  rankDelta?: number;
 }
 
 export type PeriodKey = '3d' | '1w' | '2w' | '1m' | '3m' | '6m';
