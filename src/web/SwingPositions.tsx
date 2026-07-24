@@ -193,7 +193,7 @@ export function SwingPositions({ feed, onSelectCode }: Props) {
             <input
               type="number"
               min="1"
-              step="100"
+              step="1"
               value={form.shares}
               onChange={(e) => setForm((prev) => ({ ...prev, shares: e.target.value }))}
             />
