@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated_at": "2026-07-24T19:23:47+09:00",
+ "generated_at": "2026-07-24T23:58:51+09:00",
  "data_date": "2026-07-24",
  "trade_date": "2026-07-27",
  "status": "ok",
@@ -27623,14 +27623,14 @@
   ]
  },
  "paper_log_summary": {
-  "closed_trades": 5,
-  "win_rate": 0.4,
-  "avg_ret": 0.58,
+  "closed_trades": 7,
+  "win_rate": 0.4286,
+  "avg_ret": 0.44,
   "by_strategy": {
    "rsi2_dip": {
-    "closed_trades": 3,
-    "win_rate": 0.3333,
-    "avg_ret": 0.83
+    "closed_trades": 5,
+    "win_rate": 0.4,
+    "avg_ret": 0.54
    },
    "keltner_atr_dip": {
     "closed_trades": 2,

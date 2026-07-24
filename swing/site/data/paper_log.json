@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updated_at": "2026-07-24T19:23:58+09:00",
+ "updated_at": "2026-07-24T23:59:02+09:00",
  "pending": [
   {
    "id": "rsi2_dip_9468_2026-07-24",
@@ -128,19 +128,6 @@
    "deadline_date": "2026-08-05",
    "pending_exit": false,
    "exit_reason": null
-  },
-  {
-   "id": "rsi2_dip_9793_2026-07-21",
-   "strategy_id": "rsi2_dip",
-   "code": "9793",
-   "name": "ダイセキ",
-   "entry_date": "2026-07-22",
-   "entry_price": 3742.2,
-   "stop_price": 3180.87,
-   "target_price": 3817.04,
-   "deadline_date": "2026-08-05",
-   "pending_exit": true,
-   "exit_reason": "exit_signal"
   },
   {
    "id": "rsi2_dip_3436_2026-07-21",
@@ -364,19 +351,6 @@
    "exit_reason": null
   },
   {
-   "id": "rsi2_dip_2222_2026-07-23",
-   "strategy_id": "rsi2_dip",
-   "code": "2222",
-   "name": "寿スピリッツ",
-   "entry_date": "2026-07-24",
-   "entry_price": 2360.0,
-   "stop_price": 2006.0,
-   "target_price": 2407.2,
-   "deadline_date": "2026-08-07",
-   "pending_exit": true,
-   "exit_reason": "take_profit"
-  },
-  {
    "id": "keltner_atr_dip_4536_2026-07-23",
    "strategy_id": "keltner_atr_dip",
    "code": "4536",
@@ -452,6 +426,32 @@
    "entry_price": 2920.0,
    "exit_date": "2026-07-23",
    "exit_price": 2920.0,
+   "exit_reason": "take_profit",
+   "return_pct": 0.0,
+   "hold_days": 0
+  },
+  {
+   "id": "rsi2_dip_9793_2026-07-21",
+   "strategy_id": "rsi2_dip",
+   "code": "9793",
+   "name": "ダイセキ",
+   "entry_date": "2026-07-22",
+   "entry_price": 3742.2,
+   "exit_date": "2026-07-24",
+   "exit_price": 3750.0,
+   "exit_reason": "exit_signal",
+   "return_pct": 0.21,
+   "hold_days": 2
+  },
+  {
+   "id": "rsi2_dip_2222_2026-07-23",
+   "strategy_id": "rsi2_dip",
+   "code": "2222",
+   "name": "寿スピリッツ",
+   "entry_date": "2026-07-24",
+   "entry_price": 2360.0,
+   "exit_date": "2026-07-24",
+   "exit_price": 2360.0,
    "exit_reason": "take_profit",
    "return_pct": 0.0,
    "hold_days": 0
