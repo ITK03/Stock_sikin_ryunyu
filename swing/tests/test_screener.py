@@ -126,11 +126,15 @@ def test_build_json_includes_calendar():
     assert fbd[0] == payload["trade_date"]
 
 
-def test_load_registry_has_v3_two_strategy_lineup():
-    """v3最終決定: rsi2_dip（rsi2_tp_le相当）+ keltner_atr_dip（keltner_tp相当）の2戦略のみ。"""
+def test_load_registry_lineup():
+    """掲載ラインナップ。
+
+    v3最終決定の2戦略(rsi2_dip / keltner_atr_dip)に、資金フロー検証
+    (research/FINDINGS.md)を経て rsi2_flow を追加した3戦略構成。
+    """
     entries = sr.load_registry(ROOT / "screener" / "registry.yaml")
     ids = [e.id for e in entries]
-    assert ids == ["rsi2_dip", "keltner_atr_dip"]
+    assert ids == ["rsi2_dip", "keltner_atr_dip", "rsi2_flow"]
     rsi2_meta = entries[0].meta
     assert rsi2_meta["engine"]["take_profit"] == pytest.approx(0.02)
     assert rsi2_meta["engine"]["limit_entry"] == pytest.approx(0.01)
@@ -139,6 +143,10 @@ def test_load_registry_has_v3_two_strategy_lineup():
     assert keltner_meta["engine"]["take_profit"] == pytest.approx(0.02)
     assert "limit_entry" not in keltner_meta["engine"]  # 成行戦略
     assert keltner_meta["risks"]
+    flow_meta = entries[2].meta
+    assert flow_meta["params"]["surge_th"] == pytest.approx(1.2)
+    assert flow_meta["engine"]["limit_entry"] == pytest.approx(0.01)  # 指値戦略
+    assert flow_meta["risks"]
 
 
 def _dip_price_series(n=260, last="2026-07-10"):

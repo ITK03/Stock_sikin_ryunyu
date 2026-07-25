@@ -64,6 +64,13 @@ def engine_for(name: str) -> dict:
 # 比較用に回す既存戦略(本番稼働中の2本)。
 BASELINE_KEYS = ("rsi2_dip", "keltner_atr_dip")
 
+# Part D: 頑健性チェック。最大DDの深さと手数料への耐性を測る。
+# 銘柄数を増やせばDDは浅くなるはずだが、シグナルの質が薄まる分だけ
+# 期待値が落ちるトレードオフがある。手数料は往復で効くので薄い優位性を消しうる。
+ROBUSTNESS_TARGETS = ("rsi2_flow", "flow_accumulation", "rsi2_dip(既存)")
+ROBUSTNESS_POSITIONS = (5, 10, 20)
+ROBUSTNESS_FEES = (0.0, 5.0, 10.0)  # 片道bps(0=手数料無料コース, 5=0.05%, 10=0.10%)
+
 
 # ---------------------------------------------------------------------------
 # データ読み込み
@@ -293,6 +300,63 @@ def run_backtests(prices: dict[str, pd.DataFrame]) -> list[dict]:
     return evaluated + skipped
 
 
+def run_robustness(prices: dict[str, pd.DataFrame], backtests: list[dict]) -> list[dict]:
+    """採用候補について、銘柄数(分散)と手数料の感応度を測る。
+
+    シグナルはエンジン設定に依存しないため、戦略ごとに1回だけ計算して
+    9通りのエンジン設定で使い回す(再計算すると9倍遅くなる)。
+    """
+    fn_by_name = dict(RESEARCH_STRATEGIES)
+    for k in BASELINE_KEYS:
+        fn_by_name[f"{k}(既存)"] = BASE_STRATEGIES[k]
+
+    rows = []
+    for r in backtests:
+        name = r["strategy"]
+        if r.get("insufficient") or name not in ROBUSTNESS_TARGETS:
+            continue
+        fn = fn_by_name[name][0]
+        signals = {t: fn(df, **r["params"]) for t, df in prices.items()}
+        base_eng = dict(r.get("engine") or DEFAULT_ENGINE)
+        for pos in ROBUSTNESS_POSITIONS:
+            for fee in ROBUSTNESS_FEES:
+                eng = {**base_eng, "max_positions": pos, "fee_bps": fee}
+                res = run_backtest(prices, signals, EngineParams(**eng))
+                oos = summarize(res, (OOS_START, FAR_FUTURE))
+                rows.append({
+                    "strategy": name, "max_positions": pos, "fee_bps": fee,
+                    "OOS": {k: _f(v) for k, v in oos.items()},
+                })
+        print(f"  robustness done: {name}")
+    return rows
+
+
+def _robustness_table(rows: list[dict]) -> str:
+    if not rows:
+        return ""
+    out = []
+    for name in ROBUSTNESS_TARGETS:
+        sub = [r for r in rows if r["strategy"] == name]
+        if not sub:
+            continue
+        out += [f"### {name}", "",
+                "| 銘柄数 | 手数料(片道) | OOS取引 | OOS勝率 | OOS平均 | OOS PF | "
+                "OOS Sharpe | OOS最大DD |",
+                "|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for r in sub:
+            o = r["OOS"]
+            pf = o.get("profit_factor")
+            sh = o.get("sharpe")
+            out.append(
+                f"| {r['max_positions']} | {r['fee_bps']:.0f}bps | {o.get('trades', 0):,} | "
+                f"{_fmt_pct(o.get('win_rate'),1)} | {_fmt_pct(o.get('avg_ret'))} | "
+                f"{'—' if pf is None else f'{pf:.2f}'} | "
+                f"{'—' if sh is None else f'{sh:.2f}'} | "
+                f"{_fmt_pct(o.get('max_drawdown'),1)} |")
+        out.append("")
+    return "\n".join(out)
+
+
 # ---------------------------------------------------------------------------
 # レポート出力
 # ---------------------------------------------------------------------------
@@ -364,12 +428,13 @@ def _skipped_note(results: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict) -> None:
+def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict,
+                 robustness: list[dict] | None = None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     findings = derive_findings(event, backtests)
     (out_dir / "report.json").write_text(
         json.dumps({"meta": meta, "event_study": event, "backtests": backtests,
-                    "findings": findings},
+                    "findings": findings, "robustness": robustness or []},
                    ensure_ascii=False, indent=1), encoding="utf-8")
 
     md = [
@@ -415,6 +480,14 @@ def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict) 
         "",
         findings_markdown(findings),
         "",
+        "## Part D: 頑健性(銘柄数を増やす / 手数料を入れる)",
+        "",
+        "銘柄数を増やすと分散が効いて最大DDは浅くなるが、シグナルの質が薄まる分"
+        "期待値は落ちる。手数料は往復で効くため、薄い優位性はこれで消えうる。"
+        "いずれもOOS(2022〜)のみで評価している。",
+        "",
+        _robustness_table(robustness or []),
+        "",
         "## 前提と限界",
         "",
         "- ユニバースは現在のJPXプライム上場銘柄。過去に上場廃止された銘柄を含まない"
@@ -456,7 +529,10 @@ def main() -> int:
     print("Part B: ポートフォリオ検証…")
     backtests = run_backtests(prices)
 
-    write_report(ROOT / args.out, event, backtests, meta)
+    print("Part D: 頑健性(銘柄数 × 手数料)…")
+    robustness = run_robustness(prices, backtests)
+
+    write_report(ROOT / args.out, event, backtests, meta, robustness)
     return 0
 
 

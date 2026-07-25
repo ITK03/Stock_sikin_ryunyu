@@ -48,3 +48,20 @@ def bollinger(close: pd.Series, n: int = 20, k: float = 2.0):
 def median_turnover(df: pd.DataFrame, n: int = 20) -> pd.Series:
     """売買代金（円）のn日中央値。流動性フィルタ用。"""
     return (df["close"] * df["volume"]).rolling(n, min_periods=n).median()
+
+
+def turnover_surge(df: pd.DataFrame, n: int = 1, baseline_days: int = 25) -> pd.Series:
+    """売買代金急増率 = 直近n日平均 ÷ その手前 baseline_days 日平均。
+
+    統合ダッシュボードの④急増ランキング(src/core/rankings.ts buildSurge)と
+    同一の窓取り: 基準(平常時)の窓は直近ウィンドウの手前へn日ずらす。
+    こうすると「数日前から噴いている銘柄」は基準が上がって倍率が下がり、
+    当日始まった初動が浮かぶ。
+
+    基準は25日窓のうち最低6割(15日)のデータを要求する(本家と同一)。
+    """
+    t = df["close"] * df["volume"]
+    recent = t.rolling(n, min_periods=n).mean()
+    min_base = int(np.ceil(baseline_days * 0.6))
+    base = t.shift(n).rolling(baseline_days, min_periods=min_base).mean()
+    return recent / base.replace(0.0, np.nan)

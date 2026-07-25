@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from .indicators import (atr, bollinger, median_turnover, rolling_high,
-                         rolling_low, rsi, sma)
+                         rolling_low, rsi, sma, turnover_surge)
 
 MIN_TURNOVER = 5e8  # 20日中央値売買代金 5億円以上（流動性フィルタ）
 
@@ -96,6 +96,29 @@ def keltner_atr_dip(df: pd.DataFrame, n: int = 20, k: float = 2.5,
     return out
 
 
+def rsi2_flow(df: pd.DataFrame, rsi_n: int = 2, buy_th: float = 15.0,
+              sell_th: float = 70.0, trend_n: int = 200,
+              surge_th: float = 1.2) -> pd.DataFrame:
+    """RSI(2)押し目買い + 資金流入フィルタ。
+
+    rsi2_dip と同じ押し目条件に「売買代金が平常時の surge_th 倍以上」を課す。
+    薄商いのままダラダラ下げた押し目(まだ投げが出ていない)を除き、出来高を
+    伴って投げが出た押し目だけを拾う。
+
+    検証(research/FINDINGS.md): 1,524銘柄・2015-2026・OOS(2022〜)で、
+    フィルタなし勝率59.3%→あり65.4%、期待値の符号が反転。OOS5年すべてで
+    フィルタありが最高勝率だった。
+    """
+    out = _base(df)
+    r = rsi(df["close"], rsi_n)
+    trend = df["close"] > sma(df["close"], trend_n)
+    surge = turnover_surge(df, 1)
+    out["entry"] = (r < buy_th) & trend & _liquid(df) & (surge >= surge_th)
+    out["exit"] = r > sell_th
+    out["rank"] = -r  # RSIが低いほど優先
+    return out
+
+
 def breakout(df: pd.DataFrame, high_n: int = 20, exit_n: int = 10,
              trend_n: int = 100) -> pd.DataFrame:
     """高値ブレイクアウト（モメンタム系・対照用）: n日高値更新で買い、
@@ -124,6 +147,10 @@ STRATEGIES: dict[str, tuple] = {
     "bb_meanrev": (bb_meanrev, [
         {"n": n, "k": k, "trend_n": t}
         for n in (20,) for k in (2.0, 2.5) for t in (100, 200)
+    ]),
+    "rsi2_flow": (rsi2_flow, [
+        {"buy_th": b, "surge_th": s, "trend_n": t}
+        for b in (10.0, 15.0) for s in (1.2, 1.5, 2.0) for t in (200,)
     ]),
     "keltner_atr_dip": (keltner_atr_dip, [
         {"n": n, "k": k, "trend_n": t}

@@ -150,3 +150,60 @@ class TestStrategies:
         vol = np.concatenate([np.full(n - 1, 1000.0), [50000.0]])        # 出来高急増
         df = make_df(close, vol)
         assert not flow_capitulation(df)["entry"].iloc[-1]
+
+
+class TestProductionIntegration:
+    """本番コード側(backtest/indicators, strategies, engine)に入れた変更の検証。"""
+
+    def test_indicators_surge_matches_research(self):
+        """本番の turnover_surge と研究用 surge が同一値であること。"""
+        from backtest.indicators import turnover_surge
+        rng = np.random.default_rng(1)
+        n = 120
+        df = make_df(100 + rng.normal(0, 5, n), rng.lognormal(14, 0.5, n))
+        pd.testing.assert_series_equal(turnover_surge(df, 1), surge(df, 1),
+                                       check_names=False)
+        pd.testing.assert_series_equal(turnover_surge(df, 3), surge(df, 3),
+                                       check_names=False)
+
+    def test_rsi2_flow_is_subset_of_rsi2_dip(self):
+        """フィルタ版は無条件版の部分集合(条件を足しただけ)であること。"""
+        from backtest.strategies import rsi2_dip, rsi2_flow
+        rng = np.random.default_rng(5)
+        n = 400
+        close = 100 * np.cumprod(1 + rng.normal(0.001, 0.02, n))
+        df = make_df(close, rng.lognormal(16.1, 0.5, n))
+        dip = rsi2_dip(df, buy_th=15.0, sell_th=70.0, trend_n=200)["entry"]
+        flow = rsi2_flow(df, buy_th=15.0, sell_th=70.0, trend_n=200)["entry"]
+        assert not (flow & ~dip).any()
+
+    def test_registry_loads_all_strategies(self):
+        """registry.yaml の全戦略が実際に解決できること(本番の起動時チェック)。"""
+        from pathlib import Path
+        from screener.run import load_registry
+        ids = [e.id for e in load_registry(Path("screener/registry.yaml"))]
+        assert "rsi2_flow" in ids
+
+    def test_engine_fee_defaults_to_no_change(self):
+        """fee_bps の既定値0では従来と完全に同一の結果になること(後方互換)。"""
+        from backtest.engine import EngineParams
+        assert EngineParams().fee_bps == 0.0
+        a = EngineParams(slippage_bps=10.0)
+        b = EngineParams(slippage_bps=10.0, fee_bps=0.0)
+        assert a.slippage_bps + a.fee_bps == b.slippage_bps + b.fee_bps
+
+    def test_engine_fee_reduces_returns(self):
+        """手数料を入れるとリターンが必ず悪化すること。"""
+        from backtest.engine import EngineParams, run_backtest
+        from backtest.strategies import rsi2_dip
+        rng = np.random.default_rng(11)
+        n, prices, signals = 500, {}, {}
+        for i in range(6):
+            close = 100 * np.cumprod(1 + rng.normal(0.0008, 0.02, n))
+            df = make_df(close, rng.lognormal(16.1, 0.4, n))
+            prices[f"T{i}"] = df
+            signals[f"T{i}"] = rsi2_dip(df, buy_th=20.0, trend_n=100)
+        free = run_backtest(prices, signals, EngineParams(fee_bps=0.0))
+        paid = run_backtest(prices, signals, EngineParams(fee_bps=25.0))
+        assert len(free.trades) > 0
+        assert paid.trades["ret"].mean() < free.trades["ret"].mean()

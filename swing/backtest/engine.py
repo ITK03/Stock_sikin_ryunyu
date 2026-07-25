@@ -43,6 +43,7 @@ import pandas as pd
 class EngineParams:
     max_positions: int = 5
     slippage_bps: float = 10.0          # 片道0.10%
+    fee_bps: float = 0.0                # 片道の売買手数料(bps)。既定0=従来と同一挙動
     stop_loss: float | None = 0.08      # 終値ベース-8%で翌寄り損切り
     take_profit: float | None = None    # 終値ベース+take_profit%で翌寄り利確
     limit_entry: float | None = None    # close_D*(1-limit_entry)の指値でD+1のみ発注
@@ -65,7 +66,9 @@ def run_backtest(data: dict[str, pd.DataFrame],
         sorted(set().union(*[data[t].index for t in tickers]))
     )
     n = len(calendar)
-    slip = params.slippage_bps / 10_000.0
+    # 手数料は比例コストなのでスリッページと同じ形で実効約定価格に織り込む
+    # (買いは高く・売りは安く約定したのと等価)。fee_bps=0 なら従来と完全一致。
+    slip = (params.slippage_bps + params.fee_bps) / 10_000.0
 
     # master calendar に整列した numpy 配列
     arr: dict[str, dict[str, np.ndarray]] = {}
