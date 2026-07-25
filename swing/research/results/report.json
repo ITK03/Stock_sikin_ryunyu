@@ -509,7 +509,7 @@
      "surge": "〜1.5倍",
      "当日": "下落(〜-2%)",
      "n": 58608,
-     "mean1": 0.0012175460578873754,
+     "mean1": 0.0012175461743026972,
      "win1": 0.5238533988533989,
      "mean3": 0.0035043410025537014,
      "win3": 0.5264810264810265,
@@ -665,9 +665,9 @@
     {
      "長期トレンド": "上昇(終値>SMA200)",
      "n": 3818,
-     "mean1": 0.0007947379490360618,
+     "mean1": 0.0007947380072437227,
      "win1": 0.5227867993713986,
-     "mean3": 0.0035658988635987043,
+     "mean3": 0.003565899096429348,
      "win3": 0.5206914614981666,
      "mean5": 0.007339082658290863,
      "win5": 0.5426925091671032,
@@ -685,6 +685,13 @@
     "cont_th": 1.1,
     "buy_th": 20.0,
     "trend_n": 200
+   },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
    },
    "is_sharpe_score": 0.08645984954845914,
    "IS": {
@@ -807,6 +814,13 @@
     "surge_th": 1.2,
     "trend_n": 200
    },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
+   },
    "is_sharpe_score": 0.14795342341859274,
    "IS": {
     "trades": 1440,
@@ -922,132 +936,18 @@
    ]
   },
   {
-   "strategy": "flow_momentum",
-   "params": {
-    "surge_th": 5.0,
-    "rise_th": 0.05,
-    "exit_n": 5
-   },
-   "is_sharpe_score": 0.2234095933327169,
-   "IS": {
-    "trades": 601,
-    "win_rate": 0.560732,
-    "avg_ret": 0.001552,
-    "avg_win": 0.043047,
-    "avg_loss": -0.051417,
-    "profit_factor": 1.068721,
-    "avg_hold_days": 2.690516,
-    "total_return": 0.146151,
-    "cagr": 0.019723,
-    "max_drawdown": -0.259693,
-    "sharpe": 0.22341
-   },
-   "OOS": {
-    "trades": 729,
-    "win_rate": 0.529492,
-    "avg_ret": 0.001596,
-    "avg_win": 0.048058,
-    "avg_loss": -0.05069,
-    "profit_factor": 1.066928,
-    "avg_hold_days": 2.828532,
-    "total_return": 0.140848,
-    "cagr": 0.029382,
-    "max_drawdown": -0.319186,
-    "sharpe": 0.247404
-   },
-   "yearly": [
-    {
-     "year": 2015,
-     "trades": 21,
-     "win_rate": 0.761905,
-     "avg_ret": 0.015256,
-     "sum_ret": 0.320378
-    },
-    {
-     "year": 2016,
-     "trades": 66,
-     "win_rate": 0.393939,
-     "avg_ret": -0.018856,
-     "sum_ret": -1.244527
-    },
-    {
-     "year": 2017,
-     "trades": 124,
-     "win_rate": 0.612903,
-     "avg_ret": 0.008784,
-     "sum_ret": 1.089242
-    },
-    {
-     "year": 2018,
-     "trades": 100,
-     "win_rate": 0.56,
-     "avg_ret": 0.001114,
-     "sum_ret": 0.111388
-    },
-    {
-     "year": 2019,
-     "trades": 85,
-     "win_rate": 0.564706,
-     "avg_ret": -0.003527,
-     "sum_ret": -0.299832
-    },
-    {
-     "year": 2020,
-     "trades": 95,
-     "win_rate": 0.578947,
-     "avg_ret": 0.008939,
-     "sum_ret": 0.849158
-    },
-    {
-     "year": 2021,
-     "trades": 110,
-     "win_rate": 0.545455,
-     "avg_ret": 0.000973,
-     "sum_ret": 0.107027
-    },
-    {
-     "year": 2022,
-     "trades": 110,
-     "win_rate": 0.572727,
-     "avg_ret": 0.000968,
-     "sum_ret": 0.106498
-    },
-    {
-     "year": 2023,
-     "trades": 153,
-     "win_rate": 0.568627,
-     "avg_ret": 0.007376,
-     "sum_ret": 1.128602
-    },
-    {
-     "year": 2024,
-     "trades": 160,
-     "win_rate": 0.55625,
-     "avg_ret": 0.004604,
-     "sum_ret": 0.736637
-    },
-    {
-     "year": 2025,
-     "trades": 184,
-     "win_rate": 0.451087,
-     "avg_ret": -0.007753,
-     "sum_ret": -1.426465
-    },
-    {
-     "year": 2026,
-     "trades": 122,
-     "win_rate": 0.52459,
-     "avg_ret": 0.005069,
-     "sum_ret": 0.618373
-    }
-   ]
-  },
-  {
    "strategy": "keltner_atr_dip(既存)",
    "params": {
     "n": 14,
     "k": 2.0,
     "trend_n": 200
+   },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
    },
    "is_sharpe_score": 0.3435085850127901,
    "IS": {
@@ -1170,6 +1070,13 @@
     "drop_th": -0.05,
     "exit_n": 3
    },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
+   },
    "is_sharpe_score": -0.8026763051260632,
    "IS": {
     "trades": 1411,
@@ -1290,6 +1197,13 @@
     "buy_th": 5.0,
     "sell_th": 70.0,
     "trend_n": 200
+   },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
    },
    "is_sharpe_score": 0.12055196051886911,
    "IS": {
@@ -1412,6 +1326,13 @@
     "surge_cap": 1.5,
     "trend_n": 200
    },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.15,
+    "max_hold": 10,
+    "take_profit": 0.02
+   },
    "is_sharpe_score": 0.14505008441512973,
    "IS": {
     "trades": 1490,
@@ -1525,6 +1446,243 @@
      "sum_ret": 0.133162
     }
    ]
+  },
+  {
+   "strategy": "flow_momentum",
+   "params": {
+    "surge_th": 5.0,
+    "rise_th": 0.05,
+    "exit_n": 10
+   },
+   "engine": {
+    "max_positions": 5,
+    "slippage_bps": 10.0,
+    "stop_loss": 0.1,
+    "max_hold": 30,
+    "take_profit": null
+   },
+   "is_sharpe_score": 0.47849778411855304,
+   "IS": {
+    "trades": 443,
+    "win_rate": 0.410835,
+    "avg_ret": 0.008118,
+    "avg_win": 0.10491,
+    "avg_loss": -0.059376,
+    "profit_factor": 1.232067,
+    "avg_hold_days": 9.469526,
+    "total_return": 0.713676,
+    "cagr": 0.080174,
+    "max_drawdown": -0.355427,
+    "sharpe": 0.478498
+   },
+   "OOS": {
+    "trades": 401,
+    "win_rate": 0.408978,
+    "avg_ret": -0.004523,
+    "avg_win": 0.074763,
+    "avg_loss": -0.059388,
+    "profit_factor": 0.871136,
+    "avg_hold_days": 9.521197,
+    "total_return": -0.368292,
+    "cagr": -0.096017,
+    "max_drawdown": -0.458073,
+    "sharpe": -0.334816
+   },
+   "yearly": [
+    {
+     "year": 2015,
+     "trades": 10,
+     "win_rate": 0.7,
+     "avg_ret": 0.084614,
+     "sum_ret": 0.846137
+    },
+    {
+     "year": 2016,
+     "trades": 58,
+     "win_rate": 0.310345,
+     "avg_ret": -0.02834,
+     "sum_ret": -1.643716
+    },
+    {
+     "year": 2017,
+     "trades": 71,
+     "win_rate": 0.535211,
+     "avg_ret": 0.032341,
+     "sum_ret": 2.296202
+    },
+    {
+     "year": 2018,
+     "trades": 77,
+     "win_rate": 0.38961,
+     "avg_ret": 0.001289,
+     "sum_ret": 0.09922
+    },
+    {
+     "year": 2019,
+     "trades": 66,
+     "win_rate": 0.409091,
+     "avg_ret": 0.006061,
+     "sum_ret": 0.400012
+    },
+    {
+     "year": 2020,
+     "trades": 76,
+     "win_rate": 0.355263,
+     "avg_ret": 0.01186,
+     "sum_ret": 0.90134
+    },
+    {
+     "year": 2021,
+     "trades": 84,
+     "win_rate": 0.404762,
+     "avg_ret": 0.007202,
+     "sum_ret": 0.604943
+    },
+    {
+     "year": 2022,
+     "trades": 73,
+     "win_rate": 0.424658,
+     "avg_ret": -0.000543,
+     "sum_ret": -0.039614
+    },
+    {
+     "year": 2023,
+     "trades": 81,
+     "win_rate": 0.432099,
+     "avg_ret": 0.003337,
+     "sum_ret": 0.270261
+    },
+    {
+     "year": 2024,
+     "trades": 86,
+     "win_rate": 0.476744,
+     "avg_ret": 0.00331,
+     "sum_ret": 0.284658
+    },
+    {
+     "year": 2025,
+     "trades": 103,
+     "win_rate": 0.359223,
+     "avg_ret": -0.012978,
+     "sum_ret": -1.336722
+    },
+    {
+     "year": 2026,
+     "trades": 59,
+     "win_rate": 0.355932,
+     "avg_ret": -0.015256,
+     "sum_ret": -0.900083
+    }
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "type": "surge_x_direction",
+   "条件": "急増1.5-3倍 × 当日上昇(+2%〜)",
+   "IS_5日": 0.0015530586242675781,
+   "IS_勝率": 0.5106631940512588,
+   "IS_n": 26493,
+   "OOS_5日": 0.00399902043864131,
+   "OOS_勝率": 0.5013728720483251,
+   "OOS_n": 20031,
+   "頑健": true
+  },
+  {
+   "type": "surge_x_direction",
+   "条件": "急増1.5-3倍 × 当日下落(〜-2%)",
+   "IS_5日": 0.0029151462949812412,
+   "IS_勝率": 0.5152595341569413,
+   "IS_n": 20479,
+   "OOS_5日": 0.009197898209095001,
+   "OOS_勝率": 0.557896298494177,
+   "OOS_n": 13481,
+   "頑健": true
+  },
+  {
+   "type": "surge_x_direction",
+   "条件": "急増3-6倍 × 当日上昇(+2%〜)",
+   "IS_5日": 0.0010952053125947714,
+   "IS_勝率": 0.4902605615987857,
+   "IS_n": 3953,
+   "OOS_5日": 0.0026066142600029707,
+   "OOS_勝率": 0.49230367858074614,
+   "OOS_n": 3833,
+   "頑健": true
+  },
+  {
+   "type": "surge_x_direction",
+   "条件": "急増3-6倍 × 当日下落(〜-2%)",
+   "IS_5日": -0.0027509196661412716,
+   "IS_勝率": 0.4717052791492594,
+   "IS_n": 2633,
+   "OOS_5日": 0.005322801880538464,
+   "OOS_勝率": 0.5359832635983264,
+   "OOS_n": 2390,
+   "頑健": false
+  },
+  {
+   "type": "surge_x_direction",
+   "条件": "急増6倍〜 × 当日上昇(+2%〜)",
+   "IS_5日": 0.006555782165378332,
+   "IS_勝率": 0.4946236559139785,
+   "IS_n": 651,
+   "OOS_5日": 0.0028127115219831467,
+   "OOS_勝率": 0.4805936073059361,
+   "OOS_n": 876,
+   "頑健": true
+  },
+  {
+   "type": "surge_x_direction",
+   "条件": "急増6倍〜 × 当日下落(〜-2%)",
+   "IS_5日": -0.003606545040383935,
+   "IS_勝率": 0.4507936507936508,
+   "IS_n": 315,
+   "OOS_5日": 0.00582102732732892,
+   "OOS_勝率": 0.5264550264550265,
+   "OOS_n": 378,
+   "頑健": false
+  },
+  {
+   "type": "flow_value_add",
+   "比較": {
+    "rsi2_flow": {
+     "OOS勝率": 0.653558,
+     "OOS平均": 0.001487,
+     "OOS_PF": 1.09675,
+     "OOS取引": 1068
+    },
+    "rsi2_quiet": {
+     "OOS勝率": 0.606145,
+     "OOS平均": -0.000722,
+     "OOS_PF": 0.959118,
+     "OOS取引": 1074
+    },
+    "rsi2_dip(既存)": {
+     "OOS勝率": 0.59332,
+     "OOS平均": -0.000331,
+     "OOS_PF": 0.980359,
+     "OOS取引": 1018
+    }
+   }
+  },
+  {
+   "type": "trend_filter",
+   "期間": "IS",
+   "トレンド上_5日": -0.0019670643378049135,
+   "トレンド上_n": 4123,
+   "トレンド下_5日": 0.002020117826759815,
+   "トレンド下_n": 5701,
+   "差": -0.003987182164564729
+  },
+  {
+   "type": "trend_filter",
+   "期間": "OOS",
+   "トレンド上_5日": 0.007339082658290863,
+   "トレンド上_n": 3818,
+   "トレンド下_5日": 0.008577066473662853,
+   "トレンド下_n": 3732,
+   "差": -0.0012379838153719902
   }
  ]
 }
