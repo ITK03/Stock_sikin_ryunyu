@@ -44,9 +44,22 @@ FAR_PAST, FAR_FUTURE = "1900-01-01", "2100-01-01"
 # 前向きリターンの評価ホライズン(営業日)。スイングの保有期間に合わせる。
 HORIZONS = (1, 3, 5, 10)
 
-# 既存の本番設定(screener/registry.yaml)と揃えたエンジン設定。
+# 既存の本番設定(screener/registry.yaml)と揃えたエンジン設定(平均回帰系)。
 DEFAULT_ENGINE = dict(max_positions=5, slippage_bps=10.0, stop_loss=0.15,
                       max_hold=10, take_profit=0.02)
+
+# 戦略ファミリー別のエンジン設定。
+# 順張り(モメンタム)系に平均回帰系と同じ「+2%利確・最大10日」を当てると、
+# 伸びる前に必ず切ってしまい、順張りの優位性が原理的に測れなくなる。
+# 利確なし・保有期間長め・ストップは浅めという順張りの標準形で評価する。
+# (この区別をしないと「順張りは効かない」という誤った結論になる)
+ENGINE_OVERRIDES = {
+    "flow_momentum": dict(take_profit=None, max_hold=30, stop_loss=0.10),
+}
+
+
+def engine_for(name: str) -> dict:
+    return {**DEFAULT_ENGINE, **ENGINE_OVERRIDES.get(name, {})}
 
 # 比較用に回す既存戦略(本番稼働中の2本)。
 BASELINE_KEYS = ("rsi2_dip", "keltner_atr_dip")
@@ -212,13 +225,17 @@ def run_event_study(panel: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_strategy_grid(prices: dict[str, pd.DataFrame], name: str, fn, grid: list[dict],
+                      engine: dict | None = None,
                       min_is_trades: int = 80) -> dict | None:
     """ISでベスト設定を選び、その設定のOOS成績を返す(選択にOOSを使わない)。"""
+    eng = engine or DEFAULT_ENGINE
     best = None
+    max_is_trades = 0
     for params in grid:
         signals = {t: fn(df, **params) for t, df in prices.items()}
-        result = run_backtest(prices, signals, EngineParams(**DEFAULT_ENGINE))
+        result = run_backtest(prices, signals, EngineParams(**eng))
         is_m = summarize(result, (FAR_PAST, IS_END))
+        max_is_trades = max(max_is_trades, int(is_m.get("trades", 0)))
         if is_m.get("trades", 0) < min_is_trades:
             continue
         score = is_m.get("sharpe", 0.0)
@@ -227,11 +244,17 @@ def run_strategy_grid(prices: dict[str, pd.DataFrame], name: str, fn, grid: list
             best = {
                 "strategy": name,
                 "params": params,
+                "engine": {k: v for k, v in eng.items()},
                 "is_sharpe_score": score,
                 "IS": {k: _f(v) for k, v in is_m.items()},
                 "OOS": {k: _f(v) for k, v in oos_m.items()},
                 "yearly": _yearly_records(result),
             }
+    if best is None:
+        # シグナルが少なすぎて評価できなかった場合。黙って表から消すと
+        # 「優位性がない」と誤読されるため、理由を残す。
+        return {"strategy": name, "insufficient": True,
+                "max_is_trades": max_is_trades, "min_required": min_is_trades}
     return best
 
 
@@ -257,18 +280,17 @@ def run_backtests(prices: dict[str, pd.DataFrame]) -> list[dict]:
     """研究戦略 + 既存ベースラインを同じエンジン設定で比較する。"""
     results = []
     for name, (fn, grid) in RESEARCH_STRATEGIES.items():
-        r = run_strategy_grid(prices, name, fn, grid)
-        if r:
-            results.append(r)
+        results.append(run_strategy_grid(prices, name, fn, grid, engine=engine_for(name)))
         print(f"  done: {name}")
     for name in BASELINE_KEYS:
         fn, grid = BASE_STRATEGIES[name]
-        r = run_strategy_grid(prices, f"{name}(既存)", fn, grid)
-        if r:
-            results.append(r)
+        results.append(run_strategy_grid(
+            prices, f"{name}(既存)", fn, grid, engine=engine_for(name)))
         print(f"  done: {name}(既存)")
-    results.sort(key=lambda r: (r["OOS"].get("sharpe") or -99), reverse=True)
-    return results
+    evaluated = [r for r in results if not r.get("insufficient")]
+    evaluated.sort(key=lambda r: (r["OOS"].get("sharpe") or -99), reverse=True)
+    skipped = [r for r in results if r.get("insufficient")]
+    return evaluated + skipped
 
 
 # ---------------------------------------------------------------------------
@@ -301,15 +323,25 @@ def _cond_table(records: list[dict]) -> str:
     return head + "\n".join(rows)
 
 
+def _engine_note(eng: dict) -> str:
+    tp = eng.get("take_profit")
+    return (f"利確{'なし' if tp is None else f'+{tp*100:.0f}%'}"
+            f"/損切-{eng.get('stop_loss', 0)*100:.0f}%"
+            f"/最大{eng.get('max_hold')}日")
+
+
 def _bt_table(results: list[dict]) -> str:
-    head = ("| 戦略 | 選択パラメータ | IS取引 | IS勝率 | IS PF | OOS取引 | OOS勝率 | "
+    head = ("| 戦略 | 選択パラメータ | 手仕舞い設定 | IS取引 | IS勝率 | IS PF | OOS取引 | OOS勝率 | "
             "OOS PF | OOS平均 | OOS Sharpe | OOS最大DD |\n")
-    head += "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
+    head += "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
     rows = []
     for r in results:
+        if r.get("insufficient"):
+            continue
         i, o = r["IS"], r["OOS"]
         rows.append(
             f"| {r['strategy']} | `{json.dumps(r['params'], ensure_ascii=False)}` | "
+            f"{_engine_note(r.get('engine', {}))} | "
             f"{i.get('trades', 0):,} | {_fmt_pct(i.get('win_rate'),1)} | "
             f"{(i.get('profit_factor') or float('nan')):.2f} | "
             f"{o.get('trades', 0):,} | {_fmt_pct(o.get('win_rate'),1)} | "
@@ -319,10 +351,25 @@ def _bt_table(results: list[dict]) -> str:
     return head + "\n".join(rows)
 
 
+def _skipped_note(results: list[dict]) -> str:
+    """シグナル不足で評価できなかった戦略を明示する(沈黙は誤読を生む)。"""
+    sk = [r for r in results if r.get("insufficient")]
+    if not sk:
+        return ""
+    lines = ["**評価対象外(ISのシグナル数が不足し、統計的に評価できなかったもの)**", ""]
+    for r in sk:
+        lines.append(f"- {r['strategy']}: IS取引数 最大{r['max_is_trades']}件 "
+                     f"(必要{r['min_required']}件)。優位性の否定ではなく、"
+                     f"サンプル不足で判断不能という意味。")
+    return "\n".join(lines)
+
+
 def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
+    findings = derive_findings(event, backtests)
     (out_dir / "report.json").write_text(
-        json.dumps({"meta": meta, "event_study": event, "backtests": backtests},
+        json.dumps({"meta": meta, "event_study": event, "backtests": backtests,
+                    "findings": findings},
                    ensure_ascii=False, indent=1), encoding="utf-8")
 
     md = [
@@ -364,6 +411,18 @@ def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict) 
         "",
         _bt_table(backtests),
         "",
+        _skipped_note(backtests),
+        "",
+        findings_markdown(findings),
+        "",
+        "## 前提と限界",
+        "",
+        "- ユニバースは現在のJPXプライム上場銘柄。過去に上場廃止された銘柄を含まない"
+        "ため、絶対リターンには上方バイアスがある。ただし本レポートの主目的は"
+        "「同一ユニバース上での戦略間の相対比較」であり、そこへの影響は限定的。",
+        "- 手数料は考慮していない(スリッページ片道0.1%のみ)。",
+        "- 分割・増資を跨ぐ発行済株式数を過去に遡って持てないため、①時価総額比は"
+        "時系列版(自分の平常時比)で代用している。",
     ]
     (out_dir / "REPORT.md").write_text("\n".join(md), encoding="utf-8")
     print(f"レポート出力: {out_dir}")
@@ -400,6 +459,108 @@ def main() -> int:
     write_report(ROOT / args.out, event, backtests, meta)
     return 0
 
+
+
+# ---------------------------------------------------------------------------
+# 自動的な所見抽出
+# ---------------------------------------------------------------------------
+# 表を人間が眺めて結論を書くと、都合のいいセルだけ拾う危険がある。
+# 主要な比較は機械的に取り出し、IS/OOS の符号が一致するものだけを
+# 「頑健」として扱う。
+
+def _cell(records: list[dict], surge: str, direction: str) -> dict | None:
+    for r in records:
+        if r["surge"] == surge and r["当日"] == direction:
+            return r
+    return None
+
+
+def derive_findings(event: dict, backtests: list[dict]) -> list[dict]:
+    findings = []
+
+    # 1) 急増 × 値動きの向き: IS/OOS 双方で符号が一致するセルだけを採用する
+    for surge in ("1.5-3倍", "3-6倍", "6倍〜"):
+        for direction in ("上昇(+2%〜)", "下落(〜-2%)"):
+            i = _cell(event["IS"]["surge_x_direction"], surge, direction)
+            o = _cell(event["OOS"]["surge_x_direction"], surge, direction)
+            if not i or not o or i["n"] < 200 or o["n"] < 200:
+                continue
+            same = np.sign(i["mean5"]) == np.sign(o["mean5"])
+            findings.append({
+                "type": "surge_x_direction",
+                "条件": f"急増{surge} × 当日{direction}",
+                "IS_5日": i["mean5"], "IS_勝率": i["win5"], "IS_n": i["n"],
+                "OOS_5日": o["mean5"], "OOS_勝率": o["win5"], "OOS_n": o["n"],
+                "頑健": bool(same),
+            })
+
+    # 2) 「フロー指標は既存の押し目買いに上乗せ価値があるか」の直接比較
+    by_name = {r["strategy"]: r for r in backtests if not r.get("insufficient")}
+    trio = ["rsi2_flow", "rsi2_quiet", "rsi2_dip(既存)"]
+    if all(k in by_name for k in trio):
+        findings.append({
+            "type": "flow_value_add",
+            "比較": {k: {"OOS勝率": by_name[k]["OOS"].get("win_rate"),
+                        "OOS平均": by_name[k]["OOS"].get("avg_ret"),
+                        "OOS_PF": by_name[k]["OOS"].get("profit_factor"),
+                        "OOS取引": by_name[k]["OOS"].get("trades")} for k in trio},
+        })
+
+    # 3) 急増を伴う下落における長期トレンドの効果
+    for tag in ("IS", "OOS"):
+        rec = event[tag]["surge_down_x_trend"]
+        if len(rec) == 2:
+            up = next((r for r in rec if "上昇" in r["長期トレンド"]), None)
+            dn = next((r for r in rec if "下降" in r["長期トレンド"]), None)
+            if up and dn:
+                findings.append({
+                    "type": "trend_filter", "期間": tag,
+                    "トレンド上_5日": up["mean5"], "トレンド上_n": up["n"],
+                    "トレンド下_5日": dn["mean5"], "トレンド下_n": dn["n"],
+                    "差": up["mean5"] - dn["mean5"],
+                })
+    return findings
+
+
+def findings_markdown(findings: list[dict]) -> str:
+    lines = ["## 自動抽出した所見(表から機械的に取り出した主要比較)", ""]
+
+    cond = [f for f in findings if f["type"] == "surge_x_direction"]
+    if cond:
+        lines += [
+            "### 急増×値動きの向き(IS/OOSで符号が一致したものだけを「頑健」とする)", "",
+            "| 条件 | IS 5日 | IS 勝率 | OOS 5日 | OOS 勝率 | 頑健 |",
+            "|---|---:|---:|---:|---:|:--:|",
+        ]
+        for f in cond:
+            lines.append(
+                f"| {f['条件']} | {_fmt_pct(f['IS_5日'])} | {_fmt_pct(f['IS_勝率'],1)} | "
+                f"{_fmt_pct(f['OOS_5日'])} | {_fmt_pct(f['OOS_勝率'],1)} | "
+                f"{'○' if f['頑健'] else '×'} |")
+        lines.append("")
+
+    tf = [f for f in findings if f["type"] == "trend_filter"]
+    if tf:
+        lines += ["### 急増を伴う下落: 長期トレンドで分けたときの5日リターン差", "",
+                  "| 期間 | トレンド上 | トレンド下 | 差 |", "|---|---:|---:|---:|"]
+        for f in tf:
+            lines.append(f"| {f['期間']} | {_fmt_pct(f['トレンド上_5日'])} "
+                         f"({f['トレンド上_n']:,}件) | {_fmt_pct(f['トレンド下_5日'])} "
+                         f"({f['トレンド下_n']:,}件) | {_fmt_pct(f['差'])} |")
+        lines.append("")
+
+    va = next((f for f in findings if f["type"] == "flow_value_add"), None)
+    if va:
+        lines += ["### フロー指標は既存の押し目買いに上乗せ価値があるか", "",
+                  "同一エンジン設定で、急増フィルタあり(flow)/なし(quiet)/無条件(既存)を比較。", "",
+                  "| 戦略 | OOS取引 | OOS勝率 | OOS平均 | OOS PF |", "|---|---:|---:|---:|---:|"]
+        for k, v in va["比較"].items():
+            pf = v["OOS_PF"]
+            lines.append(f"| {k} | {v['OOS取引']:,} | {_fmt_pct(v['OOS勝率'],1)} | "
+                         f"{_fmt_pct(v['OOS平均'])} | "
+                         f"{'—' if pf is None else f'{pf:.2f}'} |")
+        lines.append("")
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     raise SystemExit(main())
