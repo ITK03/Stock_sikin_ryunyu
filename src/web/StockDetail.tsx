@@ -3,8 +3,8 @@ import { buildStockProfile } from '../core/crosslink';
 import { isJpCode } from '../core/codes';
 import type { DisclosuresFeed, RankingDataset, Region, SectorFile, TickerIndexFile } from '../core/types';
 import { PERIODS } from '../core/periods';
-import { useLazyExternalJson } from './externalData';
-import { SECTOR_US_URL, TICKER_INDEX_URL } from './externalSources';
+import { fetchFirstOk, useLazyExternalJson } from './externalData';
+import { SECTOR_US_URL, TICKER_INDEX_URL, rankingsUrls } from './externalSources';
 import { SAMPLE_SECTOR_US, SAMPLE_TICKER_INDEX } from '../data/sampleSector';
 import { priceText, signedPct } from './format';
 import { TierBadge } from './TierBadge';
@@ -35,12 +35,8 @@ const rankingsFallbackCache = new Map<Region, Promise<RankingDataset>>();
 function loadRankingsOnce(region: Region): Promise<RankingDataset> {
   const cached = rankingsFallbackCache.get(region);
   if (cached) return cached;
-  const file = region === 'US' ? 'rankings.us.json' : 'rankings.json';
-  const p = fetch(`${import.meta.env.BASE_URL}data/${file}`, { cache: 'no-store' })
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json() as Promise<RankingDataset>;
-    })
+  // 資金流入タブと同じ取得先(data-rankings ブランチ優先 → Pages フォールバック)。
+  const p = fetchFirstOk<RankingDataset>(rankingsUrls(region))
     .catch((e) => {
       rankingsFallbackCache.delete(region); // 失敗時は次回の再試行を可能にする
       throw e;

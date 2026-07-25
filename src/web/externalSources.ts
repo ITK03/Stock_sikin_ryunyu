@@ -1,5 +1,26 @@
 // 同一オーナー(ITK03)の他リポジトリが公開するデータソース定義。
 
+import type { Region } from '../core/types';
+
+// 資金流入ランキング(本リポジトリの build:data 生成物)。
+// 以前は Pages にバンドルされたコピーだけを読んでいたため、株価の更新頻度が
+// 「Build and Deploy の実行間隔」に律速されていた。GitHub の cron は宣言通りには
+// 起動せず(実測で1〜4時間の空白が出る)、寄り付き直後に前日夜の値が出たままになる、
+// 更新ボタンを押しても同じデプロイ成果物を取り直すだけで何も変わらない、という
+// 不具合の原因になっていた。
+// そこで data-refresh ワークフローが数分おきに `data-rankings` orphanブランチへ
+// force-push したものを raw から優先して読む。Pages のコピーはフォールバックとして
+// 残す(ブランチ配信が止まってもアプリは動く)。
+export function rankingsUrls(region: Region, bust = false): string[] {
+  const file = region === 'US' ? 'rankings.us.json' : 'rankings.json';
+  // raw も Pages も CDN が5分キャッシュするため、明示更新時はクエリで確実に破る。
+  const q = bust ? `?t=${Date.now()}` : '';
+  return [
+    `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data-rankings/${file}${q}`,
+    `${import.meta.env.BASE_URL}data/${file}${q}`,
+  ];
+}
+
 // 開示の最新版(Stock_open_news): リポジトリ肥大化対策で「data」orphanブランチ
 // (force-push配信)へ移行済み。raw のdataブランチを読む。旧Pages URLは
 // フォールバックとして残す(移行前の環境でも動くように)。

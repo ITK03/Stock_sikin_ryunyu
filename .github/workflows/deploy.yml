@@ -1,13 +1,16 @@
 name: Build and Deploy
 
 # 無料データ(Yahoo Finance + JPX上場一覧)で再生成し GitHub Pages へデプロイ。
-# 急増(初動)を早く捉えるため、JP場中は毎時、引け後に確定、US引け後も更新する。
 # 時刻は UTC。JST = UTC+9。GitHub の cron は数分遅延することがある。
+#
+# 場中の株価更新は data-refresh ワークフロー(data-rankings ブランチへ数分おきに
+# force-push)が担当するため、ここでは毎時デプロイしない。以前は場中を毎時デプロイ
+# していたが、GitHub の cron 間引き(実測1〜4時間の空白)とデプロイ所要時間により
+# 更新が遅れる原因になっていた。
+# このワークフローの役割は「アプリ本体(HTML/JS)のデプロイ」と「バンドルする
+# rankings*.json フォールバックを1日1回以上は新しく保つこと」の2点。
 on:
   schedule:
-    - cron: '30 0 * * 1-5'   # 09:30 JST 寄り直後(急増・初動の早期検知)
-    - cron: '30 1 * * 1-5'   # 10:30 JST
-    - cron: '0 0-6 * * 1-5'  # JP場中 09:00〜15:00 JST を毎時更新
     - cron: '50 6 * * 1-5'   # 15:50 JST JP引け後(当日確定値)
     - cron: '30 20 * * 1-5'  # US引け後(ET 16:30頃) US当日値を更新
   workflow_dispatch: {}

@@ -67,7 +67,7 @@ const FETCH_TIMEOUT_MS = 15 * 1000;
  * 候補URLを順に試し、最初に成功した JSON を返す。全滅時は最後のエラーを投げる。
  * 各候補は AbortController でタイムアウトさせる(ハングしたURLに全体が引きずられない)。
  */
-async function fetchFirstOk<T>(urls: string[]): Promise<T> {
+export async function fetchFirstOk<T>(urls: string[]): Promise<T> {
   let lastErr: unknown = new Error('候補URLがありません');
   for (const url of urls) {
     const ac = new AbortController();

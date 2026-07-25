@@ -11,6 +11,8 @@ import { PERIODS, SURGE_HORIZONS } from '../core/periods';
 import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
 import { FilterSheet } from './FilterSheet';
+import { fetchFirstOk } from './externalData';
+import { rankingsUrls } from './externalSources';
 import { relTime } from './format';
 import { useWatchlist } from './watchlist';
 
@@ -87,9 +89,13 @@ function applyFilters(rows: RankRow[], f: Filters, region: Region): RankRow[] {
   );
 }
 
-function dataUrl(region: Region, bust = false): string {
-  const file = region === 'US' ? 'rankings.us.json' : 'rankings.json';
-  return `${import.meta.env.BASE_URL}data/${file}${bust ? `?t=${Date.now()}` : ''}`;
+/** この時間より古いキャッシュは「再取得すべき」と判断する(地域切替・復帰時)。 */
+const STALE_MS = 3 * 60 * 1000;
+
+function isStale(ds: RankingDataset | undefined): boolean {
+  if (!ds) return true;
+  const t = Date.parse(ds.generatedAt);
+  return !Number.isFinite(t) || Date.now() - t > STALE_MS;
 }
 
 interface Props {
@@ -122,16 +128,14 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
 
   // データを取得してキャッシュに保存する。データは日中に複数回更新されるため、
   // 常に最新を取得する(古いデータと新しいアプリ本体の不整合による表示崩れを防ぐ)。
-  const load = (r: Region) =>
-    fetch(dataUrl(r, true), { cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<RankingDataset>;
-      })
-      .then((dataset) => {
-        setCache((prev) => ({ ...prev, [r]: dataset }));
-        onDatasetLoaded(r, dataset);
-      });
+  // 取得先は data-rankings ブランチ(数分おきに更新)を優先し、Pages のバンドル済み
+  // コピーをフォールバックにする(rankingsUrls 参照)。
+  const load = (r: Region): Promise<RankingDataset> =>
+    fetchFirstOk<RankingDataset>(rankingsUrls(r, true)).then((dataset) => {
+      setCache((prev) => ({ ...prev, [r]: dataset }));
+      onDatasetLoaded(r, dataset);
+      return dataset;
+    });
 
   // 起動時に現在のリージョンを読み込む。
   useEffect(() => {
@@ -139,13 +143,35 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // アプリに戻ってきた(バックグラウンド → 前面)ときにデータが古ければ自動で取り直す。
+  // モバイルでは画面を開きっぱなしにして戻ってくる使い方が多く、そのままだと
+  // 何時間も前の値を見続けることになるため。
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      setCache((prev) => {
+        if (!isStale(prev[region])) return prev;
+        load(region).catch(() => {
+          // 復帰時の自動更新の失敗は黙って無視する(表示中の値はそのまま残す)。
+        });
+        return prev;
+      });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region]);
+
   const changeRegion = (r: Region) => {
     setRegion(r);
     localStorage.setItem('region', r);
     setMarket('All');
-    // まだキャッシュがない場合のみフェッチ。
-    if (!cache[r]) {
-      load(r).catch((e) => setError(String(e)));
+    // 未取得、またはキャッシュが古い場合に取り直す(地域を往復すると何時間も前の
+    // 値が残り続けるのを防ぐ)。取得済みの値は表示したまま裏で差し替える。
+    if (isStale(cache[r])) {
+      load(r).catch((e) => {
+        if (!cache[r]) setError(String(e));
+      });
     }
   };
 
@@ -156,9 +182,17 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
 
   const refresh = async () => {
     setRefreshing(true);
+    const before = cache[region]?.generatedAt;
     try {
-      await load(region);
-      flash('最新データに更新しました');
+      const dataset = await load(region);
+      // 取得できても中身が同じ(まだ次の生成が走っていない)ことはある。
+      // 以前は常に「更新しました」と出していたため、実際には何も変わっていないのに
+      // 更新されたように見えて紛らわしかった。事実をそのまま出す。
+      flash(
+        dataset.generatedAt && dataset.generatedAt !== before
+          ? '最新データに更新しました'
+          : `すでに最新です(${relTime(dataset.generatedAt)}時点)`,
+      );
     } catch {
       flash('更新に失敗しました');
     } finally {

@@ -1,0 +1,116 @@
+name: Data Refresh
+
+# 資金流入ランキングのデータだけを高頻度で再生成し、`data-rankings` orphanブランチへ
+# force-push する常駐ジョブ。
+#
+# 背景(この仕組みが必要な理由):
+#   以前は rankings*.json を「Build and Deploy」(Pages デプロイ)の成果物としてのみ
+#   配信していたため、株価の更新頻度がデプロイ実行間隔に律速されていた。GitHub の
+#   cron は宣言通りには起動せず(実測: 毎時指定でも1〜4時間の空白が出る。例 2026-07-23 は
+#   06:36 JST の次が 11:11 JST で、寄り付き〜11時台まで前日夜の値のままだった)、
+#   さらに1回のデプロイに2〜6分かかる。アプリの更新ボタンも同じデプロイ成果物を
+#   取り直すだけなので、デプロイが走っていない間は何度押しても中身が変わらなかった。
+#
+# 対策: データ生成(build:data、実測95秒)だけを Pages デプロイから切り離し、
+#   自己連鎖する常駐ループで数分おきに実行してブランチへ配信する。アプリは raw の
+#   このブランチを優先して読むため、デプロイを待たずに最新値が反映される。
+#
+# 履歴肥大化対策: 毎回 orphan ブランチを作り直して force-push するため、
+#   `data-rankings` の履歴は常に1コミット。何年運用してもリポジトリは肥大化しない
+#   (swing の `data` ブランチと同じ方式。両者はブランチが別なので互いに上書きしない)。
+#
+# public リポジトリの Actions は無制限無料なので、常時稼働でも費用は0。
+
+on:
+  workflow_dispatch:
+    inputs:
+      interval_seconds:
+        description: "1サイクルの間隔(秒)"
+        default: "600"
+  schedule:
+    # 自己連鎖が途切れたときの再点火用。連鎖が生きている限り主な起動源ではない。
+    - cron: "0 * * * *"
+
+permissions:
+  contents: write
+  actions: write # 自己連鎖(gh workflow run)に必要
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: true # 新しい起動が来たら古いループを置き換えて連鎖を継続する
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # ユニバース(JPX上場一覧 + 発行済株式数)は日次で十分なため、ループ開始時に1回だけ。
+      - name: Build universe
+        run: npm run universe || echo "universe生成に失敗(既存のconfigで継続)"
+
+      - name: Refresh loop (約330分・市場が開いている時間帯のみ生成・終了時に自己連鎖)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          REPO_URL: "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          INTERVAL: ${{ github.event.inputs.interval_seconds || '600' }}
+        run: |
+          set -u
+
+          # 平日かつ指定時間帯(取引所ローカル)なら真。HHMM は10進で比較する
+          # (08xx が8進数と解釈されるのを防ぐため 10# を付ける)。
+          in_window() {
+            local dow t
+            dow=$(TZ="$1" date +%u)
+            t=$((10#$(TZ="$1" date +%H%M)))
+            [ "$dow" -le 5 ] && [ "$t" -ge "$2" ] && [ "$t" -le "$3" ]
+          }
+
+          # JP 08:50〜15:40 JST / US 09:20〜16:40 ET(寄り前と引け後の確定値も拾う)。
+          market_open() {
+            in_window Asia/Tokyo 850 1540 || in_window America/New_York 920 1640
+          }
+
+          # 生成物を data-rankings ブランチへ単一コミットとして force-push する。
+          publish() {
+            local tmp rc
+            tmp="$(mktemp -d)"
+            for f in rankings.json rankings.us.json quotes_jp.json quotes_us.json \
+                     period_returns_jp.json period_returns_us.json; do
+              [ -s "public/data/$f" ] && cp "public/data/$f" "$tmp/$f"
+            done
+            [ -n "$(ls -A "$tmp")" ] || { rm -rf "$tmp"; echo "配信対象なし"; return 1; }
+            ( cd "$tmp" \
+              && git init -q -b data-rankings \
+              && git config user.name "github-actions[bot]" \
+              && git config user.email "github-actions[bot]@users.noreply.github.com" \
+              && git add -A \
+              && git commit -q -m "data: 資金流入ランキング更新 [skip ci]" \
+              && git push --force -q "$REPO_URL" HEAD:data-rankings )
+            rc=$?; rm -rf "$tmp"; return $rc
+          }
+
+          end=$(( $(date +%s) + 330*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            if market_open; then
+              if npm run build:data; then
+                publish && echo "配信完了 $(date -u +%H:%M:%SZ)" || echo "配信失敗(継続)"
+              else
+                echo "build:data 失敗(継続)"
+              fi
+            else
+              echo "市場時間外のためスキップ $(date -u +%H:%M:%SZ)"
+            fi
+            sleep "$INTERVAL"
+          done
+
+          # 自己連鎖: cron の間引きを待たずに次のループを起動する。
+          # workflow_dispatch は GITHUB_TOKEN からでも連鎖起動できる公式の例外。
+          gh workflow run data-refresh.yml --ref "$BRANCH" || echo "self-dispatch failed"
