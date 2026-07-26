@@ -665,9 +665,9 @@
     {
      "長期トレンド": "上昇(終値>SMA200)",
      "n": 3818,
-     "mean1": 0.0007947380072437227,
+     "mean1": 0.0007947379490360618,
      "win1": 0.5227867993713986,
-     "mean3": 0.003565899096429348,
+     "mean3": 0.0035658988635987043,
      "win3": 0.5206914614981666,
      "mean5": 0.007339082658290863,
      "win5": 0.5426925091671032,
@@ -3554,7 +3554,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 5,
    "fee_bps": 0.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 1398,
     "win_rate": 0.66166,
@@ -3586,7 +3586,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 5,
    "fee_bps": 5.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 1388,
     "win_rate": 0.654899,
@@ -3618,7 +3618,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 5,
    "fee_bps": 10.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 1378,
     "win_rate": 0.641509,
@@ -3746,7 +3746,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 20,
    "fee_bps": 0.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 4760,
     "win_rate": 0.646008,
@@ -3778,7 +3778,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 20,
    "fee_bps": 5.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 4746,
     "win_rate": 0.639275,
@@ -3810,7 +3810,7 @@
    "strategy": "rsi2_dip",
    "max_positions": 20,
    "fee_bps": 10.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 4722,
     "win_rate": 0.627065,
@@ -3842,7 +3842,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 5,
    "fee_bps": 0.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 858,
     "win_rate": 0.651515,
@@ -3874,7 +3874,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 5,
    "fee_bps": 5.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 843,
     "win_rate": 0.646501,
@@ -3906,7 +3906,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 5,
    "fee_bps": 10.0,
-   "current": true,
+   "current": false,
    "IS": {
     "trades": 833,
     "win_rate": 0.639856,
@@ -4034,7 +4034,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 20,
    "fee_bps": 0.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 2073,
     "win_rate": 0.66136,
@@ -4066,7 +4066,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 20,
    "fee_bps": 5.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 2054,
     "win_rate": 0.651899,
@@ -4098,7 +4098,7 @@
    "strategy": "keltner_atr_dip",
    "max_positions": 20,
    "fee_bps": 10.0,
-   "current": false,
+   "current": true,
    "IS": {
     "trades": 2042,
     "win_rate": 0.642018,
