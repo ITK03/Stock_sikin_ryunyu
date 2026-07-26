@@ -1690,6 +1690,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 5,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 1581,
+    "win_rate": 0.641366,
+    "avg_ret": 0.000518,
+    "avg_win": 0.03003,
+    "avg_loss": -0.052262,
+    "profit_factor": 1.027617,
+    "avg_hold_days": 4.651486,
+    "total_return": -0.044134,
+    "cagr": -0.006442,
+    "max_drawdown": -0.456067,
+    "sharpe": 0.08646
+   },
    "OOS": {
     "trades": 1217,
     "win_rate": 0.649959,
@@ -1708,6 +1721,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 5,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 1581,
+    "win_rate": 0.632511,
+    "avg_ret": -0.000441,
+    "avg_win": 0.029485,
+    "avg_loss": -0.051947,
+    "profit_factor": 0.976922,
+    "avg_hold_days": 4.650854,
+    "total_return": -0.292634,
+    "cagr": -0.048361,
+    "max_drawdown": -0.521364,
+    "sharpe": -0.098759
+   },
    "OOS": {
     "trades": 1210,
     "win_rate": 0.639669,
@@ -1726,6 +1752,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 5,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 1576,
+    "win_rate": 0.618655,
+    "avg_ret": -0.001448,
+    "avg_win": 0.029162,
+    "avg_loss": -0.051105,
+    "profit_factor": 0.925717,
+    "avg_hold_days": 4.66434,
+    "total_return": -0.484083,
+    "cagr": -0.090406,
+    "max_drawdown": -0.611004,
+    "sharpe": -0.294296
+   },
    "OOS": {
     "trades": 1195,
     "win_rate": 0.625105,
@@ -1744,6 +1783,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 10,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 2916,
+    "win_rate": 0.62963,
+    "avg_ret": -0.00048,
+    "avg_win": 0.028653,
+    "avg_loss": -0.050005,
+    "profit_factor": 0.97409,
+    "avg_hold_days": 4.819616,
+    "total_return": -0.222347,
+    "cagr": -0.035365,
+    "max_drawdown": -0.517968,
+    "sharpe": -0.090902
+   },
    "OOS": {
     "trades": 2314,
     "win_rate": 0.645203,
@@ -1762,6 +1814,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 10,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 2915,
+    "win_rate": 0.617496,
+    "avg_ret": -0.001415,
+    "avg_win": 0.028253,
+    "avg_loss": -0.04931,
+    "profit_factor": 0.924961,
+    "avg_hold_days": 4.826415,
+    "total_return": -0.407315,
+    "cagr": -0.07216,
+    "max_drawdown": -0.552917,
+    "sharpe": -0.291407
+   },
    "OOS": {
     "trades": 2309,
     "win_rate": 0.634907,
@@ -1780,6 +1845,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 10,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 2913,
+    "win_rate": 0.608994,
+    "avg_ret": -0.002286,
+    "avg_win": 0.027763,
+    "avg_loss": -0.049087,
+    "profit_factor": 0.880887,
+    "avg_hold_days": 4.831789,
+    "total_return": -0.540279,
+    "cagr": -0.105303,
+    "max_drawdown": -0.612978,
+    "sharpe": -0.478698
+   },
    "OOS": {
     "trades": 2292,
     "win_rate": 0.619983,
@@ -1798,6 +1876,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 20,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 5210,
+    "win_rate": 0.61785,
+    "avg_ret": -0.000759,
+    "avg_win": 0.02738,
+    "avg_loss": -0.046254,
+    "profit_factor": 0.957048,
+    "avg_hold_days": 4.857965,
+    "total_return": -0.245839,
+    "cagr": -0.039593,
+    "max_drawdown": -0.4465,
+    "sharpe": -0.156703
+   },
    "OOS": {
     "trades": 4290,
     "win_rate": 0.644522,
@@ -1816,6 +1907,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 20,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 5194,
+    "win_rate": 0.605314,
+    "avg_ret": -0.001782,
+    "avg_win": 0.027068,
+    "avg_loss": -0.046028,
+    "profit_factor": 0.901899,
+    "avg_hold_days": 4.875241,
+    "total_return": -0.42179,
+    "cagr": -0.075439,
+    "max_drawdown": -0.502458,
+    "sharpe": -0.37893
+   },
    "OOS": {
     "trades": 4270,
     "win_rate": 0.632084,
@@ -1834,6 +1938,19 @@
    "strategy": "flow_accumulation",
    "max_positions": 20,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 5179,
+    "win_rate": 0.593358,
+    "avg_ret": -0.002882,
+    "avg_win": 0.026567,
+    "avg_loss": -0.045854,
+    "profit_factor": 0.845418,
+    "avg_hold_days": 4.890712,
+    "total_return": -0.565092,
+    "cagr": -0.112382,
+    "max_drawdown": -0.593167,
+    "sharpe": -0.621468
+   },
    "OOS": {
     "trades": 4251,
     "win_rate": 0.616326,
@@ -1852,6 +1969,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 5,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 1440,
+    "win_rate": 0.642361,
+    "avg_ret": 0.000656,
+    "avg_win": 0.026742,
+    "avg_loss": -0.046199,
+    "profit_factor": 1.039676,
+    "avg_hold_days": 4.882639,
+    "total_return": 0.071071,
+    "cagr": 0.009879,
+    "max_drawdown": -0.388773,
+    "sharpe": 0.147953
+   },
    "OOS": {
     "trades": 1068,
     "win_rate": 0.653558,
@@ -1870,6 +2000,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 5,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 1442,
+    "win_rate": 0.633148,
+    "avg_ret": -0.0002,
+    "avg_win": 0.026229,
+    "avg_loss": -0.045812,
+    "profit_factor": 0.988128,
+    "avg_hold_days": 4.875867,
+    "total_return": -0.162814,
+    "cagr": -0.025123,
+    "max_drawdown": -0.441998,
+    "sharpe": -0.0286
+   },
    "OOS": {
     "trades": 1066,
     "win_rate": 0.644465,
@@ -1888,6 +2031,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 5,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 1435,
+    "win_rate": 0.621603,
+    "avg_ret": -0.00107,
+    "avg_win": 0.026096,
+    "avg_loss": -0.045697,
+    "profit_factor": 0.938107,
+    "avg_hold_days": 4.903136,
+    "total_return": -0.349151,
+    "cagr": -0.05964,
+    "max_drawdown": -0.477897,
+    "sharpe": -0.207512
+   },
    "OOS": {
     "trades": 1063,
     "win_rate": 0.631232,
@@ -1906,6 +2062,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 10,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 2647,
+    "win_rate": 0.632036,
+    "avg_ret": 0.000556,
+    "avg_win": 0.027036,
+    "avg_loss": -0.044927,
+    "profit_factor": 1.033647,
+    "avg_hold_days": 5.006422,
+    "total_return": 0.063253,
+    "cagr": 0.00882,
+    "max_drawdown": -0.332626,
+    "sharpe": 0.136706
+   },
    "OOS": {
     "trades": 2011,
     "win_rate": 0.649428,
@@ -1924,6 +2093,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 10,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 2645,
+    "win_rate": 0.621928,
+    "avg_ret": -0.000361,
+    "avg_win": 0.0266,
+    "avg_loss": -0.04471,
+    "profit_factor": 0.978673,
+    "avg_hold_days": 5.016257,
+    "total_return": -0.165571,
+    "cagr": -0.025584,
+    "max_drawdown": -0.387148,
+    "sharpe": -0.061724
+   },
    "OOS": {
     "trades": 2005,
     "win_rate": 0.638903,
@@ -1942,6 +2124,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 10,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 2643,
+    "win_rate": 0.614075,
+    "avg_ret": -0.001193,
+    "avg_win": 0.026142,
+    "avg_loss": -0.044686,
+    "profit_factor": 0.930846,
+    "avg_hold_days": 5.022323,
+    "total_return": -0.330506,
+    "cagr": -0.055829,
+    "max_drawdown": -0.43339,
+    "sharpe": -0.240647
+   },
    "OOS": {
     "trades": 1997,
     "win_rate": 0.622434,
@@ -1960,6 +2155,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 20,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 4596,
+    "win_rate": 0.633159,
+    "avg_ret": 0.000474,
+    "avg_win": 0.026349,
+    "avg_loss": -0.044187,
+    "profit_factor": 1.029219,
+    "avg_hold_days": 5.043081,
+    "total_return": 0.039159,
+    "cagr": 0.005515,
+    "max_drawdown": -0.361584,
+    "sharpe": 0.111909
+   },
    "OOS": {
     "trades": 3704,
     "win_rate": 0.647678,
@@ -1978,6 +2186,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 20,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 4588,
+    "win_rate": 0.622058,
+    "avg_ret": -0.000445,
+    "avg_win": 0.025895,
+    "avg_loss": -0.043798,
+    "profit_factor": 0.973126,
+    "avg_hold_days": 5.059503,
+    "total_return": -0.159569,
+    "cagr": -0.024583,
+    "max_drawdown": -0.398622,
+    "sharpe": -0.086421
+   },
    "OOS": {
     "trades": 3684,
     "win_rate": 0.637894,
@@ -1996,6 +2217,19 @@
    "strategy": "rsi2_flow",
    "max_positions": 20,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 4578,
+    "win_rate": 0.610529,
+    "avg_ret": -0.001366,
+    "avg_win": 0.025452,
+    "avg_loss": -0.043405,
+    "profit_factor": 0.919219,
+    "avg_hold_days": 5.073176,
+    "total_return": -0.318731,
+    "cagr": -0.053469,
+    "max_drawdown": -0.438265,
+    "sharpe": -0.282658
+   },
    "OOS": {
     "trades": 3663,
     "win_rate": 0.622168,
@@ -2014,6 +2248,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 5,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 984,
+    "win_rate": 0.659553,
+    "avg_ret": 0.00237,
+    "avg_win": 0.033361,
+    "avg_loss": -0.05767,
+    "profit_factor": 1.120709,
+    "avg_hold_days": 6.287602,
+    "total_return": 0.400102,
+    "cagr": 0.049366,
+    "max_drawdown": -0.35384,
+    "sharpe": 0.343509
+   },
    "OOS": {
     "trades": 736,
     "win_rate": 0.642663,
@@ -2032,6 +2279,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 5,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 970,
+    "win_rate": 0.656701,
+    "avg_ret": 0.002052,
+    "avg_win": 0.033584,
+    "avg_loss": -0.058266,
+    "profit_factor": 1.102568,
+    "avg_hold_days": 6.390722,
+    "total_return": 0.312748,
+    "cagr": 0.039731,
+    "max_drawdown": -0.384558,
+    "sharpe": 0.29627
+   },
    "OOS": {
     "trades": 729,
     "win_rate": 0.640604,
@@ -2050,6 +2310,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 5,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 965,
+    "win_rate": 0.64456,
+    "avg_ret": 0.00046,
+    "avg_win": 0.032687,
+    "avg_loss": -0.05798,
+    "profit_factor": 1.022326,
+    "avg_hold_days": 6.45285,
+    "total_return": -0.035245,
+    "cagr": -0.005124,
+    "max_drawdown": -0.429409,
+    "sharpe": 0.069536
+   },
    "OOS": {
     "trades": 722,
     "win_rate": 0.631579,
@@ -2068,6 +2341,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 10,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 1690,
+    "win_rate": 0.655621,
+    "avg_ret": 0.001657,
+    "avg_win": 0.032798,
+    "avg_loss": -0.05763,
+    "profit_factor": 1.083478,
+    "avg_hold_days": 6.417751,
+    "total_return": 0.189927,
+    "cagr": 0.02521,
+    "max_drawdown": -0.40814,
+    "sharpe": 0.232279
+   },
    "OOS": {
     "trades": 1321,
     "win_rate": 0.66162,
@@ -2086,6 +2372,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 10,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 1677,
+    "win_rate": 0.6452,
+    "avg_ret": 0.000568,
+    "avg_win": 0.032495,
+    "avg_loss": -0.05749,
+    "profit_factor": 1.027852,
+    "avg_hold_days": 6.471079,
+    "total_return": -0.010411,
+    "cagr": -0.001497,
+    "max_drawdown": -0.436568,
+    "sharpe": 0.072919
+   },
    "OOS": {
     "trades": 1310,
     "win_rate": 0.654962,
@@ -2104,6 +2403,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 10,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 1665,
+    "win_rate": 0.637838,
+    "avg_ret": -0.000251,
+    "avg_win": 0.032104,
+    "avg_loss": -0.057236,
+    "profit_factor": 0.987876,
+    "avg_hold_days": 6.524925,
+    "total_return": -0.134413,
+    "cagr": -0.020455,
+    "max_drawdown": -0.451919,
+    "sharpe": -0.042987
+   },
    "OOS": {
     "trades": 1290,
     "win_rate": 0.642636,
@@ -2122,6 +2434,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 20,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 2690,
+    "win_rate": 0.662825,
+    "avg_ret": 0.002404,
+    "avg_win": 0.032953,
+    "avg_loss": -0.057651,
+    "profit_factor": 1.123648,
+    "avg_hold_days": 6.4171,
+    "total_return": 0.290171,
+    "cagr": 0.037152,
+    "max_drawdown": -0.362945,
+    "sharpe": 0.332657
+   },
    "OOS": {
     "trades": 2229,
     "win_rate": 0.661732,
@@ -2140,6 +2465,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 20,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 2671,
+    "win_rate": 0.655185,
+    "avg_ret": 0.001281,
+    "avg_win": 0.032349,
+    "avg_loss": -0.05775,
+    "profit_factor": 1.06435,
+    "avg_hold_days": 6.486709,
+    "total_return": 0.111377,
+    "cagr": 0.015235,
+    "max_drawdown": -0.391707,
+    "sharpe": 0.177835
+   },
    "OOS": {
     "trades": 2216,
     "win_rate": 0.65343,
@@ -2158,6 +2496,19 @@
    "strategy": "keltner_atr_dip(既存)",
    "max_positions": 20,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 2657,
+    "win_rate": 0.646218,
+    "avg_ret": 0.000379,
+    "avg_win": 0.031984,
+    "avg_loss": -0.057351,
+    "profit_factor": 1.01868,
+    "avg_hold_days": 6.530297,
+    "total_return": -0.017422,
+    "cagr": -0.002513,
+    "max_drawdown": -0.422097,
+    "sharpe": 0.050466
+   },
    "OOS": {
     "trades": 2191,
     "win_rate": 0.643542,
@@ -2176,6 +2527,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 5,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 1381,
+    "win_rate": 0.631427,
+    "avg_ret": 0.000522,
+    "avg_win": 0.027156,
+    "avg_loss": -0.045107,
+    "profit_factor": 1.03139,
+    "avg_hold_days": 4.782766,
+    "total_return": 0.02776,
+    "cagr": 0.003928,
+    "max_drawdown": -0.538127,
+    "sharpe": 0.120552
+   },
    "OOS": {
     "trades": 1018,
     "win_rate": 0.59332,
@@ -2194,6 +2558,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 5,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 1379,
+    "win_rate": 0.622915,
+    "avg_ret": -0.000488,
+    "avg_win": 0.026501,
+    "avg_loss": -0.045071,
+    "profit_factor": 0.971307,
+    "avg_hold_days": 4.790428,
+    "total_return": -0.221773,
+    "cagr": -0.035264,
+    "max_drawdown": -0.563629,
+    "sharpe": -0.073908
+   },
    "OOS": {
     "trades": 1017,
     "win_rate": 0.583088,
@@ -2212,6 +2589,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 5,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 1375,
+    "win_rate": 0.605091,
+    "avg_ret": -0.001503,
+    "avg_win": 0.026305,
+    "avg_loss": -0.04411,
+    "profit_factor": 0.91374,
+    "avg_hold_days": 4.807273,
+    "total_return": -0.410902,
+    "cagr": -0.072966,
+    "max_drawdown": -0.584875,
+    "sharpe": -0.268586
+   },
    "OOS": {
     "trades": 1010,
     "win_rate": 0.569307,
@@ -2230,6 +2620,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 10,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 2458,
+    "win_rate": 0.62856,
+    "avg_ret": 0.000555,
+    "avg_win": 0.026741,
+    "avg_loss": -0.043759,
+    "profit_factor": 1.034124,
+    "avg_hold_days": 4.872254,
+    "total_return": 0.051734,
+    "cagr": 0.007248,
+    "max_drawdown": -0.437599,
+    "sharpe": 0.127094
+   },
    "OOS": {
     "trades": 1929,
     "win_rate": 0.613271,
@@ -2248,6 +2651,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 10,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 2452,
+    "win_rate": 0.619086,
+    "avg_ret": -0.000436,
+    "avg_win": 0.026178,
+    "avg_loss": -0.043691,
+    "profit_factor": 0.973797,
+    "avg_hold_days": 4.886215,
+    "total_return": -0.174794,
+    "cagr": -0.027133,
+    "max_drawdown": -0.487809,
+    "sharpe": -0.073673
+   },
    "OOS": {
     "trades": 1921,
     "win_rate": 0.60229,
@@ -2266,6 +2682,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 10,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 2451,
+    "win_rate": 0.604243,
+    "avg_ret": -0.001402,
+    "avg_win": 0.025893,
+    "avg_loss": -0.043077,
+    "profit_factor": 0.917744,
+    "avg_hold_days": 4.893513,
+    "total_return": -0.348343,
+    "cagr": -0.059473,
+    "max_drawdown": -0.525616,
+    "sharpe": -0.268175
+   },
    "OOS": {
     "trades": 1911,
     "win_rate": 0.583987,
@@ -2284,6 +2713,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 20,
    "fee_bps": 0.0,
+   "IS": {
+    "trades": 4178,
+    "win_rate": 0.630685,
+    "avg_ret": 0.000529,
+    "avg_win": 0.025999,
+    "avg_loss": -0.042966,
+    "profit_factor": 1.033368,
+    "avg_hold_days": 4.895644,
+    "total_return": 0.048026,
+    "cagr": 0.006739,
+    "max_drawdown": -0.423224,
+    "sharpe": 0.118193
+   },
    "OOS": {
     "trades": 3366,
     "win_rate": 0.620618,
@@ -2302,6 +2744,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 20,
    "fee_bps": 5.0,
+   "IS": {
+    "trades": 4169,
+    "win_rate": 0.619813,
+    "avg_ret": -0.000409,
+    "avg_win": 0.025518,
+    "avg_loss": -0.042678,
+    "profit_factor": 0.974783,
+    "avg_hold_days": 4.91149,
+    "total_return": -0.138801,
+    "cagr": -0.021168,
+    "max_drawdown": -0.466046,
+    "sharpe": -0.075121
+   },
    "OOS": {
     "trades": 3356,
     "win_rate": 0.606973,
@@ -2320,6 +2775,19 @@
    "strategy": "rsi2_dip(既存)",
    "max_positions": 20,
    "fee_bps": 10.0,
+   "IS": {
+    "trades": 4167,
+    "win_rate": 0.603792,
+    "avg_ret": -0.001471,
+    "avg_win": 0.025213,
+    "avg_loss": -0.042136,
+    "profit_factor": 0.911897,
+    "avg_hold_days": 4.921526,
+    "total_return": -0.310422,
+    "cagr": -0.051825,
+    "max_drawdown": -0.504917,
+    "sharpe": -0.291651
+   },
    "OOS": {
     "trades": 3348,
     "win_rate": 0.590502,
