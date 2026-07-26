@@ -200,6 +200,11 @@ def main() -> None:
     ap.add_argument("--chunk", type=int, default=DEFAULT_CHUNK)
     ap.add_argument("--sleep", type=float, default=DEFAULT_SLEEP)
     ap.add_argument("--out", default=str(FULL_CACHE_DIR))
+    ap.add_argument("--all-markets", action="store_true",
+                    help="プライムだけでなくスタンダード・グロースも含む全市場を取得する"
+                         "（大相場検知の研究用。既定はプライムのみ＝本番と同一）")
+    ap.add_argument("--start", default=START_DATE,
+                    help="取得開始日。全市場は銘柄数が多いので期間を絞れるようにする")
     args = ap.parse_args()
 
     shard = None
@@ -207,10 +212,15 @@ def main() -> None:
         k_str, m_str = args.shard.split("/")
         shard = (int(k_str), int(m_str))
 
-    tickers = yf_tickers()
+    if args.all_markets:
+        from .universe import yf_tickers_all
+        tickers = yf_tickers_all()
+    else:
+        tickers = yf_tickers()
     print(f"[data_full] universe size: {len(tickers)} tickers, "
+          f"all_markets={args.all_markets}, start={args.start}, "
           f"backfill={args.backfill}, shard={shard}, chunk={args.chunk}, sleep={args.sleep}")
-    fetch_full(tickers, out_dir=Path(args.out), chunk=args.chunk,
+    fetch_full(tickers, start=args.start, out_dir=Path(args.out), chunk=args.chunk,
                sleep_between=args.sleep, shard=shard, backfill=args.backfill)
 
 

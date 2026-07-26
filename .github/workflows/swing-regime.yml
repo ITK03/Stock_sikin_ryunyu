@@ -1,0 +1,109 @@
+name: Swing Regime Research
+
+# 大相場検知の検証を実データで走らせる。
+#
+# swing-research.yml とは別ワークフローにしている理由:
+#   ユニバースが違う。大相場になりやすいグロース/スタンダードの中小型株
+#   (テラドローン・AIメカテック等)がプライム限定だと母集団に入らないため、
+#   こちらは全市場(約3,900銘柄)を別キャッシュ data/full_all へ取得する。
+#
+# 研究コード(swing/research/regime*)を push したときに自動実行する。
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_gain:
+        description: "大相場とみなす上昇率(0.6 = +60%)"
+        default: "0.6"
+      start:
+        description: "価格データの取得開始日"
+        default: "2018-01-01"
+  push:
+    branches: [claude/aggregate-software-models-kay9da, main]
+    paths:
+      - "swing/research/regime.py"
+      - "swing/research/regime_study.py"
+      - ".github/workflows/swing-regime.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: swing-regime
+  cancel-in-progress: true
+
+jobs:
+  regime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: swing/requirements.txt
+      - name: Install deps
+        run: pip install -r swing/requirements.txt pyarrow
+
+      - name: Unit tests (大相場検知のロジック)
+        working-directory: swing
+        run: python -m pytest tests/test_regime.py -q
+
+      # 全市場・約3,900銘柄は重い。同じキャッシュキーの再実行では取り直さない。
+      - name: Cache all-market price data
+        id: cache-all
+        uses: actions/cache@v4
+        with:
+          path: swing/data/full_all
+          key: swing-full-all-${{ github.run_id }}
+          restore-keys: swing-full-all-
+
+      - name: Fetch all-market price history
+        working-directory: swing
+        env:
+          START: ${{ github.event.inputs.start || '2018-01-01' }}
+        run: |
+          set -eu
+          if [ -d data/full_all ] && [ -n "$(ls -A data/full_all 2>/dev/null)" ]; then
+            echo "キャッシュあり: 当年分のみ更新"
+            python -m backtest.data_full --all-markets --out data/full_all \
+              --chunk 40 --sleep 2.0
+          else
+            echo "キャッシュなし: 全期間バックフィル"
+            python -m backtest.data_full --all-markets --backfill --start "$START" \
+              --out data/full_all --chunk 40 --sleep 2.0
+          fi
+          ls -la data/full_all
+
+      - name: Run regime study
+        working-directory: swing
+        run: |
+          python -m research.regime_study --source full-all \
+            --min-gain "${{ github.event.inputs.min_gain || '0.6' }}"
+
+      - name: Commit report
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f swing/research/results/REGIME_REPORT.md \
+                     swing/research/results/regime_report.json
+          if git diff --cached --quiet; then
+            echo "レポートに変更なし"; exit 0
+          fi
+          git commit -m "research: 大相場検知の検証レポートを更新 [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${{ github.ref_name }}" \
+              && git push origin "HEAD:${{ github.ref_name }}" && break
+            sleep $((2 ** i))
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swing-regime-report
+          path: swing/research/results/
+          retention-days: 30

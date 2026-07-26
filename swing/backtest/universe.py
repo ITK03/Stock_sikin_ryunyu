@@ -135,3 +135,62 @@ def load_universe() -> dict[str, str]:
 def yf_tickers() -> list[str]:
     """yfinance用のティッカー一覧（.T付き）を返す。"""
     return [f"{code}.T" for code in load_universe()]
+
+
+# ---------------------------------------------------------------------------
+# 全市場ユニバース（大相場検知の研究用）
+# ---------------------------------------------------------------------------
+# プライム限定だと、大相場になりやすいグロース/スタンダードの中小型株
+# （テラドローン・AIメカテック等）がそもそも母集団に入らない。
+# 大相場検知はこちらを使う。既定の load_universe()（プライム限定・本番の
+# スクリーナーが使う）は一切変更しない。
+
+_CACHE_ALL: dict[str, str] | None = None
+
+# 2024年以降の新規上場に多い「英数字4桁」コード（例: 278A テラドローン、
+# 285A キオクシア）にも対応する。従来の4桁数字だけだと新興の大相場銘柄を
+# 取りこぼす。
+def _is_domestic_stock_code(code: str) -> bool:
+    """内国株式のコードか（4桁・数字始まり）。ETF/REIT等の5桁は除外する。"""
+    return len(code) == 4 and code[0].isdigit()
+
+
+def _fetch_all_markets() -> dict[str, str]:
+    """JPXの上場銘柄一覧から、プライム・スタンダード・グロースの全内国株を返す。"""
+    import io
+    import urllib.request
+
+    import pandas as pd
+
+    req = urllib.request.Request(JPX_URL, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+        raw = resp.read()
+    df = pd.read_excel(io.BytesIO(raw), dtype=str)
+    seg = df["市場・商品区分"].astype(str)
+    df = df[seg.str.contains("プライム|スタンダード|グロース", na=False, regex=True)]
+    out: dict[str, str] = {}
+    for code, name in zip(df["コード"], df["銘柄名"]):
+        code = str(code).strip()
+        if _is_domestic_stock_code(code) and code not in EXCLUDED_TICKERS:
+            out[code] = str(name).strip()
+    return out
+
+
+def load_universe_all() -> dict[str, str]:
+    """全市場（プライム/スタンダード/グロース）の code->銘柄名。プロセス内でメモ化。"""
+    global _CACHE_ALL
+    if _CACHE_ALL is None:
+        try:
+            u = _fetch_all_markets()
+            if len(u) < 2500:  # 全市場は約3,900。極端に少なければ取得異常
+                raise ValueError(f"全市場ユニバースが少数({len(u)})")
+            _CACHE_ALL = u
+        except Exception as exc:  # noqa: BLE001
+            print(f"WARNING: 全市場ユニバース取得失敗({exc}) → プライムで代替")
+            _CACHE_ALL = load_universe()
+    return _CACHE_ALL
+
+
+def yf_tickers_all() -> list[str]:
+    """全市場ユニバースの yfinance 用ティッカー一覧（.T付き）。"""
+    return [f"{code}.T" for code in load_universe_all()]
