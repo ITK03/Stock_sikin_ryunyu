@@ -332,10 +332,12 @@ def run_robustness(prices: dict[str, pd.DataFrame], backtests: list[dict]) -> li
             for fee in ROBUSTNESS_FEES:
                 eng = {**base_eng, "max_positions": pos, "fee_bps": fee}
                 res = run_backtest(prices, signals, EngineParams(**eng))
-                oos = summarize(res, (OOS_START, FAR_FUTURE))
+                # IS も出す。銘柄数の効果はOOSだけ見て決めるとOOSでの選択になるため、
+                # 同じ向きがIS期間でも成り立つかを確認できるようにする(追加計算なし)。
                 rows.append({
                     "strategy": name, "max_positions": pos, "fee_bps": fee,
-                    "OOS": {k: _f(v) for k, v in oos.items()},
+                    "IS": {k: _f(v) for k, v in summarize(res, (FAR_PAST, IS_END)).items()},
+                    "OOS": {k: _f(v) for k, v in summarize(res, (OOS_START, FAR_FUTURE)).items()},
                 })
         print(f"  robustness done: {name}")
     return rows
@@ -414,15 +416,18 @@ def _robustness_table(rows: list[dict]) -> str:
         if not sub:
             continue
         out += [f"### {name}", "",
-                "| 銘柄数 | 手数料(片道) | OOS取引 | OOS勝率 | OOS平均 | OOS PF | "
-                "OOS Sharpe | OOS最大DD |",
-                "|---:|---:|---:|---:|---:|---:|---:|---:|"]
+                "| 銘柄数 | 手数料(片道) | IS平均 | IS PF | OOS取引 | OOS勝率 | OOS平均 | "
+                "OOS PF | OOS Sharpe | OOS最大DD |",
+                "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
         for r in sub:
-            o = r["OOS"]
-            pf = o.get("profit_factor")
-            sh = o.get("sharpe")
+            i, o = r.get("IS", {}), r["OOS"]
+            pf, sh = o.get("profit_factor"), o.get("sharpe")
+            ipf = i.get("profit_factor")
             out.append(
-                f"| {r['max_positions']} | {r['fee_bps']:.0f}bps | {o.get('trades', 0):,} | "
+                f"| {r['max_positions']} | {r['fee_bps']:.0f}bps | "
+                f"{_fmt_pct(i.get('avg_ret'))} | "
+                f"{'—' if ipf is None else f'{ipf:.2f}'} | "
+                f"{o.get('trades', 0):,} | "
                 f"{_fmt_pct(o.get('win_rate'),1)} | {_fmt_pct(o.get('avg_ret'))} | "
                 f"{'—' if pf is None else f'{pf:.2f}'} | "
                 f"{'—' if sh is None else f'{sh:.2f}'} | "
