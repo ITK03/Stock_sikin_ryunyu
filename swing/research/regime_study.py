@@ -144,6 +144,8 @@ def filter_study(panels, label, gain, horizon, top_k, rel_th, persist) -> list[d
             "variant": tag,
             "IS": evaluate(panels, sig, label, gain, horizon, IS_PERIOD),
             "OOS": evaluate(panels, sig, label, gain, horizon, OOS_PERIOD),
+            # 精度を上げると検知が遅くなるトレードオフを可視化する
+            "lead": lead_time_analysis(panels, sig, label, horizon),
         })
     return rows
 
@@ -235,6 +237,17 @@ def write_report(out_dir: Path, meta, profiles, base, sens, lead, named,
         "",
         "リフトが1倍を大きく超えていなければ、条件を満たす銘柄を選ぶ意味はない。",
         "",
+        "### 検知した「あと」に何が起きるか",
+        "",
+        "的中率が高くても、検知後に大きく下げてから上がるのであれば実際には"
+        "持ち続けられない。母集団での実態:",
+        "",
+        "| 期間 | 検知後60日の騰落(中央値) | 検知後の最大下落(中央値) | -20%超下げた割合 |",
+        "|---|---:|---:|---:|",
+        *[f"| {tag} | {_pct(b.get('median_ret_60d'))} | "
+          f"{_pct(b.get('median_drawdown_after'))} | "
+          f"{_pct(b.get('pct_drawdown_worse_than_20'))} |" for tag, b in base.items()],
+        "",
         "## Part 3: 早期性",
         "",
         f"- 大相場と対応づいた検知: {lead['matched_episodes']:,}件",
@@ -293,13 +306,18 @@ def write_report(out_dir: Path, meta, profiles, base, sens, lead, named,
                "フロー条件だけでは的中率が1割弱にとどまるため、価格側の確認を足して"
                "精度をどこまで上げられるかを見る。再現率(拾える数)は落ちるが、"
                "「雰囲気を掴みながら使う」用途ではノイズの少なさを優先する。", "",
-               "| 条件 | IS検知数 | IS的中率 | ISリフト | OOS検知数 | OOS的中率 | OOSリフト |",
-               "|---|---:|---:|---:|---:|---:|---:|"]
+               "| 条件 | IS検知数 | IS的中率 | ISリフト | OOS検知数 | OOS的中率 | OOSリフト | "
+               "検知の遅速 | 検知後の下落(中央値) |",
+               "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
         for r in filters:
             i, o = r["IS"], r["OOS"]
+            ld = r.get("lead", {})
+            lead_d = ld.get("median_lead_days")
             md.append(f"| {r['variant']} | {i['episodes']:,} | {_pct(i['hit_rate'])} | "
                       f"{_lift_text(i)} | {o['episodes']:,} | {_pct(o['hit_rate'])} | "
-                      f"{_lift_text(o)} |")
+                      f"{_lift_text(o)} | "
+                      f"{'—' if lead_d is None or not np.isfinite(lead_d) else f'{lead_d:+.0f}日'} | "
+                      f"{_pct(o.get('median_drawdown_after'))} |")
         md += ["", f"採用: **{meta.get('best_variant','—')}**",
                "",
                "選び方: OOSリフトが最大のものを採ると「後から見て良かった設定」を"
@@ -365,7 +383,7 @@ def main() -> int:
     base = {"ALL": evaluate(panels, sig, label, gain, args.horizon),
             "IS": evaluate(panels, sig, label, gain, args.horizon, IS_PERIOD),
             "OOS": evaluate(panels, sig, label, gain, args.horizon, OOS_PERIOD)}
-    lead = lead_time_analysis(panels, sig, label, args.horizon)
+    lead = lead_time_analysis(panels, sig, label, args.horizon)  # 基本条件の参考値
 
     print("Part 4: 閾値の感応度…")
     sens = sensitivity(panels, label, gain, args.horizon)
@@ -403,6 +421,9 @@ def main() -> int:
     best_sig = detect_advanced(panels, args.top_k, args.rel_th, args.persist,
                                require_trend=tr, near_high_th=nh, rank_improve_from=ri)
     watch = latest_detections(panels, best_sig, names, within_days=60)
+    # Part 3 は採用条件で測り直す(基本条件の早期性は採用条件のそれとは別物)
+    lead = lead_time_analysis(panels, best_sig, label, args.horizon)
+    base["採用条件"] = evaluate(panels, best_sig, label, gain, args.horizon)
 
     meta = {
         "tickers": len(prices),

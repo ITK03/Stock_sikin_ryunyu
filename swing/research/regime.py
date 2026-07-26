@@ -266,6 +266,43 @@ def evaluate(panels: dict[str, pd.DataFrame], sig: pd.DataFrame, label: pd.DataF
         "lift": (hits / n / base_rate) if n and base_rate > 0 else float("nan"),
         "avg_forward_gain": float(np.mean(gains)) if gains else float("nan"),
         "median_forward_gain": float(np.median(gains)) if gains else float("nan"),
+        **post_detection_stats(panels, episodes, horizon, period),
+    }
+
+
+def post_detection_stats(panels: dict[str, pd.DataFrame],
+                         episodes: list[tuple[str, pd.Timestamp]],
+                         horizon: int, period: tuple[str, str] | None = None) -> dict:
+    """検知した「あと」に実際どうなるかを母集団で測る。
+
+    的中率が高くても、検知後に大きく下げてから上がるのであれば実際には
+    持ち続けられない。実例で検知後-40%級の下落が見られたため、
+    母集団でも同じことが起きているかを確認する。
+    """
+    close = panels["close"]
+    lo = pd.Timestamp(period[0]) if period else None
+    hi = pd.Timestamp(period[1]) if period else None
+    r60, dd = [], []
+    for ticker, date in episodes:
+        if lo is not None and not (lo <= date <= hi):
+            continue
+        if ticker not in close.columns:
+            continue
+        seg = close[ticker].loc[date:].iloc[:horizon + 1].dropna()
+        if len(seg) < 2:
+            continue
+        px = float(seg.iloc[0])
+        if not (px > 0):
+            continue
+        s60 = seg.iloc[:61]
+        if len(s60) > 1:
+            r60.append(float(s60.iloc[-1] / px - 1.0))
+        dd.append(float(seg.min() / px - 1.0))
+    return {
+        "median_ret_60d": float(np.median(r60)) if r60 else float("nan"),
+        "median_drawdown_after": float(np.median(dd)) if dd else float("nan"),
+        "pct_drawdown_worse_than_20": (
+            float(np.mean([d <= -0.20 for d in dd])) if dd else float("nan")),
     }
 
 
