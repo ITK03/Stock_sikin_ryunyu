@@ -407,6 +407,69 @@ def _exit_table(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
+def run_production_config_study(prices: dict[str, pd.DataFrame]) -> list[dict]:
+    """registry.yaml の本番設定「そのまま」で銘柄数・手数料の感応度を測る。
+
+    Part D は IS で選んだパラメータを使っており、本番設定とは別物になっている
+    (例: rsi2_dip は本番 buy_th=15.0 に対し Part D は 5.0、keltner は本番 n=20,k=2.5
+    に対し 14,2.0)。さらに本番は limit_entry(前日終値-1%の指値)で建てるのに対し
+    Part D は成行だった。本番の運用設定を変えるかどうかの判断には、
+    本番と同一条件で測ったこちらを使う。
+    """
+    import yaml
+    from backtest import strategies as strat_mod
+
+    reg = yaml.safe_load((ROOT / "screener" / "registry.yaml").read_text(encoding="utf-8"))
+    rows = []
+    for item in reg["strategies"]:
+        if not item.get("enabled", False):
+            continue
+        fn = getattr(strat_mod, item["id"], None)
+        if fn is None:
+            continue
+        em = item.get("engine", {}) or {}
+        signals = {t: fn(df, **item.get("params", {})) for t, df in prices.items()}
+        for pos in ROBUSTNESS_POSITIONS:
+            for fee in ROBUSTNESS_FEES:
+                eng = dict(max_positions=pos, slippage_bps=10.0, fee_bps=fee,
+                           stop_loss=em.get("stop_loss", 0.15),
+                           max_hold=em.get("max_hold", 10),
+                           take_profit=em.get("take_profit"),
+                           limit_entry=em.get("limit_entry"))
+                res = run_backtest(prices, signals, EngineParams(**eng))
+                rows.append({
+                    "strategy": item["id"], "max_positions": pos, "fee_bps": fee,
+                    "current": pos == em.get("max_positions"),
+                    "IS": {k: _f(v) for k, v in summarize(res, (FAR_PAST, IS_END)).items()},
+                    "OOS": {k: _f(v) for k, v in summarize(res, (OOS_START, FAR_FUTURE)).items()},
+                })
+        print(f"  production config done: {item['id']}")
+    return rows
+
+
+def _production_table(rows: list[dict]) -> str:
+    if not rows:
+        return ""
+    out = []
+    for name in dict.fromkeys(r["strategy"] for r in rows):
+        sub = [r for r in rows if r["strategy"] == name]
+        out += [f"### {name}(本番設定)", "",
+                "| 銘柄数 | 手数料 | IS平均 | IS PF | IS最大DD | OOS平均 | OOS PF | OOS最大DD |",
+                "|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for r in sub:
+            i, o = r["IS"], r["OOS"]
+            ipf, opf = i.get("profit_factor"), o.get("profit_factor")
+            mark = " ←現行" if r["current"] and r["fee_bps"] == 5.0 else ""
+            out.append(
+                f"| {r['max_positions']}{mark} | {r['fee_bps']:.0f}bps | "
+                f"{_fmt_pct(i.get('avg_ret'))} | {'—' if ipf is None else f'{ipf:.2f}'} | "
+                f"{_fmt_pct(i.get('max_drawdown'),1)} | "
+                f"{_fmt_pct(o.get('avg_ret'))} | {'—' if opf is None else f'{opf:.2f}'} | "
+                f"{_fmt_pct(o.get('max_drawdown'),1)} |")
+        out.append("")
+    return "\n".join(out)
+
+
 def _robustness_table(rows: list[dict]) -> str:
     if not rows:
         return ""
@@ -509,13 +572,14 @@ def _skipped_note(results: list[dict]) -> str:
 
 def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict,
                  robustness: list[dict] | None = None,
-                 exits: list[dict] | None = None) -> None:
+                 exits: list[dict] | None = None,
+                 production: list[dict] | None = None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     findings = derive_findings(event, backtests)
     (out_dir / "report.json").write_text(
         json.dumps({"meta": meta, "event_study": event, "backtests": backtests,
                     "findings": findings, "robustness": robustness or [],
-                    "exit_study": exits or []},
+                    "exit_study": exits or [], "production_config": production or []},
                    ensure_ascii=False, indent=1), encoding="utf-8")
 
     md = [
@@ -577,6 +641,15 @@ def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict,
         "",
         _exit_table(exits or []),
         "",
+        "## Part F: 本番設定そのままでの銘柄数・手数料感応度",
+        "",
+        "Part B〜E は IS で選んだパラメータを使っており、本番設定(registry.yaml)とは"
+        "別物になっている。さらに本番は limit_entry(前日終値-1%の指値)で建てるのに対し"
+        "Part D は成行だった。**本番の運用設定を変えるかどうかの判断は、本番と完全に"
+        "同一条件で測ったこの表だけを根拠にする。**",
+        "",
+        _production_table(production or []),
+        "",
         "## 前提と限界",
         "",
         "- ユニバースは現在のJPXプライム上場銘柄。過去に上場廃止された銘柄を含まない"
@@ -624,7 +697,10 @@ def main() -> int:
     print("Part E: 手仕舞い設計(利確幅 × 最大保有日数)…")
     exits = run_exit_study(prices, backtests)
 
-    write_report(ROOT / args.out, event, backtests, meta, robustness, exits)
+    print("Part F: 本番設定そのままでの感応度…")
+    production = run_production_config_study(prices)
+
+    write_report(ROOT / args.out, event, backtests, meta, robustness, exits, production)
     return 0
 
 
