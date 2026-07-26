@@ -67,9 +67,19 @@ BASELINE_KEYS = ("rsi2_dip", "keltner_atr_dip")
 # Part D: 頑健性チェック。最大DDの深さと手数料への耐性を測る。
 # 銘柄数を増やせばDDは浅くなるはずだが、シグナルの質が薄まる分だけ
 # 期待値が落ちるトレードオフがある。手数料は往復で効くので薄い優位性を消しうる。
-ROBUSTNESS_TARGETS = ("rsi2_flow", "flow_accumulation", "rsi2_dip(既存)")
+ROBUSTNESS_TARGETS = ("rsi2_flow", "flow_accumulation",
+                      "rsi2_dip(既存)", "keltner_atr_dip(既存)")
 ROBUSTNESS_POSITIONS = (5, 10, 20)
 ROBUSTNESS_FEES = (0.0, 5.0, 10.0)  # 片道bps(0=手数料無料コース, 5=0.05%, 10=0.10%)
+
+# Part E: 手仕舞い設計(利確幅・最大保有日数)の探索。
+# 既存の「+2%利確・最大10日」は指標の効果を分離するため固定してきたが、
+# その設定自体が最適かは未検証だった。現実的な運用点(20銘柄・片道5bps)で掃く。
+# take_profit=None は「利確なし=RSI回復かストップか期限まで持つ」。
+EXIT_TARGETS = ("rsi2_flow", "rsi2_dip(既存)")
+EXIT_BASE_ENGINE = dict(max_positions=20, slippage_bps=10.0, stop_loss=0.15, fee_bps=5.0)
+EXIT_TAKE_PROFITS = (0.02, 0.03, 0.05, None)
+EXIT_MAX_HOLDS = (5, 10, 20)
 
 
 # ---------------------------------------------------------------------------
@@ -331,6 +341,70 @@ def run_robustness(prices: dict[str, pd.DataFrame], backtests: list[dict]) -> li
     return rows
 
 
+def run_exit_study(prices: dict[str, pd.DataFrame], backtests: list[dict]) -> list[dict]:
+    """手仕舞い設計(利確幅 × 最大保有日数)を、現実的な運用点で掃く。
+
+    ISとOOSの両方を出す。ここで OOS の最良値を選ぶと過剰最適化になるため、
+    レポートでは「ISで選ぶとどれになり、そのOOSはどうだったか」を示す。
+    """
+    fn_by_name = dict(RESEARCH_STRATEGIES)
+    for k in BASELINE_KEYS:
+        fn_by_name[f"{k}(既存)"] = BASE_STRATEGIES[k]
+
+    rows = []
+    for r in backtests:
+        name = r["strategy"]
+        if r.get("insufficient") or name not in EXIT_TARGETS:
+            continue
+        fn = fn_by_name[name][0]
+        signals = {t: fn(df, **r["params"]) for t, df in prices.items()}
+        for tp in EXIT_TAKE_PROFITS:
+            for mh in EXIT_MAX_HOLDS:
+                eng = {**EXIT_BASE_ENGINE, "take_profit": tp, "max_hold": mh}
+                res = run_backtest(prices, signals, EngineParams(**eng))
+                rows.append({
+                    "strategy": name, "take_profit": tp, "max_hold": mh,
+                    "IS": {k: _f(v) for k, v in summarize(res, (FAR_PAST, IS_END)).items()},
+                    "OOS": {k: _f(v) for k, v in summarize(res, (OOS_START, FAR_FUTURE)).items()},
+                })
+        print(f"  exit study done: {name}")
+    return rows
+
+
+def _exit_table(rows: list[dict]) -> str:
+    if not rows:
+        return ""
+    out = []
+    for name in EXIT_TARGETS:
+        sub = [r for r in rows if r["strategy"] == name]
+        if not sub:
+            continue
+        # ISのSharpeで選ぶとどれになるか(選択にOOSを使わない)
+        best = max(sub, key=lambda r: (r["IS"].get("sharpe") or -99))
+        out += [f"### {name}", "",
+                "| 利確 | 最大保有 | IS Sharpe | IS PF | OOS取引 | OOS勝率 | OOS平均 | "
+                "OOS PF | OOS Sharpe | OOS最大DD |",
+                "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for r in sub:
+            i, o = r["IS"], r["OOS"]
+            tp = "なし" if r["take_profit"] is None else f"+{r['take_profit']*100:.0f}%"
+            mark = " ★" if r is best else ""
+            out.append(
+                f"| {tp}{mark} | {r['max_hold']}日 | "
+                f"{(i.get('sharpe') or float('nan')):.2f} | "
+                f"{(i.get('profit_factor') or float('nan')):.2f} | "
+                f"{o.get('trades', 0):,} | {_fmt_pct(o.get('win_rate'),1)} | "
+                f"{_fmt_pct(o.get('avg_ret'))} | "
+                f"{(o.get('profit_factor') or float('nan')):.2f} | "
+                f"{(o.get('sharpe') or float('nan')):.2f} | "
+                f"{_fmt_pct(o.get('max_drawdown'),1)} |")
+        tp_b = "なし" if best["take_profit"] is None else f"+{best['take_profit']*100:.0f}%"
+        out += ["", f"★ = ISのSharpeで選んだ設定(利確{tp_b}・最大{best['max_hold']}日)。"
+                    f"そのOOSは Sharpe {(best['OOS'].get('sharpe') or float('nan')):.2f}・"
+                    f"PF {(best['OOS'].get('profit_factor') or float('nan')):.2f}。", ""]
+    return "\n".join(out)
+
+
 def _robustness_table(rows: list[dict]) -> str:
     if not rows:
         return ""
@@ -429,12 +503,14 @@ def _skipped_note(results: list[dict]) -> str:
 
 
 def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict,
-                 robustness: list[dict] | None = None) -> None:
+                 robustness: list[dict] | None = None,
+                 exits: list[dict] | None = None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     findings = derive_findings(event, backtests)
     (out_dir / "report.json").write_text(
         json.dumps({"meta": meta, "event_study": event, "backtests": backtests,
-                    "findings": findings, "robustness": robustness or []},
+                    "findings": findings, "robustness": robustness or [],
+                    "exit_study": exits or []},
                    ensure_ascii=False, indent=1), encoding="utf-8")
 
     md = [
@@ -488,6 +564,14 @@ def write_report(out_dir: Path, event: dict, backtests: list[dict], meta: dict,
         "",
         _robustness_table(robustness or []),
         "",
+        "## Part E: 手仕舞い設計(利確幅 × 最大保有日数)",
+        "",
+        "既存の「+2%利確・最大10日」は、指標の効果を分離するため固定してきた設定であり、"
+        "それ自体が最適かは未検証だった。現実的な運用点(20銘柄・片道5bps・損切-15%)で掃く。"
+        "★はISのSharpeで選んだ設定(選択にOOSは使っていない)。",
+        "",
+        _exit_table(exits or []),
+        "",
         "## 前提と限界",
         "",
         "- ユニバースは現在のJPXプライム上場銘柄。過去に上場廃止された銘柄を含まない"
@@ -532,7 +616,10 @@ def main() -> int:
     print("Part D: 頑健性(銘柄数 × 手数料)…")
     robustness = run_robustness(prices, backtests)
 
-    write_report(ROOT / args.out, event, backtests, meta, robustness)
+    print("Part E: 手仕舞い設計(利確幅 × 最大保有日数)…")
+    exits = run_exit_study(prices, backtests)
+
+    write_report(ROOT / args.out, event, backtests, meta, robustness, exits)
     return 0
 
 
