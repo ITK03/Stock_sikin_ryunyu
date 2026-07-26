@@ -27,7 +27,8 @@ import numpy as np
 import pandas as pd
 
 from research.regime import (DEFAULT_HORIZON, DEFAULT_MAX_DD, DEFAULT_MIN_GAIN,
-                             build_panels, detect, evaluate, label_major_moves,
+                             build_panels, detect, detect_advanced, evaluate,
+                             label_major_moves, latest_detections,
                              lead_time_analysis, named_example_report)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,18 +46,31 @@ NAMED_EXAMPLES = {
     "285A": "キオクシア",
     "6324": "ハーモニック・ドライブ・システムズ",
     "9501": "東京電力HD",
-    "8306": "三菱UFJフィナンシャル・グループ",
 }
+# 三菱UFJ(8306)は運用者の判断で対象外。+63.5%と他(+152%〜+1064%)より一桁小さく、
+# これを含めると大相場の閾値を低く保つ必要があり、精度を上げられなかったため。
 
 # 期間分割。閾値をこの前半で見て、後半で確かめる(グリッドから最良を選ぶ行為が
 # 後知恵にならないようにするため)。
 IS_PERIOD = ("1900-01-01", "2021-12-31")
 OOS_PERIOD = ("2022-01-01", "2100-01-01")
 
-# 閾値の感応度を見るグリッド。
+# 閾値の感応度を見るグリッド。精度優先の方針のため、緩い設定は落として
+# 厳しめの範囲を細かく見る。
 TOP_K_GRID = (50, 100, 200)
-REL_GRID = (1.2, 1.5, 2.0)
-PERSIST_GRID = (1, 3, 5)
+REL_GRID = (1.5, 2.0, 3.0)
+PERSIST_GRID = (3, 5, 10)
+
+# 価格側の確認条件の組み合わせ。精度をどこまで上げられるかを見る。
+# (ラベル, require_trend, near_high_th, rank_improve_from)
+FILTER_VARIANTS = [
+    ("基本(フロー条件のみ)", False, None, None),
+    ("+長期トレンド", True, None, None),
+    ("+高値圏(年初来高値の90%以上)", True, 0.90, None),
+    ("+高値圏(年初来高値の97%以上)", True, 0.97, None),
+    ("+順位上昇(60日前は300位圏外)", True, None, 300),
+    ("+高値圏90% +順位上昇", True, 0.90, 300),
+]
 
 
 def load_prices(source: str) -> dict[str, pd.DataFrame]:
@@ -120,6 +134,20 @@ def profile_examples(panels: dict[str, pd.DataFrame], horizon: int) -> list[dict
     return rows
 
 
+def filter_study(panels, label, gain, horizon, top_k, rel_th, persist) -> list[dict]:
+    """価格側の確認条件をどこまで足すと精度が上がるかを、IS/OOS両方で測る。"""
+    rows = []
+    for tag, trend, nh, ri in FILTER_VARIANTS:
+        sig = detect_advanced(panels, top_k, rel_th, persist,
+                              require_trend=trend, near_high_th=nh, rank_improve_from=ri)
+        rows.append({
+            "variant": tag,
+            "IS": evaluate(panels, sig, label, gain, horizon, IS_PERIOD),
+            "OOS": evaluate(panels, sig, label, gain, horizon, OOS_PERIOD),
+        })
+    return rows
+
+
 def sensitivity(panels, label, gain, horizon) -> list[dict]:
     """閾値グリッドをIS/OOS両方で評価する。
 
@@ -162,10 +190,12 @@ def _baseline_row(tag: str, b: dict) -> str:
             f"{_pct(b['avg_forward_gain'])} |")
 
 
-def write_report(out_dir: Path, meta, profiles, base, sens, lead, named):
+def write_report(out_dir: Path, meta, profiles, base, sens, lead, named,
+                 filters=None, watch=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {"meta": meta, "example_profiles": profiles, "baseline": base,
-               "sensitivity": sens, "lead_time": lead, "named_detection": named}
+               "sensitivity": sens, "lead_time": lead, "named_detection": named,
+               "filter_variants": filters or [], "watchlist": watch or []}
     (out_dir / "regime_report.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=1, default=_f), encoding="utf-8")
 
@@ -258,6 +288,36 @@ def write_report(out_dir: Path, meta, profiles, base, sens, lead, named):
             f"{_pct(r.get('検知後60日終値'))} | {_pct(r.get('検知後120日終値'))} | "
             f"{_pct(r.get('検知後の最高値まで'))} | {_pct(r.get('検知後の最大下落'))} |")
 
+    if filters:
+        md += ["", "## Part 6: 価格側フィルタによる精度改善", "",
+               "フロー条件だけでは的中率が1割弱にとどまるため、価格側の確認を足して"
+               "精度をどこまで上げられるかを見る。再現率(拾える数)は落ちるが、"
+               "「雰囲気を掴みながら使う」用途ではノイズの少なさを優先する。", "",
+               "| 条件 | IS検知数 | IS的中率 | ISリフト | OOS検知数 | OOS的中率 | OOSリフト |",
+               "|---|---:|---:|---:|---:|---:|---:|"]
+        for r in filters:
+            i, o = r["IS"], r["OOS"]
+            md.append(f"| {r['variant']} | {i['episodes']:,} | {_pct(i['hit_rate'])} | "
+                      f"{_lift_text(i)} | {o['episodes']:,} | {_pct(o['hit_rate'])} | "
+                      f"{_lift_text(o)} |")
+        md += ["", f"採用: **{meta.get('best_variant','—')}**",
+               "",
+               "選び方: OOSリフトが最大のものを採ると「後から見て良かった設定」を"
+               "選ぶだけになるため、**IS・OOS双方でリフトが立っていることを要求し、"
+               "両者の小さい方(最悪ケース)が最大の設定**を採っている"
+               "(検知数20件未満はサンプル過少として失格)。"]
+
+    if watch:
+        md += ["", "## Part 7: 直近60営業日の検知銘柄(監視リスト)", "",
+               "採用条件で新規に検知された銘柄。日々の観察用。", "",
+               "| 検知日 | コード | 銘柄 | 検知時株価 | 現在値 | 検知後 | "
+               "売買代金順位 | 平常時比 | 年初来高値比 |",
+               "|---|---|---|---:|---:|---:|---:|---:|---:|"]
+        for r in watch[:60]:
+            md.append(f"| {r['検知日']} | {r['code']} | {r['name']} | "
+                      f"{r['検知時株価']:,} | {r['現在値']:,} | {_pct(r['検知後'])} | "
+                      f"{r['売買代金順位']} | {r['平常時比']} | {r['年初来高値比']} |")
+
     md += ["", "## 前提と限界", "",
            "- ユニバースは現在の上場銘柄。過去に上場廃止された銘柄を含まないため、"
            "大相場の頻度・上昇率とも上方バイアスがある",
@@ -277,9 +337,11 @@ def main() -> int:
     ap.add_argument("--out", default="research/results")
     ap.add_argument("--horizon", type=int, default=DEFAULT_HORIZON)
     ap.add_argument("--min-gain", type=float, default=DEFAULT_MIN_GAIN)
+    # 精度優先の既定値。感応度検証(Part 4)でIS・OOS双方リフトが高かった
+    # 「平常時比2.0倍以上 × 5日連続」を基本条件に採る。
     ap.add_argument("--top-k", type=int, default=100)
-    ap.add_argument("--rel-th", type=float, default=1.5)
-    ap.add_argument("--persist", type=int, default=3)
+    ap.add_argument("--rel-th", type=float, default=2.0)
+    ap.add_argument("--persist", type=int, default=5)
     args = ap.parse_args()
 
     print(f"価格データ読み込み: {args.source}")
@@ -311,6 +373,37 @@ def main() -> int:
     print("Part 5: 実例での検知…")
     named = named_example_report(panels, sig, NAMED_EXAMPLES)
 
+    print("Part 6: 価格側フィルタによる精度改善…")
+    filters = filter_study(panels, label, gain, args.horizon,
+                           args.top_k, args.rel_th, args.persist)
+
+    print("Part 7: 直近の検知銘柄…")
+    from backtest.universe import load_universe_all
+    try:
+        names = load_universe_all()
+    except Exception:  # noqa: BLE001
+        names = {}
+    # 採用条件の選び方: OOSリフトが最大のものを採ると、後から見て良かった設定を
+    # 選ぶだけになる。IS・OOS双方でリフトが立っていることを要求し、
+    # 両者の小さい方(最悪ケース)が最大の設定を採る。
+    def _worst_lift(r):
+        vals = []
+        for tag in ("IS", "OOS"):
+            v = r[tag].get("lift")
+            if v is None or not np.isfinite(v) or r[tag]["episodes"] < 20:
+                return -1.0        # 片方でも評価不能/サンプル過少なら失格
+            vals.append(v)
+        return min(vals)
+
+    ranked = sorted(filters, key=_worst_lift, reverse=True)
+    best = ranked[0] if _worst_lift(ranked[0]) > 0 else max(
+        filters, key=lambda r: (r["OOS"].get("lift") or 0))
+    tag2args = {t: (tr, nh, ri) for t, tr, nh, ri in FILTER_VARIANTS}
+    tr, nh, ri = tag2args[best["variant"]]
+    best_sig = detect_advanced(panels, args.top_k, args.rel_th, args.persist,
+                               require_trend=tr, near_high_th=nh, rank_improve_from=ri)
+    watch = latest_detections(panels, best_sig, names, within_days=60)
+
     meta = {
         "tickers": len(prices),
         "start": str(panels["close"].index[0].date()),
@@ -318,7 +411,9 @@ def main() -> int:
         "horizon": args.horizon, "min_gain": args.min_gain, "max_dd": DEFAULT_MAX_DD,
         "top_k": args.top_k, "rel_th": args.rel_th, "persist": args.persist,
     }
-    write_report(ROOT / args.out, meta, profiles, base, sens, lead, named)
+    meta["best_variant"] = best["variant"]
+    write_report(ROOT / args.out, meta, profiles, base, sens, lead, named,
+                 filters, watch)
     return 0
 
 

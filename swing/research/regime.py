@@ -39,7 +39,10 @@ import pandas as pd
 # 大相場の既定定義。運用者が挙げた実例(太陽誘電・フジクラ・キオクシア等)の
 # 値動きから逆算して調整する前提の初期値。
 DEFAULT_HORIZON = 120        # 先読み期間(営業日)。約半年
-DEFAULT_MIN_GAIN = 0.60      # この期間で+60%以上
+# 実例から逆算した閾値。三菱UFJ(+63.5%)を対象外にしたことで下限が
+# 東京電力の+152%になり、閾値を上げられるようになった。+100%(2倍)なら
+# 残る10銘柄すべてを捕捉しつつ、小幅な上昇をノイズとして除外できる。
+DEFAULT_MIN_GAIN = 1.00      # この期間で+100%(2倍)以上
 DEFAULT_MAX_DD = 0.25        # 途中の最大下落が-25%以内(急騰即急落を除く)
 
 # 「売買代金ランキング上位」の既定閾値。ダッシュボード③の topK=100 に合わせる。
@@ -70,7 +73,20 @@ def build_panels(prices: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     # 全市場での売買代金順位。その日に取引がない銘柄は NaN のまま順位を付けない。
     rank = turnover.rank(axis=1, ascending=False, method="min").astype("float32")
 
-    return {"close": close, "turnover": turnover, "rel": rel, "rank": rank}
+    # --- 精度を上げるための価格側の確認材料 ---
+    # 大相場は「安値圏でだらだら」ではなく「高値圏で出来高を伴って」始まることが
+    # 多い、という前提を検証可能にする。いずれも当日終値までの情報のみ。
+    sma200 = close.rolling(200, min_periods=150).mean()
+    trend_up = close > sma200
+    high252 = close.rolling(252, min_periods=120).max()
+    near_high = (close / high252).astype("float32")   # 1.0 = 年初来高値
+
+    # 売買代金順位が「以前より上がってきた」か(資金が集まり始めたか)。
+    # 大型株は常に上位なのでこれ単独では発火せず、順位の改善幅が効く。
+    rank_prev = rank.shift(60)
+
+    return {"close": close, "turnover": turnover, "rel": rel, "rank": rank,
+            "trend_up": trend_up, "near_high": near_high, "rank_prev": rank_prev}
 
 
 def label_major_moves(close: pd.DataFrame, horizon: int = DEFAULT_HORIZON,
@@ -124,6 +140,72 @@ def detect(panels: dict[str, pd.DataFrame], top_k: int = DEFAULT_TOP_K,
     # 直近 persist_days 日すべてで成立
     sustained = cond.fillna(False).rolling(persist_days).sum() >= persist_days
     return sustained.fillna(False)
+
+
+def detect_advanced(panels: dict[str, pd.DataFrame], top_k: int = DEFAULT_TOP_K,
+                    rel_th: float = DEFAULT_REL_TH,
+                    persist_days: int = DEFAULT_PERSIST_DAYS,
+                    require_trend: bool = False,
+                    near_high_th: float | None = None,
+                    rank_improve_from: int | None = None) -> pd.DataFrame:
+    """基本条件(ランキング上位×平常時比)に、価格側の確認を足した検知。
+
+    精度を上げるための追加条件(いずれも任意):
+      require_trend      … 終値がSMA200より上(長期トレンドが生きている)
+      near_high_th       … 終値が年初来高値の near_high_th 倍以上(高値圏)
+      rank_improve_from  … 60営業日前の売買代金順位がこれより下だった
+                           (＝順位を大きく上げてきた＝資金が集まり始めた)
+
+    再現率は落ちるが、運用者は「雰囲気を掴みながら」使うためノイズを減らし
+    精度を優先する方針。
+    """
+    cond = (panels["rank"] <= top_k) & (panels["rel"] >= rel_th)
+    if require_trend:
+        cond &= panels["trend_up"].fillna(False)
+    if near_high_th is not None:
+        cond &= (panels["near_high"] >= near_high_th).fillna(False)
+    if rank_improve_from is not None:
+        cond &= (panels["rank_prev"] > rank_improve_from).fillna(False)
+    cond = cond.fillna(False)
+    if persist_days <= 1:
+        return cond
+    return (cond.rolling(persist_days).sum() >= persist_days).fillna(False)
+
+
+def latest_detections(panels: dict[str, pd.DataFrame], sig: pd.DataFrame,
+                      names: dict[str, str] | None = None,
+                      within_days: int = 60) -> list[dict]:
+    """直近 within_days 営業日に新規検知された銘柄を監視リストとして返す。
+
+    運用者が日々眺めるための実用出力。エピソード先頭(新規に条件を満たした日)
+    だけを出し、大相場中に毎日出続けないようにする。
+    """
+    if sig.empty:
+        return []
+    cutoff = sig.index[max(0, len(sig) - within_days)]
+    rows = []
+    for ticker, date in first_signals(sig):
+        if date < cutoff:
+            continue
+        close = panels["close"][ticker]
+        px = float(close.loc[date])
+        after = close.loc[date:]
+        def _v(key):
+            x = panels[key].at[date, ticker]
+            return float(x) if np.isfinite(x) else None
+        rows.append({
+            "code": ticker,
+            "name": (names or {}).get(ticker, ticker),
+            "検知日": str(date.date()),
+            "検知時株価": round(px, 1),
+            "現在値": round(float(after.iloc[-1]), 1) if len(after) else None,
+            "検知後": round(float(after.iloc[-1] / px - 1.0), 3) if len(after) and px else None,
+            "売買代金順位": int(_v("rank")) if _v("rank") is not None else None,
+            "平常時比": round(_v("rel"), 2) if _v("rel") is not None else None,
+            "年初来高値比": round(_v("near_high"), 3) if _v("near_high") is not None else None,
+        })
+    rows.sort(key=lambda r: r["検知日"], reverse=True)
+    return rows
 
 
 def first_signals(sig: pd.DataFrame, cooldown: int = 120) -> list[tuple[str, pd.Timestamp]]:
