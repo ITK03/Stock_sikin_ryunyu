@@ -306,24 +306,28 @@ def write_report(out_dir: Path, meta, profiles, base, sens, lead, named,
                "フロー条件だけでは的中率が1割弱にとどまるため、価格側の確認を足して"
                "精度をどこまで上げられるかを見る。再現率(拾える数)は落ちるが、"
                "「雰囲気を掴みながら使う」用途ではノイズの少なさを優先する。", "",
-               "| 条件 | IS検知数 | IS的中率 | ISリフト | OOS検知数 | OOS的中率 | OOSリフト | "
-               "検知の遅速 | 検知後の下落(中央値) |",
-               "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+               "**的中率だけで選ぶと使えない検知器を選ぶ。** 検知後の最大下落と60日騰落を"
+               "必ず併せて見ること(IS/OOS両方を載せている)。", "",
+               "| 条件 | ISリフト | OOSリフト | IS最大下落 | OOS最大下落 | IS60日 | OOS60日 | 実用可 |",
+               "|---|---:|---:|---:|---:|---:|---:|:--:|"]
         for r in filters:
             i, o = r["IS"], r["OOS"]
-            ld = r.get("lead", {})
-            lead_d = ld.get("median_lead_days")
-            md.append(f"| {r['variant']} | {i['episodes']:,} | {_pct(i['hit_rate'])} | "
-                      f"{_lift_text(i)} | {o['episodes']:,} | {_pct(o['hit_rate'])} | "
-                      f"{_lift_text(o)} | "
-                      f"{'—' if lead_d is None or not np.isfinite(lead_d) else f'{lead_d:+.0f}日'} | "
-                      f"{_pct(o.get('median_drawdown_after'))} |")
-        md += ["", f"採用: **{meta.get('best_variant','—')}**",
+            md.append(f"| {r['variant']} | {_lift_text(i)} | {_lift_text(o)} | "
+                      f"{_pct(i.get('median_drawdown_after'))} | "
+                      f"{_pct(o.get('median_drawdown_after'))} | "
+                      f"{_pct(i.get('median_ret_60d'))} | {_pct(o.get('median_ret_60d'))} | "
+                      f"{'○' if r.get('usable') else '×'} |")
+        md += ["", f"採用: **{meta.get('best_variant','—')}**", "",
+               "**選び方(重要):**", "",
+               "1. 検知後の最大下落が -25% より悪い設定は失格(実用に耐えない)",
+               "2. IS・OOS どちらかのリフトが 1.5 未満なら失格(優位性が不安定)",
+               "3. 残った中で IS・OOS の小さい方(最悪ケース)のリフトが最大のものを採用",
                "",
-               "選び方: OOSリフトが最大のものを採ると「後から見て良かった設定」を"
-               "選ぶだけになるため、**IS・OOS双方でリフトが立っていることを要求し、"
-               "両者の小さい方(最悪ケース)が最大の設定**を採っている"
-               "(検知数20件未満はサンプル過少として失格)。"]
+               "当初は「リフト最大」で選んでいたが、それでは **順位上昇フィルタ**"
+               "(的中率は最高でリフト3.4〜3.9倍)が選ばれてしまう。この設定は"
+               "検知後の最大下落がIS -34.5% / OOS -34.2%、60日騰落がIS -15.6% / OOS -13.3% と、"
+               "**当たる時は大きいが大半は暴落する**分布で、実際には持ち続けられない。"
+               "的中率という指標がこの用途では誤導的だった。"]
 
     if watch:
         md += ["", "## Part 7: 直近60営業日の検知銘柄(監視リスト)", "",
@@ -401,21 +405,42 @@ def main() -> int:
         names = load_universe_all()
     except Exception:  # noqa: BLE001
         names = {}
-    # 採用条件の選び方: OOSリフトが最大のものを採ると、後から見て良かった設定を
-    # 選ぶだけになる。IS・OOS双方でリフトが立っていることを要求し、
-    # 両者の小さい方(最悪ケース)が最大の設定を採る。
-    def _worst_lift(r):
-        vals = []
-        for tag in ("IS", "OOS"):
-            v = r[tag].get("lift")
-            if v is None or not np.isfinite(v) or r[tag]["episodes"] < 20:
-                return -1.0        # 片方でも評価不能/サンプル過少なら失格
-            vals.append(v)
-        return min(vals)
+    # 採用条件の選び方。
+    #
+    # 的中率(リフト)だけで選ぶと使えない検知器を選んでしまうことが分かった。
+    # 「順位上昇」フィルタは的中率を最も押し上げる(リフト3.4〜3.9倍)一方で、
+    # 検知後の最大下落がIS -34.5% / OOS -34.2%、60日騰落がIS -15.6% / OOS -13.3%
+    # と、実際には持ち続けられない挙動になる。当たる時は大きいが大半は暴落する
+    # ロトのような分布で、「雰囲気を掴みながら眺める」用途には向かない。
+    #
+    # そこで次の順で絞る:
+    #   1) 検知後の最大下落が -25% より悪い設定は失格(実用に耐えない)
+    #   2) IS・OOS どちらかのリフトが 1.5 未満なら失格(優位性が不安定)
+    #   3) 残った中で、IS・OOS の小さい方(最悪ケース)のリフトが最大のものを採る
+    MAX_ACCEPTABLE_DD = -0.25
+    MIN_LIFT = 1.5
 
-    ranked = sorted(filters, key=_worst_lift, reverse=True)
-    best = ranked[0] if _worst_lift(ranked[0]) > 0 else max(
-        filters, key=lambda r: (r["OOS"].get("lift") or 0))
+    def _usable(r) -> bool:
+        for tag in ("IS", "OOS"):
+            m = r[tag]
+            if m["episodes"] < 20:
+                return False
+            lift = m.get("lift")
+            if lift is None or not np.isfinite(lift) or lift < MIN_LIFT:
+                return False
+            dd = m.get("median_drawdown_after")
+            if dd is None or not np.isfinite(dd) or dd < MAX_ACCEPTABLE_DD:
+                return False
+        return True
+
+    def _worst_lift(r):
+        return min(r["IS"]["lift"], r["OOS"]["lift"])
+
+    usable = [r for r in filters if _usable(r)]
+    best = (max(usable, key=_worst_lift) if usable
+            else max(filters, key=lambda r: (r["OOS"].get("lift") or 0)))
+    for r in filters:
+        r["usable"] = _usable(r)
     tag2args = {t: (tr, nh, ri) for t, tr, nh, ri in FILTER_VARIANTS}
     tr, nh, ri = tag2args[best["variant"]]
     best_sig = detect_advanced(panels, args.top_k, args.rel_th, args.persist,
