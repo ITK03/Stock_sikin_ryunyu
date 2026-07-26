@@ -256,23 +256,39 @@ def named_example_report(panels: dict[str, pd.DataFrame], sig: pd.DataFrame,
             continue
         s = sig[code].loc[c.index] if code in sig.columns else pd.Series(False, index=c.index)
         det = c.index[s.to_numpy()]
-        low_i = c.idxmin()
-        peak_i = c.idxmax()
+
+        # 「安値→高値」は安値が高値より前にある区間で測る。単純に期間全体の
+        # min/max を取ると、高値のあとに安値が来た銘柄(東電など)で
+        # 実際には取れない上昇率を出してしまう。
+        arr = c.to_numpy(dtype=float)
+        run_min = np.minimum.accumulate(arr)
+        ratio = arr / run_min
+        hi = int(np.argmax(ratio))
+        lo = int(np.argmin(arr[:hi + 1]))
         row = {
             "code": code, "name": name, "status": "ok",
-            "期間内安値日": str(low_i.date()), "安値": round(float(c.loc[low_i]), 1),
-            "期間内高値日": str(peak_i.date()), "高値": round(float(c.loc[peak_i]), 1),
-            "安値→高値": round(float(c.loc[peak_i] / c.loc[low_i] - 1.0), 3),
+            "安値日": str(c.index[lo].date()), "安値": round(float(arr[lo]), 1),
+            "高値日": str(c.index[hi].date()), "高値": round(float(arr[hi]), 1),
+            "安値→高値": round(float(arr[hi] / arr[lo] - 1.0), 3),
             "検知回数": int(s.sum()),
         }
         if len(det):
             first = det[0]
-            row["初回検知日"] = str(first.date())
-            row["検知時株価"] = round(float(c.loc[first]), 1)
-            # 検知した時点から、その後の高値までにまだ何%残っていたか
+            px = float(c.loc[first])
             after = c.loc[first:]
-            if len(after):
-                row["検知後の伸び"] = round(float(after.max() / c.loc[first] - 1.0), 3)
+            row["初回検知日"] = str(first.date())
+            row["検知時株価"] = round(px, 1)
+            # 検知から一定期間だけ保有した場合の成績。全期間の最高値までの伸びは
+            # 数年保有・途中の暴落を無視した数字になるため、実運用に近い形も併記する。
+            for h, tag in ((60, "60日"), (120, "120日")):
+                seg = after.iloc[:h + 1]
+                if len(seg) > 1:
+                    row[f"検知後{tag}最大"] = round(float(seg.max() / px - 1.0), 3)
+                    row[f"検知後{tag}終値"] = round(float(seg.iloc[-1] / px - 1.0), 3)
+            # 検知後に一度どこまで下げたか(耐えられるかどうかの目安)
+            if len(after) > 1:
+                row["検知後の最大下落"] = round(float(after.min() / px - 1.0), 3)
+                row["検知後の最高値まで"] = round(float(after.max() / px - 1.0), 3)
         else:
             row["初回検知日"] = "—"
         rows.append(row)
