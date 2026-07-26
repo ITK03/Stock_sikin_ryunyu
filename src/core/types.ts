@@ -209,6 +209,8 @@ export interface TickerIndexFile {
 export interface SwingOosStats {
   win_rate: number;
   profit_factor: number;
+  /** 1トレードあたりの平均リターン(比率, 0.0026 = +0.26%)。掲載順の並び替えキー。 */
+  avg_ret?: number;
   max_dd: number;
   period: string;
   trades: number;

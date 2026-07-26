@@ -8,18 +8,21 @@ strategies:
     display_name: "RSI(2)押し目買い（指値+2%利確）"
     enabled: true
     params: {buy_th: 15.0, sell_th: 70.0, trend_n: 200}
-    engine: {max_positions: 5, stop_loss: 0.15, max_hold: 10, take_profit: 0.02, limit_entry: 0.01}
+    engine: {max_positions: 20, stop_loss: 0.15, max_hold: 10, take_profit: 0.02, limit_entry: 0.01}
     description: "長期上昇トレンド中（終値>SMA200）の短期売られすぎ（RSI(2)<15）を、翌日前日終値−1%の指値で買い、+2%利確を狙う"
-    rule_note: "シグナル翌営業日に前日終値−1%で指値買い（当日限り・未約定なら見送り） / 終値が建値+2%以上→翌寄りで利確売り / 未達ならRSI(2)>70で翌寄り売り / 災害ストップ-15% / 最大10営業日 / 等金額・最大5銘柄"
+    rule_note: "シグナル翌営業日に前日終値−1%で指値買い（当日限り・未約定なら見送り） / 終値が建値+2%以上→翌寄りで利確売り / 未達ならRSI(2)>70で翌寄り売り / 災害ストップ-15% / 最大10営業日 / 等金額・最大20銘柄"
     # rank列の表示方法: 表示値 = rank * sign
     rank_display: {label: "RSI(2)", sign: -1, fmt: "{:.1f}"}
-    validated_at: "2026-07-17"
+    validated_at: "2026-07-25"
+    # 本番設定そのまま（指値entry込み・20銘柄・片道5bps手数料）で測り直した値
+    # （research/results/REPORT.md Part F）。
     oos_stats:
-      win_rate: 0.660
-      profit_factor: 1.21
-      max_dd: -0.271
+      win_rate: 0.639
+      profit_factor: 1.10
+      avg_ret: 0.00177
+      max_dd: -0.244
       period: "2022-01〜2026-07"
-      trades: 1023
+      trades: 3631
     risks:
       - "検証OOS期間(2022〜2026)は日本株の強い上昇相場で、成績に追い風が含まれる。2018年型のじり安相場では勝率を保っても期待値がマイナスだった実績がある"
       - "最大ドローダウン-25〜-29%は現実に起こり得る（買い専用・少数集中のため急落時は指数並みに沈む）"
@@ -32,17 +35,19 @@ strategies:
     display_name: "ATRチャネル押し目買い（+2%利確）"
     enabled: true
     params: {n: 20, k: 2.5, trend_n: 200}
-    engine: {max_positions: 5, stop_loss: 0.15, max_hold: 10, take_profit: 0.02}
+    engine: {max_positions: 20, stop_loss: 0.15, max_hold: 10, take_profit: 0.02}
     description: "長期上昇トレンド中にSMA(20)−2.5×ATR(20)を下回った深押しを翌寄り成行で買い、+2%で利確"
     rule_note: "翌営業日の寄付で成行買い / 終値が建値+2%以上→翌寄りで利確売り / 未達なら終値≥SMA(20)で翌寄り売り / 災害ストップ-15% / 最大10営業日 / シグナル頻度低め・サブ戦略（5枠中1〜2枠目安）"
     rank_display: {label: "乖離率", sign: 1, fmt: "{:.3f}"}
-    validated_at: "2026-07-17"
+    validated_at: "2026-07-25"
+    # 本番設定そのまま（20銘柄・片道5bps手数料）で測り直した値（Part F）。
     oos_stats:
-      win_rate: 0.665
-      profit_factor: 1.22
-      max_dd: -0.339
+      win_rate: 0.660
+      profit_factor: 1.20
+      avg_ret: 0.00389
+      max_dd: -0.293
       period: "2022-01〜2026-07"
-      trades: 672
+      trades: 1757
     risks:
       - "検証OOS期間(2022〜2026)は日本株の強い上昇相場で、成績に追い風が含まれる。2018年型のじり安相場では勝率を保っても期待値がマイナスだった実績がある"
       - "最大ドローダウン-25〜-29%は現実に起こり得る（買い専用・少数集中のため急落時は指数並みに沈む）"
@@ -66,6 +71,7 @@ strategies:
     oos_stats:
       win_rate: 0.640
       profit_factor: 1.16
+      avg_ret: 0.00256
       max_dd: -0.218
       period: "2022-01〜2026-07"
       trades: 2728

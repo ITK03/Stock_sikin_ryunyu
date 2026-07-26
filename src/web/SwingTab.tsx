@@ -118,6 +118,14 @@ export function SwingTab({ onSelectCode }: Props) {
           <div className="swing-meta-name">{selected.display_name}</div>
           <p className="swing-desc">{selected.description}</p>
           <div className="swing-stats">
+            {oos.avg_ret !== undefined && (
+              <div className="swing-stat">
+                <span className={`swing-stat-val ${oos.avg_ret >= 0 ? 'chg-up' : 'chg-down'}`}>
+                  {signedPctText(oos.avg_ret, 2)}
+                </span>
+                <span className="swing-stat-lab">期待値/回</span>
+              </div>
+            )}
             <div className="swing-stat">
               <span className="swing-stat-val">{pctText(oos.win_rate)}</span>
               <span className="swing-stat-lab">勝率</span>
@@ -135,7 +143,10 @@ export function SwingTab({ onSelectCode }: Props) {
               <span className="swing-stat-lab">検証取引</span>
             </div>
           </div>
-          <div className="swing-oos-period">検証OOS: {oos.period}・検証日 {selected.validated_at}</div>
+          <div className="swing-oos-period">
+            検証OOS: {oos.period}・検証日 {selected.validated_at}
+            {strategies.length > 1 && '・タブは期待値の高い順'}
+          </div>
           {paperByStrat && paperByStrat.closed_trades > 0 && (
             <div className="swing-paper">
               実運用ペーパー: {paperByStrat.closed_trades}件確定・勝率{pctText(paperByStrat.win_rate, 0)}

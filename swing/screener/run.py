@@ -195,7 +195,13 @@ def build_json(prices, registry: list[StrategyEntry],
         "status": status,
         "status_reason": reason,
         "universe_count": len(prices),
-        "strategies": [compute_strategy(prices, e, data_date) for e in registry],
+        # 掲載順は検証済みの期待値(oos_stats.avg_ret = 1トレードあたり平均リターン)の
+        # 降順。フロントは配列順にタブを並べ先頭を既定選択するため、期待値が最も高い
+        # 戦略が最初に表示される。avg_ret 未設定の戦略は末尾へ回す。
+        "strategies": sorted(
+            [compute_strategy(prices, e, data_date) for e in registry],
+            key=lambda s: s["oos_stats"].get("avg_ret", float("-inf")),
+            reverse=True),
         "calendar": {"future_business_days": future_business_days(data_date)},
     }
     # 検証ログ（全シグナル自動ペーパートレード）: paper_log_pathが指定された場合のみ

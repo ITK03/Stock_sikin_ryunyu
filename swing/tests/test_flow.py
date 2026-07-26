@@ -207,3 +207,38 @@ class TestProductionIntegration:
         paid = run_backtest(prices, signals, EngineParams(fee_bps=25.0))
         assert len(free.trades) > 0
         assert paid.trades["ret"].mean() < free.trades["ret"].mean()
+
+
+class TestExpectedValueOrdering:
+    """掲載順が期待値(oos_stats.avg_ret)の降順になっていること。"""
+
+    def _prices(self, n_tickers=120, n_days=300, seed=3):
+        rng = np.random.default_rng(seed)
+        idx = pd.bdate_range("2024-01-01", periods=n_days)
+        out = {}
+        for i in range(n_tickers):
+            c = 100 * np.cumprod(1 + rng.normal(0.001, 0.02, n_days))
+            out[str(7000 + i)] = pd.DataFrame(
+                {"open": c, "high": c * 1.01, "low": c * 0.99, "close": c,
+                 "volume": rng.lognormal(16.1, 0.4, n_days)}, index=idx)
+        return out
+
+    def test_strategies_sorted_by_avg_ret_desc(self):
+        from pathlib import Path
+        from screener.run import build_json, load_registry
+        reg = load_registry(Path("screener/registry.yaml"))
+        payload = build_json(self._prices(), reg)
+        avg = [s["oos_stats"].get("avg_ret") for s in payload["strategies"]]
+        assert all(a is not None for a in avg), "全戦略に avg_ret が必要"
+        assert avg == sorted(avg, reverse=True), f"期待値の降順になっていない: {avg}"
+
+    def test_all_registry_entries_have_avg_ret_and_20_positions(self):
+        """並び替えキーの欠落と、銘柄数設定の取りこぼしを防ぐ。"""
+        import yaml
+        from pathlib import Path
+        reg = yaml.safe_load(Path("screener/registry.yaml").read_text(encoding="utf-8"))
+        for st in reg["strategies"]:
+            if not st.get("enabled"):
+                continue
+            assert "avg_ret" in st["oos_stats"], f"{st['id']}: avg_ret 未設定"
+            assert st["engine"]["max_positions"] == 20, f"{st['id']}: 銘柄数が20でない"
