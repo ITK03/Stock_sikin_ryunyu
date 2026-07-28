@@ -2,24 +2,24 @@
  "meta": {
   "tickers": 3638,
   "start": "2018-01-01",
-  "end": "2026-07-24",
+  "end": "2026-07-28",
   "horizon": 120,
   "min_gain": 0.6,
   "max_dd": 0.25,
   "top_k": 100,
   "rel_th": 2.0,
   "persist": 5,
-  "best_variant": "+高値圏90% +順位上昇"
+  "best_variant": "基本(フロー条件のみ)"
  },
  "example_profiles": [
   {
    "code": "6976",
    "name": "太陽誘電",
    "status": "ok",
-   "最大上昇率": 5.795,
-   "起点日": "2026-01-27",
-   "起点株価": 3334.2,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "最大上昇率": 5.998,
+   "起点日": "2026-01-28",
+   "起点株価": 3237.3,
+   "データ期間": "2018-01-01〜2026-07-27"
   },
   {
    "code": "6981",
@@ -28,7 +28,7 @@
    "最大上昇率": 2.908,
    "起点日": "2025-12-24",
    "起点株価": 3134.4,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "データ期間": "2018-01-01〜2026-07-27"
   },
   {
    "code": "278A",
@@ -37,7 +37,7 @@
    "最大上昇率": 7.107,
    "起点日": "2025-12-17",
    "起点株価": 2023.0,
-   "データ期間": "2024-11-29〜2026-07-24"
+   "データ期間": "2024-11-29〜2026-07-27"
   },
   {
    "code": "6227",
@@ -46,7 +46,7 @@
    "最大上昇率": 5.439,
    "起点日": "2025-09-03",
    "起点株価": 1265.1,
-   "データ期間": "2021-07-30〜2026-07-24"
+   "データ期間": "2021-07-30〜2026-07-27"
   },
   {
    "code": "6525",
@@ -55,7 +55,7 @@
    "最大上昇率": 1.727,
    "起点日": "2025-04-09",
    "起点株価": 1724.6,
-   "データ期間": "2023-10-25〜2026-07-24"
+   "データ期間": "2023-10-25〜2026-07-27"
   },
   {
    "code": "5801",
@@ -64,7 +64,7 @@
    "最大上昇率": 5.83,
    "起点日": "2025-11-21",
    "起点株価": 880.5,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "データ期間": "2018-01-01〜2026-07-27"
   },
   {
    "code": "5803",
@@ -73,7 +73,7 @@
    "最大上昇率": 3.113,
    "起点日": "2025-04-07",
    "起点株価": 592.0,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "データ期間": "2018-01-01〜2026-07-27"
   },
   {
    "code": "285A",
@@ -82,7 +82,7 @@
    "最大上昇率": 10.638,
    "起点日": "2025-12-19",
    "起点株価": 9340.0,
-   "データ期間": "2024-12-18〜2026-07-24"
+   "データ期間": "2024-12-18〜2026-07-27"
   },
   {
    "code": "6324",
@@ -91,7 +91,7 @@
    "最大上昇率": 1.885,
    "起点日": "2025-11-21",
    "起点株価": 2773.2,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "データ期間": "2018-01-01〜2026-07-27"
   },
   {
    "code": "9501",
@@ -100,28 +100,28 @@
    "最大上昇率": 1.516,
    "起点日": "2025-06-09",
    "起点株価": 371.2,
-   "データ期間": "2018-01-01〜2026-07-24"
+   "データ期間": "2018-01-01〜2026-07-28"
   }
  ],
  "baseline": {
   "ALL": {
    "episodes": 542,
    "hit_rate": 0.14760147601476015,
-   "base_rate": 0.06506196014113366,
-   "lift": 2.2686294064086012,
-   "avg_forward_gain": 0.34176629358494776,
-   "median_forward_gain": 0.18644952774047852,
-   "median_ret_60d": -0.013532698154449463,
+   "base_rate": 0.06508710878593298,
+   "lift": 2.267752843350459,
+   "avg_forward_gain": 0.34176629111611634,
+   "median_forward_gain": 0.18644976615905762,
+   "median_ret_60d": -0.013532668352127075,
    "median_drawdown_after": -0.17767038941383362,
    "pct_drawdown_worse_than_20": 0.46863468634686345
   },
   "IS": {
    "episodes": 252,
    "hit_rate": 0.10714285714285714,
-   "base_rate": 0.055743747467330296,
-   "lift": 1.9220605361282947,
-   "avg_forward_gain": 0.26308227153051467,
-   "median_forward_gain": 0.14380383491516113,
+   "base_rate": 0.055749028205255055,
+   "lift": 1.9218784720046036,
+   "avg_forward_gain": 0.26308227460535744,
+   "median_forward_gain": 0.14380395412445068,
    "median_ret_60d": -0.03057357668876648,
    "median_drawdown_after": -0.22096282243728638,
    "pct_drawdown_worse_than_20": 0.5357142857142857
@@ -129,24 +129,24 @@
   "OOS": {
    "episodes": 290,
    "hit_rate": 0.18275862068965518,
-   "base_rate": 0.07433330051778511,
-   "lift": 2.4586372381773636,
-   "avg_forward_gain": 0.41952462126226986,
+   "base_rate": 0.07435956028622462,
+   "lift": 2.457768980695706,
+   "avg_forward_gain": 0.4195246133149839,
    "median_forward_gain": 0.2359142303466797,
-   "median_ret_60d": 0.005498170852661133,
-   "median_drawdown_after": -0.15127336978912354,
+   "median_ret_60d": 0.006808459758758545,
+   "median_drawdown_after": -0.15127331018447876,
    "pct_drawdown_worse_than_20": 0.4103448275862069
   },
   "採用条件": {
-   "episodes": 60,
-   "hit_rate": 0.2833333333333333,
-   "base_rate": 0.06506196014113366,
-   "lift": 4.354823198051845,
-   "avg_forward_gain": 0.6159139750180421,
-   "median_forward_gain": 0.19455832242965698,
-   "median_ret_60d": -0.14839527010917664,
-   "median_drawdown_after": -0.3555133044719696,
-   "pct_drawdown_worse_than_20": 0.7666666666666667
+   "episodes": 542,
+   "hit_rate": 0.14760147601476015,
+   "base_rate": 0.06508710878593298,
+   "lift": 2.267752843350459,
+   "avg_forward_gain": 0.34176629111611634,
+   "median_forward_gain": 0.18644976615905762,
+   "median_ret_60d": -0.013532668352127075,
+   "median_drawdown_after": -0.17767038941383362,
+   "pct_drawdown_worse_than_20": 0.46863468634686345
   }
  },
  "sensitivity": [
@@ -157,23 +157,23 @@
    "IS": {
     "episodes": 416,
     "hit_rate": 0.06490384615384616,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.1643251324623325,
-    "avg_forward_gain": 0.21216987603558943,
-    "median_forward_gain": 0.13320595026016235,
-    "median_ret_60d": -0.013996511697769165,
-    "median_drawdown_after": -0.1588592827320099,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.1642148436181736,
+    "avg_forward_gain": 0.2121698771818326,
+    "median_forward_gain": 0.13320589065551758,
+    "median_ret_60d": -0.013996779918670654,
+    "median_drawdown_after": -0.15885934233665466,
     "pct_drawdown_worse_than_20": 0.40625
    },
    "OOS": {
-    "episodes": 386,
-    "hit_rate": 0.11658031088082901,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.5683456817975654,
-    "avg_forward_gain": 0.32529865300754984,
-    "median_forward_gain": 0.1962364912033081,
-    "median_ret_60d": 0.02463430166244507,
-    "median_drawdown_after": -0.11535578966140747,
+    "episodes": 387,
+    "hit_rate": 0.11627906976744186,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.563740685392178,
+    "avg_forward_gain": 0.3252986561621132,
+    "median_forward_gain": 0.19623661041259766,
+    "median_ret_60d": 0.025311827659606934,
+    "median_drawdown_after": -0.11620217561721802,
     "pct_drawdown_worse_than_20": 0.30569948186528495
    }
   },
@@ -184,22 +184,22 @@
    "IS": {
     "episodes": 257,
     "hit_rate": 0.058365758754863814,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.0470368679298103,
-    "avg_forward_gain": 0.21205162468587377,
-    "median_forward_gain": 0.15078675746917725,
-    "median_ret_60d": 0.00030231475830078125,
-    "median_drawdown_after": -0.16510099172592163,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.0469376890297453,
+    "avg_forward_gain": 0.21205160798729625,
+    "median_forward_gain": 0.1507868766784668,
+    "median_ret_60d": 0.0003020763397216797,
+    "median_drawdown_after": -0.1651010513305664,
     "pct_drawdown_worse_than_20": 0.4163424124513619
    },
    "OOS": {
     "episodes": 283,
     "hit_rate": 0.13427561837455831,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.806399250931032,
-    "avg_forward_gain": 0.3514298712834716,
-    "median_forward_gain": 0.24189156293869019,
-    "median_ret_60d": 0.03241300582885742,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.805761328573017,
+    "avg_forward_gain": 0.3514298645313829,
+    "median_forward_gain": 0.24189162254333496,
+    "median_ret_60d": 0.03404867649078369,
     "median_drawdown_after": -0.11411762237548828,
     "pct_drawdown_worse_than_20": 0.2756183745583039
    }
@@ -211,23 +211,23 @@
    "IS": {
     "episodes": 83,
     "hit_rate": 0.0963855421686747,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.7290825706535664,
-    "avg_forward_gain": 0.24753422406782588,
-    "median_forward_gain": 0.20094943046569824,
-    "median_ret_60d": 0.04067814350128174,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.7289187860603665,
+    "avg_forward_gain": 0.24753422263156938,
+    "median_forward_gain": 0.2009493112564087,
+    "median_ret_60d": 0.04067802429199219,
     "median_drawdown_after": -0.1291724443435669,
     "pct_drawdown_worse_than_20": 0.3373493975903614
    },
    "OOS": {
     "episodes": 108,
     "hit_rate": 0.21296296296296297,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.864973860699339,
-    "avg_forward_gain": 0.5000369689797842,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.8639621071349333,
+    "avg_forward_gain": 0.5000369728252452,
     "median_forward_gain": 0.2549937963485718,
-    "median_ret_60d": 0.055874526500701904,
-    "median_drawdown_after": -0.15219718217849731,
+    "median_ret_60d": 0.055874407291412354,
+    "median_drawdown_after": -0.15219715237617493,
     "pct_drawdown_worse_than_20": 0.39814814814814814
    }
   },
@@ -238,10 +238,10 @@
    "IS": {
     "episodes": 338,
     "hit_rate": 0.06804733727810651,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.2207169479946962,
-    "avg_forward_gain": 0.21303477883338928,
-    "median_forward_gain": 0.12440991401672363,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.2206013175256063,
+    "avg_forward_gain": 0.21303477530648723,
+    "median_forward_gain": 0.12440985441207886,
     "median_ret_60d": -0.02739691734313965,
     "median_drawdown_after": -0.17317116260528564,
     "pct_drawdown_worse_than_20": 0.45857988165680474
@@ -249,12 +249,12 @@
    "OOS": {
     "episodes": 366,
     "hit_rate": 0.1448087431693989,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.9481005439110257,
-    "avg_forward_gain": 0.36256043340374783,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.947412580332663,
+    "avg_forward_gain": 0.3625604368564559,
     "median_forward_gain": 0.22674190998077393,
-    "median_ret_60d": 0.03314560651779175,
-    "median_drawdown_after": -0.13065379858016968,
+    "median_ret_60d": 0.033968448638916016,
+    "median_drawdown_after": -0.1334611475467682,
     "pct_drawdown_worse_than_20": 0.3442622950819672
    }
   },
@@ -265,23 +265,23 @@
    "IS": {
     "episodes": 129,
     "hit_rate": 0.08527131782945736,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.529701925394095,
-    "avg_forward_gain": 0.2436385565949965,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.5295570268150334,
+    "avg_forward_gain": 0.24363853718883308,
     "median_forward_gain": 0.17756104469299316,
     "median_ret_60d": 0.005071043968200684,
-    "median_drawdown_after": -0.21110033988952637,
+    "median_drawdown_after": -0.2111002802848816,
     "pct_drawdown_worse_than_20": 0.5116279069767442
    },
    "OOS": {
     "episodes": 166,
     "hit_rate": 0.22289156626506024,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.9985425739535247,
-    "avg_forward_gain": 0.5128939435198591,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.9974836511553677,
+    "avg_forward_gain": 0.5128939376844392,
     "median_forward_gain": 0.30037057399749756,
-    "median_ret_60d": 0.06341350078582764,
-    "median_drawdown_after": -0.13700944185256958,
+    "median_ret_60d": 0.0705220103263855,
+    "median_drawdown_after": -0.13785555958747864,
     "pct_drawdown_worse_than_20": 0.3433734939759036
    }
   },
@@ -292,22 +292,22 @@
    "IS": {
     "episodes": 36,
     "hit_rate": 0.05555555555555555,
-    "base_rate": 0.055743747467330296,
-    "lift": 0.9966239816961528,
-    "avg_forward_gain": 0.197205083237754,
-    "median_forward_gain": 0.18802201747894287,
-    "median_ret_60d": -0.04147103428840637,
-    "median_drawdown_after": -0.14976760745048523,
+    "base_rate": 0.055749028205255055,
+    "lift": 0.9965295780764611,
+    "avg_forward_gain": 0.19720505012406242,
+    "median_forward_gain": 0.18802183866500854,
+    "median_ret_60d": -0.04147091507911682,
+    "median_drawdown_after": -0.14976757764816284,
     "pct_drawdown_worse_than_20": 0.3888888888888889
    },
    "OOS": {
     "episodes": 62,
     "hit_rate": 0.20967741935483872,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.8207737029606395,
-    "avg_forward_gain": 0.5237519476148818,
-    "median_forward_gain": 0.2913327217102051,
-    "median_ret_60d": 0.011736571788787842,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.819777558497508,
+    "avg_forward_gain": 0.5237519398883537,
+    "median_forward_gain": 0.29133254289627075,
+    "median_ret_60d": 0.011736690998077393,
     "median_drawdown_after": -0.18042337894439697,
     "pct_drawdown_worse_than_20": 0.45161290322580644
    }
@@ -319,23 +319,23 @@
    "IS": {
     "episodes": 168,
     "hit_rate": 0.125,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.242403958816344,
-    "avg_forward_gain": 0.27874706366232466,
-    "median_forward_gain": 0.1667248010635376,
-    "median_ret_60d": -0.05038183927536011,
-    "median_drawdown_after": -0.22834309935569763,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.242191550672038,
+    "avg_forward_gain": 0.2787470437941097,
+    "median_forward_gain": 0.16672474145889282,
+    "median_ret_60d": -0.05038192868232727,
+    "median_drawdown_after": -0.22834312915802002,
     "pct_drawdown_worse_than_20": 0.5535714285714286
    },
    "OOS": {
     "episodes": 210,
     "hit_rate": 0.18095238095238095,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.434338038159438,
-    "avg_forward_gain": 0.4232683080844778,
-    "median_forward_gain": 0.23967158794403076,
-    "median_ret_60d": -0.005518287420272827,
-    "median_drawdown_after": -0.18469643592834473,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.433478361838875,
+    "avg_forward_gain": 0.4232683162840586,
+    "median_forward_gain": 0.23967194557189941,
+    "median_ret_60d": -0.0021632909774780273,
+    "median_drawdown_after": -0.1846965253353119,
     "pct_drawdown_worse_than_20": 0.4523809523809524
    }
   },
@@ -346,20 +346,20 @@
    "IS": {
     "episodes": 65,
     "hit_rate": 0.1076923076923077,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.9319172568263887,
-    "avg_forward_gain": 0.23977692677424503,
-    "median_forward_gain": 0.18111228942871094,
-    "median_ret_60d": -0.07735329866409302,
-    "median_drawdown_after": -0.24321138858795166,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.9317342590405249,
+    "avg_forward_gain": 0.23977690018140352,
+    "median_forward_gain": 0.1811124086380005,
+    "median_ret_60d": -0.07735323905944824,
+    "median_drawdown_after": -0.24321132898330688,
     "pct_drawdown_worse_than_20": 0.5846153846153846
    },
    "OOS": {
     "episodes": 92,
     "hit_rate": 0.21739130434782608,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.924547986347151,
-    "avg_forward_gain": 0.5225915585655764,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.9235151944288544,
+    "avg_forward_gain": 0.5225915370217289,
     "median_forward_gain": 0.3182511329650879,
     "median_ret_60d": 0.03286862373352051,
     "median_drawdown_after": -0.18781739473342896,
@@ -373,22 +373,22 @@
    "IS": {
     "episodes": 14,
     "hit_rate": 0.07142857142857142,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.2813736907521964,
-    "avg_forward_gain": 0.2011058500834874,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.2812523146697357,
+    "avg_forward_gain": 0.20110585859843663,
     "median_forward_gain": 0.20231932401657104,
-    "median_ret_60d": -0.1225883960723877,
+    "median_ret_60d": -0.12258836627006531,
     "median_drawdown_after": -0.2858743667602539,
     "pct_drawdown_worse_than_20": 0.5714285714285714
    },
    "OOS": {
     "episodes": 26,
     "hit_rate": 0.3076923076923077,
-    "base_rate": 0.07433330051778511,
-    "lift": 4.139360226829814,
-    "avg_forward_gain": 0.8149839838345846,
-    "median_forward_gain": 0.38669323921203613,
-    "median_ret_60d": 0.058709681034088135,
+    "base_rate": 0.07435956028622462,
+    "lift": 4.137898429037763,
+    "avg_forward_gain": 0.8149839895112174,
+    "median_forward_gain": 0.3866933584213257,
+    "median_ret_60d": 0.058709561824798584,
     "median_drawdown_after": -0.21891167759895325,
     "pct_drawdown_worse_than_20": 0.5384615384615384
    }
@@ -400,23 +400,23 @@
    "IS": {
     "episodes": 705,
     "hit_rate": 0.07801418439716312,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.3995145274882146,
-    "avg_forward_gain": 0.23611451818587934,
-    "median_forward_gain": 0.1328260898590088,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.3993819607031157,
+    "avg_forward_gain": 0.23611452241315908,
+    "median_forward_gain": 0.13282620906829834,
     "median_ret_60d": -0.016190826892852783,
-    "median_drawdown_after": -0.1639884114265442,
+    "median_drawdown_after": -0.16398835182189941,
     "pct_drawdown_worse_than_20": 0.41843971631205673
    },
    "OOS": {
     "episodes": 670,
     "hit_rate": 0.09253731343283582,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.2448971428450857,
-    "avg_forward_gain": 0.29800662027030694,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.244457512613596,
+    "avg_forward_gain": 0.2980066194886067,
     "median_forward_gain": 0.18389534950256348,
-    "median_ret_60d": 0.008367538452148438,
-    "median_drawdown_after": -0.12471374869346619,
+    "median_ret_60d": 0.011274933815002441,
+    "median_drawdown_after": -0.12471377849578857,
     "pct_drawdown_worse_than_20": 0.32985074626865674
    }
   },
@@ -427,23 +427,23 @@
    "IS": {
     "episodes": 456,
     "hit_rate": 0.08333333333333333,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.4949359725442293,
-    "avg_forward_gain": 0.23268666445163258,
-    "median_forward_gain": 0.1482953429222107,
-    "median_ret_60d": -0.004043608903884888,
-    "median_drawdown_after": -0.16173040866851807,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.4947943671146917,
+    "avg_forward_gain": 0.23268666758871914,
+    "median_forward_gain": 0.14829522371292114,
+    "median_ret_60d": -0.004043668508529663,
+    "median_drawdown_after": -0.16173049807548523,
     "pct_drawdown_worse_than_20": 0.43201754385964913
    },
    "OOS": {
     "episodes": 520,
     "hit_rate": 0.11346153846153846,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.526389083643494,
-    "avg_forward_gain": 0.32242662525588955,
-    "median_forward_gain": 0.20326316356658936,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.5258500457076751,
+    "avg_forward_gain": 0.32198758012261885,
+    "median_forward_gain": 0.20061957836151123,
     "median_ret_60d": 0.021381676197052002,
-    "median_drawdown_after": -0.11223176121711731,
+    "median_drawdown_after": -0.11223173141479492,
     "pct_drawdown_worse_than_20": 0.2980769230769231
    }
   },
@@ -454,24 +454,24 @@
    "IS": {
     "episodes": 130,
     "hit_rate": 0.07692307692307693,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.3799408977331349,
-    "avg_forward_gain": 0.2523312674118922,
-    "median_forward_gain": 0.19801265001296997,
-    "median_ret_60d": 0.05068182945251465,
-    "median_drawdown_after": -0.14223840832710266,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.3798101850289464,
+    "avg_forward_gain": 0.2523312426530398,
+    "median_forward_gain": 0.1980125904083252,
+    "median_ret_60d": 0.05068176984786987,
+    "median_drawdown_after": -0.1422385275363922,
     "pct_drawdown_worse_than_20": 0.3923076923076923
    },
    "OOS": {
     "episodes": 173,
     "hit_rate": 0.1907514450867052,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.566164071257211,
-    "avg_forward_gain": 0.47301004649875883,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.5652578411231217,
+    "avg_forward_gain": 0.4730100456651274,
     "median_forward_gain": 0.2549937963485718,
-    "median_ret_60d": 0.02854931354522705,
+    "median_ret_60d": 0.03744971752166748,
     "median_drawdown_after": -0.1523425579071045,
-    "pct_drawdown_worse_than_20": 0.3872832369942196
+    "pct_drawdown_worse_than_20": 0.3930635838150289
    }
   },
   {
@@ -481,23 +481,23 @@
    "IS": {
     "episodes": 582,
     "hit_rate": 0.08419243986254296,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.5103476836013865,
-    "avg_forward_gain": 0.24491168133581626,
-    "median_forward_gain": 0.13310915231704712,
-    "median_ret_60d": -0.026497453451156616,
-    "median_drawdown_after": -0.18407970666885376,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.5102046183220599,
+    "avg_forward_gain": 0.24491168584200934,
+    "median_forward_gain": 0.13310909271240234,
+    "median_ret_60d": -0.026497215032577515,
+    "median_drawdown_after": -0.18407976627349854,
     "pct_drawdown_worse_than_20": 0.46563573883161513
    },
    "OOS": {
     "episodes": 660,
     "hit_rate": 0.11060606060606061,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.4879745663869293,
-    "avg_forward_gain": 0.3228128607930808,
-    "median_forward_gain": 0.197024405002594,
-    "median_ret_60d": 0.0023950934410095215,
-    "median_drawdown_after": -0.14150568842887878,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.48744909437759,
+    "avg_forward_gain": 0.3224694865295686,
+    "median_forward_gain": 0.19702374935150146,
+    "median_ret_60d": 0.005282402038574219,
+    "median_drawdown_after": -0.14246022701263428,
     "pct_drawdown_worse_than_20": 0.3696969696969697
    }
   },
@@ -508,10 +508,10 @@
    "IS": {
     "episodes": 252,
     "hit_rate": 0.10714285714285714,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.9220605361282947,
-    "avg_forward_gain": 0.26308227153051467,
-    "median_forward_gain": 0.14380383491516113,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.9218784720046036,
+    "avg_forward_gain": 0.26308227460535744,
+    "median_forward_gain": 0.14380395412445068,
     "median_ret_60d": -0.03057357668876648,
     "median_drawdown_after": -0.22096282243728638,
     "pct_drawdown_worse_than_20": 0.5357142857142857
@@ -519,12 +519,12 @@
    "OOS": {
     "episodes": 290,
     "hit_rate": 0.18275862068965518,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.4586372381773636,
-    "avg_forward_gain": 0.41952462126226986,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.457768980695706,
+    "avg_forward_gain": 0.4195246133149839,
     "median_forward_gain": 0.2359142303466797,
-    "median_ret_60d": 0.005498170852661133,
-    "median_drawdown_after": -0.15127336978912354,
+    "median_ret_60d": 0.006808459758758545,
+    "median_drawdown_after": -0.15127331018447876,
     "pct_drawdown_worse_than_20": 0.4103448275862069
    }
   },
@@ -535,24 +535,24 @@
    "IS": {
     "episodes": 55,
     "hit_rate": 0.07272727272727272,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.3046713942204182,
-    "avg_forward_gain": 0.24057416699149392,
-    "median_forward_gain": 0.20229268074035645,
-    "median_ret_60d": -0.021087646484375,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.3045478113000946,
+    "avg_forward_gain": 0.24057413664731112,
+    "median_forward_gain": 0.2022925615310669,
+    "median_ret_60d": -0.02108776569366455,
     "median_drawdown_after": -0.16723549365997314,
     "pct_drawdown_worse_than_20": 0.4727272727272727
    },
    "OOS": {
     "episodes": 95,
     "hit_rate": 0.23157894736842105,
-    "base_rate": 0.07433330051778511,
-    "lift": 3.11541322335086,
-    "avg_forward_gain": 0.530652822535715,
+    "base_rate": 0.07435956028622462,
+    "lift": 3.114313028170527,
+    "avg_forward_gain": 0.5306528188564159,
     "median_forward_gain": 0.33281898498535156,
-    "median_ret_60d": 0.008660078048706055,
+    "median_ret_60d": 0.013201355934143066,
     "median_drawdown_after": -0.1902438998222351,
-    "pct_drawdown_worse_than_20": 0.4842105263157895
+    "pct_drawdown_worse_than_20": 0.49473684210526314
    }
   },
   {
@@ -562,10 +562,10 @@
    "IS": {
     "episodes": 322,
     "hit_rate": 0.13354037267080746,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.395611682710628,
-    "avg_forward_gain": 0.2965370350002502,
-    "median_forward_gain": 0.15949243307113647,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.3953847622086366,
+    "avg_forward_gain": 0.2965370131575543,
+    "median_forward_gain": 0.15949255228042603,
     "median_ret_60d": -0.06676685810089111,
     "median_drawdown_after": -0.24435287714004517,
     "pct_drawdown_worse_than_20": 0.5807453416149069
@@ -573,11 +573,11 @@
    "OOS": {
     "episodes": 356,
     "hit_rate": 0.1544943820224719,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.0784006756905313,
-    "avg_forward_gain": 0.39466991868748025,
-    "median_forward_gain": 0.2162255048751831,
-    "median_ret_60d": -0.033599853515625,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.077666697164326,
+    "avg_forward_gain": 0.3937938722353133,
+    "median_forward_gain": 0.21468400955200195,
+    "median_ret_60d": -0.031574100255966187,
     "median_drawdown_after": -0.19360649585723877,
     "pct_drawdown_worse_than_20": 0.4859550561797753
    }
@@ -589,23 +589,23 @@
    "IS": {
     "episodes": 139,
     "hit_rate": 0.12949640287769784,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.323065971723407,
-    "avg_forward_gain": 0.2860356226241846,
-    "median_forward_gain": 0.15324020385742188,
-    "median_ret_60d": -0.10665756464004517,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.3228459229983702,
+    "avg_forward_gain": 0.2860356153344079,
+    "median_forward_gain": 0.15324032306671143,
+    "median_ret_60d": -0.10665768384933472,
     "median_drawdown_after": -0.28255969285964966,
     "pct_drawdown_worse_than_20": 0.6690647482014388
    },
    "OOS": {
     "episodes": 164,
     "hit_rate": 0.18902439024390244,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.5429301393481936,
-    "avg_forward_gain": 0.457913922296988,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.5420321141802114,
+    "avg_forward_gain": 0.4579139025630178,
     "median_forward_gain": 0.25650113821029663,
     "median_ret_60d": -0.00826677680015564,
-    "median_drawdown_after": -0.23265141248703003,
+    "median_drawdown_after": -0.2326514720916748,
     "pct_drawdown_worse_than_20": 0.573170731707317
    }
   },
@@ -616,9 +616,9 @@
    "IS": {
     "episodes": 19,
     "hit_rate": 0.10526315789473684,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.8883401758453422,
-    "avg_forward_gain": 0.23518742385663485,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.8881613058290843,
+    "avg_forward_gain": 0.23518743013080798,
     "median_forward_gain": 0.20980393886566162,
     "median_ret_60d": -0.08873718976974487,
     "median_drawdown_after": -0.23425692319869995,
@@ -627,11 +627,11 @@
    "OOS": {
     "episodes": 45,
     "hit_rate": 0.3111111111111111,
-    "base_rate": 0.07433330051778511,
-    "lift": 4.185353118239034,
-    "avg_forward_gain": 0.749145401848687,
+    "base_rate": 0.07435956028622462,
+    "lift": 4.183875078249294,
+    "avg_forward_gain": 0.7491453952259488,
     "median_forward_gain": 0.45133137702941895,
-    "median_ret_60d": -0.0009708404541015625,
+    "median_ret_60d": 0.013333320617675781,
     "median_drawdown_after": -0.22940224409103394,
     "pct_drawdown_worse_than_20": 0.6
    }
@@ -643,24 +643,24 @@
    "IS": {
     "episodes": 1399,
     "hit_rate": 0.06576125804145819,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.1797064429512718,
-    "avg_forward_gain": 0.23038239006999564,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.179594697136969,
+    "avg_forward_gain": 0.2303823948843808,
     "median_forward_gain": 0.12811386585235596,
-    "median_ret_60d": -0.02695763111114502,
-    "median_drawdown_after": -0.17811793088912964,
+    "median_ret_60d": -0.026957690715789795,
+    "median_drawdown_after": -0.17811799049377441,
     "pct_drawdown_worse_than_20": 0.45961401000714797
    },
    "OOS": {
-    "episodes": 1266,
-    "hit_rate": 0.09557661927330174,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.2857846834129734,
-    "avg_forward_gain": 0.3056600511228083,
-    "median_forward_gain": 0.1815931797027588,
-    "median_ret_60d": 0.00432896614074707,
+    "episodes": 1267,
+    "hit_rate": 0.09550118389897395,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.2843161461871353,
+    "avg_forward_gain": 0.30539598694569264,
+    "median_forward_gain": 0.18159329891204834,
+    "median_ret_60d": 0.006339728832244873,
     "median_drawdown_after": -0.12673228979110718,
-    "pct_drawdown_worse_than_20": 0.3314873417721519
+    "pct_drawdown_worse_than_20": 0.33096366508688785
    }
   },
   {
@@ -670,24 +670,24 @@
    "IS": {
     "episodes": 896,
     "hit_rate": 0.0859375,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.5416527216862363,
-    "avg_forward_gain": 0.25780569735382286,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.5415066910870259,
+    "avg_forward_gain": 0.25780570613486425,
     "median_forward_gain": 0.15085309743881226,
-    "median_ret_60d": -0.015242397785186768,
-    "median_drawdown_after": -0.16744500398635864,
+    "median_ret_60d": -0.015242457389831543,
+    "median_drawdown_after": -0.1674450933933258,
     "pct_drawdown_worse_than_20": 0.43973214285714285
    },
    "OOS": {
     "episodes": 1099,
     "hit_rate": 0.08644222020018198,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.1629003367003685,
-    "avg_forward_gain": 0.30026035605348306,
-    "median_forward_gain": 0.19438350200653076,
-    "median_ret_60d": 0.01992863416671753,
-    "median_drawdown_after": -0.11988618969917297,
-    "pct_drawdown_worse_than_20": 0.30418943533697634
+    "base_rate": 0.07435956028622462,
+    "lift": 1.1624896632988255,
+    "avg_forward_gain": 0.3002603567191187,
+    "median_forward_gain": 0.1943836212158203,
+    "median_ret_60d": 0.02099919319152832,
+    "median_drawdown_after": -0.11956095695495605,
+    "pct_drawdown_worse_than_20": 0.3039126478616925
    }
   },
   {
@@ -697,23 +697,23 @@
    "IS": {
     "episodes": 305,
     "hit_rate": 0.10819672131147541,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.9409660495984091,
-    "avg_forward_gain": 0.3097393899667458,
-    "median_forward_gain": 0.19914817810058594,
-    "median_ret_60d": 0.0170133113861084,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.940782194680059,
+    "avg_forward_gain": 0.30973938918504557,
+    "median_forward_gain": 0.1991480588912964,
+    "median_ret_60d": 0.01701343059539795,
     "median_drawdown_after": -0.16077160835266113,
     "pct_drawdown_worse_than_20": 0.4131147540983607
    },
    "OOS": {
     "episodes": 332,
     "hit_rate": 0.15060240963855423,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.0260422796983275,
-    "avg_forward_gain": 0.40915096850290783,
-    "median_forward_gain": 0.2367609143257141,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.0253267913211945,
+    "avg_forward_gain": 0.4091509604541055,
+    "median_forward_gain": 0.23676085472106934,
     "median_ret_60d": 0.009395301342010498,
-    "median_drawdown_after": -0.14764472842216492,
+    "median_drawdown_after": -0.14764466881752014,
     "pct_drawdown_worse_than_20": 0.3885542168674699
    }
   },
@@ -724,24 +724,24 @@
    "IS": {
     "episodes": 1177,
     "hit_rate": 0.07221750212404418,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.2955265012702752,
-    "avg_forward_gain": 0.24862795632677556,
-    "median_forward_gain": 0.14293694496154785,
-    "median_ret_60d": -0.03353768587112427,
-    "median_drawdown_after": -0.20173680782318115,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.2954037845853743,
+    "avg_forward_gain": 0.24862795860562775,
+    "median_forward_gain": 0.1429368257522583,
+    "median_ret_60d": -0.03353756666183472,
+    "median_drawdown_after": -0.20173686742782593,
     "pct_drawdown_worse_than_20": 0.5055225148683092
    },
    "OOS": {
-    "episodes": 1332,
-    "hit_rate": 0.09834834834834835,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.3230725349645596,
-    "avg_forward_gain": 0.31467402692005275,
-    "median_forward_gain": 0.18412327766418457,
-    "median_ret_60d": 0.002261042594909668,
-    "median_drawdown_after": -0.13566407561302185,
-    "pct_drawdown_worse_than_20": 0.3526315789473684
+    "episodes": 1334,
+    "hit_rate": 0.09895052473763119,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.330703467808996,
+    "avg_forward_gain": 0.3149736627462122,
+    "median_forward_gain": 0.18422484397888184,
+    "median_ret_60d": 0.0026831626892089844,
+    "median_drawdown_after": -0.13567659258842468,
+    "pct_drawdown_worse_than_20": 0.3521021021021021
    }
   },
   {
@@ -751,24 +751,24 @@
    "IS": {
     "episodes": 495,
     "hit_rate": 0.12525252525252525,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.246934067824054,
-    "avg_forward_gain": 0.3214382756840099,
-    "median_forward_gain": 0.16678297519683838,
-    "median_ret_60d": -0.02714228630065918,
-    "median_drawdown_after": -0.20848357677459717,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.246721230572385,
+    "avg_forward_gain": 0.3214382836312959,
+    "median_forward_gain": 0.16678285598754883,
+    "median_ret_60d": -0.02714240550994873,
+    "median_drawdown_after": -0.2084837555885315,
     "pct_drawdown_worse_than_20": 0.5151515151515151
    },
    "OOS": {
     "episodes": 609,
     "hit_rate": 0.1297208538587849,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.7451243649237351,
-    "avg_forward_gain": 0.3774837098266413,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.7445080815360356,
+    "avg_forward_gain": 0.37748371163627004,
     "median_forward_gain": 0.22846174240112305,
-    "median_ret_60d": -0.009702354669570923,
-    "median_drawdown_after": -0.16246730089187622,
-    "pct_drawdown_worse_than_20": 0.42598684210526316
+    "median_ret_60d": -0.006785035133361816,
+    "median_drawdown_after": -0.1624184250831604,
+    "pct_drawdown_worse_than_20": 0.42528735632183906
    }
   },
   {
@@ -778,23 +778,23 @@
    "IS": {
     "episodes": 152,
     "hit_rate": 0.125,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.242403958816344,
-    "avg_forward_gain": 0.3175121679117805,
-    "median_forward_gain": 0.1666477918624878,
-    "median_ret_60d": -0.046627163887023926,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.242191550672038,
+    "avg_forward_gain": 0.31751214948139694,
+    "median_forward_gain": 0.16664773225784302,
+    "median_ret_60d": -0.04662737250328064,
     "median_drawdown_after": -0.21208766102790833,
     "pct_drawdown_worse_than_20": 0.5131578947368421
    },
    "OOS": {
     "episodes": 182,
     "hit_rate": 0.17582417582417584,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.3653487010456082,
-    "avg_forward_gain": 0.4581466395091387,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.364513388021579,
+    "avg_forward_gain": 0.458146628990672,
     "median_forward_gain": 0.2613762617111206,
-    "median_ret_60d": -0.02531382441520691,
-    "median_drawdown_after": -0.23305007815361023,
+    "median_ret_60d": -0.025313764810562134,
+    "median_drawdown_after": -0.2330501675605774,
     "pct_drawdown_worse_than_20": 0.5494505494505495
    }
   },
@@ -805,24 +805,24 @@
    "IS": {
     "episodes": 672,
     "hit_rate": 0.10714285714285714,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.9220605361282947,
-    "avg_forward_gain": 0.3095426580735615,
-    "median_forward_gain": 0.15949243307113647,
-    "median_ret_60d": -0.07636409997940063,
-    "median_drawdown_after": -0.27203628420829773,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.9218784720046036,
+    "avg_forward_gain": 0.3095426531065078,
+    "median_forward_gain": 0.15949255228042603,
+    "median_ret_60d": -0.07636415958404541,
+    "median_drawdown_after": -0.2720361649990082,
     "pct_drawdown_worse_than_20": 0.6190476190476191
    },
    "OOS": {
-    "episodes": 766,
-    "hit_rate": 0.13968668407310705,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.8791938888773732,
-    "avg_forward_gain": 0.38743938835321273,
+    "episodes": 767,
+    "hit_rate": 0.1395045632333768,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.8760810674027146,
+    "avg_forward_gain": 0.38688653944169776,
     "median_forward_gain": 0.20194298028945923,
-    "median_ret_60d": -0.03555181622505188,
-    "median_drawdown_after": -0.18775144219398499,
-    "pct_drawdown_worse_than_20": 0.47513089005235604
+    "median_ret_60d": -0.03523591160774231,
+    "median_drawdown_after": -0.187089741230011,
+    "pct_drawdown_worse_than_20": 0.47389033942558745
    }
   },
   {
@@ -832,22 +832,22 @@
    "IS": {
     "episodes": 293,
     "hit_rate": 0.16382252559726962,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.9388502395408738,
-    "avg_forward_gain": 0.3784447888058607,
-    "median_forward_gain": 0.18111228942871094,
-    "median_ret_60d": -0.11631298065185547,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.9385718616316123,
+    "avg_forward_gain": 0.378444786161286,
+    "median_forward_gain": 0.1811124086380005,
+    "median_ret_60d": -0.11631304025650024,
     "median_drawdown_after": -0.2975581884384155,
     "pct_drawdown_worse_than_20": 0.6518771331058021
    },
    "OOS": {
     "episodes": 335,
     "hit_rate": 0.14626865671641792,
-    "base_rate": 0.07433330051778511,
-    "lift": 1.9677406451422326,
-    "avg_forward_gain": 0.42825318882796937,
-    "median_forward_gain": 0.25795090198516846,
-    "median_ret_60d": -0.03958261013031006,
+    "base_rate": 0.07435956028622462,
+    "lift": 1.967045745744071,
+    "avg_forward_gain": 0.4282531892227021,
+    "median_forward_gain": 0.2579508423805237,
+    "median_ret_60d": -0.04057592153549194,
     "median_drawdown_after": -0.2373124361038208,
     "pct_drawdown_worse_than_20": 0.582089552238806
    }
@@ -859,32 +859,32 @@
    "IS": {
     "episodes": 77,
     "hit_rate": 0.19480519480519481,
-    "base_rate": 0.055743747467330296,
-    "lift": 3.4946555202332634,
-    "avg_forward_gain": 0.35562150044874713,
+    "base_rate": 0.055749028205255055,
+    "lift": 3.494324494553825,
+    "avg_forward_gain": 0.35562149812648824,
     "median_forward_gain": 0.16344916820526123,
-    "median_ret_60d": -0.15643960237503052,
-    "median_drawdown_after": -0.29949742555618286,
+    "median_ret_60d": -0.15643954277038574,
+    "median_drawdown_after": -0.29949748516082764,
     "pct_drawdown_worse_than_20": 0.6363636363636364
    },
    "OOS": {
     "episodes": 100,
     "hit_rate": 0.23,
-    "base_rate": 0.07433330051778511,
-    "lift": 3.094171769555286,
-    "avg_forward_gain": 0.613076294645851,
+    "base_rate": 0.07435956028622462,
+    "lift": 3.0930790757057283,
+    "avg_forward_gain": 0.6130762814003744,
     "median_forward_gain": 0.37715232372283936,
-    "median_ret_60d": -0.08724397420883179,
+    "median_ret_60d": -0.08724409341812134,
     "median_drawdown_after": -0.27042675018310547,
     "pct_drawdown_worse_than_20": 0.66
    }
   }
  ],
  "lead_time": {
-  "matched_episodes": 7,
-  "median_lead_days": 97.0,
-  "pct_detected_before_or_at_start": 0.0,
-  "median_remaining_gain": 0.012774991182817885
+  "matched_episodes": 201,
+  "median_lead_days": 51.0,
+  "pct_detected_before_or_at_start": 0.30845771144278605,
+  "median_remaining_gain": 0.20845557761010913
  },
  "named_detection": [
   {
@@ -919,9 +919,9 @@
    "初回検知日": "2026-05-11",
    "検知時株価": 5960.0,
    "検知後60日最大": 1.055,
-   "検知後60日終値": 0.394,
+   "検知後60日終値": 0.359,
    "検知後120日最大": 1.055,
-   "検知後120日終値": 0.394,
+   "検知後120日終値": 0.359,
    "検知後の最大下落": 0.0,
    "検知後の最高値まで": 1.055
   },
@@ -938,9 +938,9 @@
    "初回検知日": "2026-05-11",
    "検知時株価": 16400.0,
    "検知後60日最大": 0.0,
-   "検知後60日終値": -0.226,
+   "検知後60日終値": -0.212,
    "検知後120日最大": 0.0,
-   "検知後120日終値": -0.226,
+   "検知後120日終値": -0.212,
    "検知後の最大下落": -0.558,
    "検知後の最高値まで": 0.0
   },
@@ -952,14 +952,14 @@
    "安値": 413.1,
    "高値日": "2026-04-15",
    "高値": 8398.3,
-   "安値→高値": 19.328,
+   "安値→高値": 19.329,
    "検知回数": 14,
    "初回検知日": "2026-02-24",
    "検知時株価": 7882.9,
    "検知後60日最大": 0.065,
    "検知後60日終値": -0.217,
    "検知後120日最大": 0.065,
-   "検知後120日終値": -0.109,
+   "検知後120日終値": -0.136,
    "検知後の最大下落": -0.333,
    "検知後の最高値まで": 0.065
   },
@@ -1084,10 +1084,10 @@
    "IS": {
     "episodes": 252,
     "hit_rate": 0.10714285714285714,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.9220605361282947,
-    "avg_forward_gain": 0.26308227153051467,
-    "median_forward_gain": 0.14380383491516113,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.9218784720046036,
+    "avg_forward_gain": 0.26308227460535744,
+    "median_forward_gain": 0.14380395412445068,
     "median_ret_60d": -0.03057357668876648,
     "median_drawdown_after": -0.22096282243728638,
     "pct_drawdown_worse_than_20": 0.5357142857142857
@@ -1095,12 +1095,12 @@
    "OOS": {
     "episodes": 290,
     "hit_rate": 0.18275862068965518,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.4586372381773636,
-    "avg_forward_gain": 0.41952462126226986,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.457768980695706,
+    "avg_forward_gain": 0.4195246133149839,
     "median_forward_gain": 0.2359142303466797,
-    "median_ret_60d": 0.005498170852661133,
-    "median_drawdown_after": -0.15127336978912354,
+    "median_ret_60d": 0.006808459758758545,
+    "median_drawdown_after": -0.15127331018447876,
     "pct_drawdown_worse_than_20": 0.4103448275862069
    },
    "lead": {
@@ -1108,91 +1108,94 @@
     "median_lead_days": 51.0,
     "pct_detected_before_or_at_start": 0.30845771144278605,
     "median_remaining_gain": 0.20845557761010913
-   }
+   },
+   "usable": true
   },
   {
    "variant": "+長期トレンド",
    "IS": {
     "episodes": 162,
     "hit_rate": 0.11728395061728394,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.1039839613585447,
-    "avg_forward_gain": 0.28745141220681464,
-    "median_forward_gain": 0.1692177653312683,
-    "median_ret_60d": -0.04954153299331665,
-    "median_drawdown_after": -0.25046685338020325,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.1037846648280847,
+    "avg_forward_gain": 0.28745142214092206,
+    "median_forward_gain": 0.16921770572662354,
+    "median_ret_60d": -0.04954156279563904,
+    "median_drawdown_after": -0.2504667639732361,
     "pct_drawdown_worse_than_20": 0.6049382716049383
    },
    "OOS": {
     "episodes": 221,
     "hit_rate": 0.19909502262443438,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.6784095585369383,
-    "avg_forward_gain": 0.46006673853844404,
-    "median_forward_gain": 0.25256574153900146,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.677463689377376,
+    "avg_forward_gain": 0.4600667279834549,
+    "median_forward_gain": 0.2525656819343567,
     "median_ret_60d": 0.006817340850830078,
-    "median_drawdown_after": -0.1550397276878357,
+    "median_drawdown_after": -0.15503966808319092,
     "pct_drawdown_worse_than_20": 0.4298642533936652
    },
    "lead": {
     "matched_episodes": 126,
     "median_lead_days": 69.5,
     "pct_detected_before_or_at_start": 0.29365079365079366,
-    "median_remaining_gain": 0.17746301327176783
-   }
+    "median_remaining_gain": 0.17746299232512652
+   },
+   "usable": false
   },
   {
    "variant": "+高値圏(年初来高値の90%以上)",
    "IS": {
     "episodes": 102,
     "hit_rate": 0.12745098039215685,
-    "base_rate": 0.055743747467330296,
-    "lift": 2.286372663891174,
-    "avg_forward_gain": 0.2862166201367098,
-    "median_forward_gain": 0.14462876319885254,
-    "median_ret_60d": -0.06643694639205933,
-    "median_drawdown_after": -0.25012117624282837,
+    "base_rate": 0.055749028205255055,
+    "lift": 2.2861560908812932,
+    "avg_forward_gain": 0.2862166253959431,
+    "median_forward_gain": 0.14462894201278687,
+    "median_ret_60d": -0.06643691658973694,
+    "median_drawdown_after": -0.25012099742889404,
     "pct_drawdown_worse_than_20": 0.5784313725490197
    },
    "OOS": {
     "episodes": 175,
     "hit_rate": 0.22285714285714286,
-    "base_rate": 0.07433330051778511,
-    "lift": 2.998079478575308,
-    "avg_forward_gain": 0.5383608793390209,
+    "base_rate": 0.07435956028622462,
+    "lift": 2.9970207193173515,
+    "avg_forward_gain": 0.5383608719398235,
     "median_forward_gain": 0.28286945819854736,
-    "median_ret_60d": 0.013814687728881836,
-    "median_drawdown_after": -0.15130287408828735,
+    "median_ret_60d": 0.011281013488769531,
+    "median_drawdown_after": -0.1513027548789978,
     "pct_drawdown_worse_than_20": 0.42857142857142855
    },
    "lead": {
     "matched_episodes": 75,
     "median_lead_days": 71.0,
     "pct_detected_before_or_at_start": 0.30666666666666664,
-    "median_remaining_gain": 0.16079922634946042
-   }
+    "median_remaining_gain": 0.16079948149349055
+   },
+   "usable": false
   },
   {
    "variant": "+高値圏(年初来高値の97%以上)",
    "IS": {
     "episodes": 53,
     "hit_rate": 0.09433962264150944,
-    "base_rate": 0.055743747467330296,
-    "lift": 1.6923803462764861,
-    "avg_forward_gain": 0.2998834432296033,
+    "base_rate": 0.055749028205255055,
+    "lift": 1.6922200382430475,
+    "avg_forward_gain": 0.2998834544757627,
     "median_forward_gain": 0.15670371055603027,
     "median_ret_60d": -0.0327380895614624,
-    "median_drawdown_after": -0.21600008010864258,
+    "median_drawdown_after": -0.21600013971328735,
     "pct_drawdown_worse_than_20": 0.5660377358490566
    },
    "OOS": {
     "episodes": 98,
     "hit_rate": 0.25510204081632654,
-    "base_rate": 0.07433330051778511,
-    "lift": 3.431867534999208,
-    "avg_forward_gain": 0.5716935845068943,
+    "base_rate": 0.07435956028622462,
+    "lift": 3.430655585299166,
+    "avg_forward_gain": 0.5716935712614177,
     "median_forward_gain": 0.34291577339172363,
-    "median_ret_60d": 0.04617643356323242,
+    "median_ret_60d": 0.0461764931678772,
     "median_drawdown_after": -0.14124393463134766,
     "pct_drawdown_worse_than_20": 0.3877551020408163
    },
@@ -1200,28 +1203,29 @@
     "matched_episodes": 41,
     "median_lead_days": 73.0,
     "pct_detected_before_or_at_start": 0.24390243902439024,
-    "median_remaining_gain": 0.12400011260378019
-   }
+    "median_remaining_gain": 0.12399993979278134
+   },
+   "usable": true
   },
   {
    "variant": "+順位上昇(60日前は300位圏外)",
    "IS": {
     "episodes": 53,
     "hit_rate": 0.18867924528301888,
-    "base_rate": 0.055743747467330296,
-    "lift": 3.3847606925529723,
-    "avg_forward_gain": 0.39122429321397023,
-    "median_forward_gain": 0.20229268074035645,
-    "median_ret_60d": -0.15643960237503052,
+    "base_rate": 0.055749028205255055,
+    "lift": 3.384440076486095,
+    "avg_forward_gain": 0.39122428084319494,
+    "median_forward_gain": 0.2022925615310669,
+    "median_ret_60d": -0.15643954277038574,
     "median_drawdown_after": -0.34535104036331177,
     "pct_drawdown_worse_than_20": 0.8679245283018868
    },
    "OOS": {
     "episodes": 59,
     "hit_rate": 0.2542372881355932,
-    "base_rate": 0.07433330051778511,
-    "lift": 3.420234085728024,
-    "avg_forward_gain": 0.6081625188098234,
+    "base_rate": 0.07435956028622462,
+    "lift": 3.41902624433205,
+    "avg_forward_gain": 0.6081624919292974,
     "median_forward_gain": 0.255859375,
     "median_ret_60d": -0.13255524635314941,
     "median_drawdown_after": -0.3416594862937927,
@@ -1232,27 +1236,28 @@
     "median_lead_days": 77.0,
     "pct_detected_before_or_at_start": 0.16,
     "median_remaining_gain": 0.20926510525032116
-   }
+   },
+   "usable": false
   },
   {
    "variant": "+高値圏90% +順位上昇",
    "IS": {
     "episodes": 22,
     "hit_rate": 0.2727272727272727,
-    "base_rate": 0.055743747467330296,
-    "lift": 4.892517728326569,
-    "avg_forward_gain": 0.43733231587843463,
-    "median_forward_gain": 0.13405996561050415,
-    "median_ret_60d": -0.17821979522705078,
+    "base_rate": 0.055749028205255055,
+    "lift": 4.892054292375355,
+    "avg_forward_gain": 0.4373322969133204,
+    "median_forward_gain": 0.13405990600585938,
+    "median_ret_60d": -0.1782197654247284,
     "median_drawdown_after": -0.3802740275859833,
     "pct_drawdown_worse_than_20": 0.8181818181818182
    },
    "OOS": {
     "episodes": 38,
     "hit_rate": 0.2894736842105263,
-    "base_rate": 0.07433330051778511,
-    "lift": 3.8942665291885747,
-    "avg_forward_gain": 0.7386888656765223,
+    "base_rate": 0.07435956028622462,
+    "lift": 3.892891285213159,
+    "avg_forward_gain": 0.7386888284236193,
     "median_forward_gain": 0.3586340546607971,
     "median_ret_60d": -0.10818889737129211,
     "median_drawdown_after": -0.3296133875846863,
@@ -1263,42 +1268,208 @@
     "median_lead_days": 97.0,
     "pct_detected_before_or_at_start": 0.0,
     "median_remaining_gain": 0.012774991182817885
-   }
+   },
+   "usable": false
   }
  ],
  "watchlist": [
+  {
+   "code": "7735",
+   "name": "ＳＣＲＥＥＮホールディングス",
+   "検知日": "2026-07-06",
+   "検知時株価": 17860.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 22,
+   "平常時比": 2.26,
+   "年初来高値比": 0.916
+  },
+  {
+   "code": "6479",
+   "name": "ミネベアミツミ",
+   "検知日": "2026-06-24",
+   "検知時株価": 4922.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 56,
+   "平常時比": 2.41,
+   "年初来高値比": 0.974
+  },
+  {
+   "code": "8035",
+   "name": "東京エレクトロン",
+   "検知日": "2026-06-15",
+   "検知時株価": 72760.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 5,
+   "平常時比": 2.38,
+   "年初来高値比": 1.0
+  },
+  {
+   "code": "6779",
+   "name": "日本電波工業",
+   "検知日": "2026-06-10",
+   "検知時株価": 4270.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 75,
+   "平常時比": 8.56,
+   "年初来高値比": 0.884
+  },
+  {
+   "code": "5201",
+   "name": "ＡＧＣ",
+   "検知日": "2026-06-08",
+   "検知時株価": 7108.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 79,
+   "平常時比": 2.75,
+   "年初来高値比": 0.878
+  },
   {
    "code": "3687",
    "name": "フィックスターズ",
    "検知日": "2026-06-05",
    "検知時株価": 3635.0,
-   "現在値": 2144.0,
-   "検知後": -0.41,
+   "現在値": NaN,
+   "検知後": NaN,
    "売買代金順位": 33,
    "平常時比": 53.21,
    "年初来高値比": 1.0
   },
   {
+   "code": "6971",
+   "name": "京セラ",
+   "検知日": "2026-06-04",
+   "検知時株価": 3913.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 45,
+   "平常時比": 2.3,
+   "年初来高値比": 1.0
+  },
+  {
+   "code": "6762",
+   "name": "ＴＤＫ",
+   "検知日": "2026-06-03",
+   "検知時株価": 3950.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 25,
+   "平常時比": 2.21,
+   "年初来高値比": 0.962
+  },
+  {
+   "code": "7220",
+   "name": "武蔵精密工業",
+   "検知日": "2026-05-29",
+   "検知時株価": 9460.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 76,
+   "平常時比": 9.21,
+   "年初来高値比": 1.0
+  },
+  {
    "code": "3905",
    "name": "データセクション",
-   "検知日": "2026-05-27",
-   "検知時株価": 4435.0,
-   "現在値": 2328.0,
-   "検知後": -0.475,
-   "売買代金順位": 96,
-   "平常時比": 17.24,
-   "年初来高値比": 0.924
+   "検知日": "2026-05-26",
+   "検知時株価": 4720.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 48,
+   "平常時比": 34.33,
+   "年初来高値比": 0.983
+  },
+  {
+   "code": "3436",
+   "name": "ＳＵＭＣＯ",
+   "検知日": "2026-05-14",
+   "検知時株価": 3418.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 35,
+   "平常時比": 3.33,
+   "年初来高値比": 0.911
+  },
+  {
+   "code": "6758",
+   "name": "ソニーグループ",
+   "検知日": "2026-05-14",
+   "検知時株価": 3444.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 12,
+   "平常時比": 2.17,
+   "年初来高値比": 0.736
   },
   {
    "code": "278A",
    "name": "Ｔｅｒｒａ　Ｄｒｏｎｅ",
    "検知日": "2026-05-11",
    "検知時株価": 16400.0,
-   "現在値": 12690.0,
-   "検知後": -0.226,
+   "現在値": NaN,
+   "検知後": NaN,
    "売買代金順位": 93,
    "平常時比": 11.66,
    "年初来高値比": 1.0
+  },
+  {
+   "code": "6504",
+   "name": "富士電機",
+   "検知日": "2026-05-11",
+   "検知時株価": 15005.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 76,
+   "平常時比": 2.34,
+   "年初来高値比": 1.0
+  },
+  {
+   "code": "6981",
+   "name": "村田製作所",
+   "検知日": "2026-05-11",
+   "検知時株価": 5960.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 21,
+   "平常時比": 2.23,
+   "年初来高値比": 1.0
+  },
+  {
+   "code": "6861",
+   "name": "キーエンス",
+   "検知日": "2026-05-08",
+   "検知時株価": 84170.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 13,
+   "平常時比": 2.98,
+   "年初来高値比": 1.0
+  },
+  {
+   "code": "4519",
+   "name": "中外製薬",
+   "検知日": "2026-05-07",
+   "検知時株価": 8023.1,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 44,
+   "平常時比": 2.59,
+   "年初来高値比": 0.774
+  },
+  {
+   "code": "6526",
+   "name": "ソシオネクスト",
+   "検知日": "2026-04-30",
+   "検知時株価": 1859.0,
+   "現在値": NaN,
+   "検知後": NaN,
+   "売買代金順位": 55,
+   "平常時比": 3.82,
+   "年初来高値比": 0.539
   }
  ]
 }
