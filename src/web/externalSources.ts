@@ -57,14 +57,22 @@ export function disclosuresArchiveUrls(date: string): string[] {
 // sector-monitor は private なため、本リポジトリ(public)経由で配信する。
 // raw.githubusercontent.com は push 直後から反映される(CDN 5分キャッシュ)。
 // GitHub Pages(dist/data/)は次回ビルドまでラグがあるためフォールバック。
-export const SECTOR_JP_URL = [
-  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/sector_jp.json',
-  'https://itk03.github.io/Stock_sikin_ryunyu/data/sector_jp.json',
-];
-export const SECTOR_US_URL = [
-  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/sector_us.json',
-  'https://itk03.github.io/Stock_sikin_ryunyu/data/sector_us.json',
-];
+//
+// bust=true は「更新ボタン」など明示的な再取得のときだけ付ける。raw も Pages も
+// CDN が5分キャッシュするため、クエリを変えないと押しても同じ内容が返ってくる
+// (fetch の cache:'no-store' はブラウザキャッシュしか無効化できない)。
+// 常時付けると数MBのJSONがタブ切替のたびに再転送されるので既定は false。
+export function sectorUrls(region: Region, bust = false): string[] {
+  const file = region === 'US' ? 'sector_us.json' : 'sector_jp.json';
+  const q = bust ? `?t=${Date.now()}` : '';
+  return [
+    `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/${file}${q}`,
+    `https://itk03.github.io/Stock_sikin_ryunyu/data/${file}${q}`,
+  ];
+}
+
+export const SECTOR_JP_URL = sectorUrls('JP');
+export const SECTOR_US_URL = sectorUrls('US');
 
 // スイングスクリーナー(swing/ で生成 → 本リポジトリ public/data/ にコミット)。
 // swing-screener ワークフローが commit するため、raw を優先(push直後に反映)し

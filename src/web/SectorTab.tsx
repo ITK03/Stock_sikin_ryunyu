@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Region, SectorEntry, SectorFile } from '../core/types';
 import { sortSectorsByStrength } from '../core/sectorStrength';
 import { useLazyExternalJson } from './externalData';
-import { SECTOR_JP_URL, SECTOR_US_URL } from './externalSources';
+import { sectorUrls } from './externalSources';
 import { SAMPLE_SECTOR_JP, SAMPLE_SECTOR_US } from '../data/sampleSector';
 import { relTime, signedPct } from './format';
 import { TierBadge } from './TierBadge';
@@ -26,6 +26,9 @@ const PAGE_SIZE = 40;
 type SectorSort = 'strength' | 'change';
 
 const SORT_KEY = 'sectorSort';
+
+/** アプリ復帰時の自動再取得の最短間隔。数MBのJSONなので取りに行きすぎないようにする。 */
+const REFETCH_MIN_INTERVAL_MS = 20 * 60 * 1000;
 
 function changeClass(v: number | null | undefined): string {
   if (v === null || v === undefined) return 'chg-flat';
@@ -61,23 +64,68 @@ export function SectorTab({ onSelectCode, focus }: Props) {
   const [sectorSort, setSectorSort] = useState<SectorSort>(
     () => (localStorage.getItem(SORT_KEY) as SectorSort) || 'strength',
   );
+  const [toast, setToast] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const lastFetchRef = useRef<Partial<Record<Region, number>>>({});
   const watchlist = useWatchlist();
 
   // JP/USはタブ切替時に初めて取得する遅延fetch。数MB規模になり得るため、
   // 選択中の市場だけ enabled にする(両方を初期表示で読み込まない)。
   const jpState = useLazyExternalJson<SectorFile>({
     cacheKey: 'ext:sector_jp',
-    urls: SECTOR_JP_URL,
+    urls: (bust) => sectorUrls('JP', bust),
     sampleData: SAMPLE_SECTOR_JP,
     enabled: market === 'JP',
   });
   const usState = useLazyExternalJson<SectorFile>({
     cacheKey: 'ext:sector_us',
-    urls: SECTOR_US_URL,
+    urls: (bust) => sectorUrls('US', bust),
     sampleData: SAMPLE_SECTOR_US,
     enabled: market === 'US',
   });
-  const { data, loading, error, sample, reload } = market === 'JP' ? jpState : usState;
+  const { data, loading, error, sample, reload, refresh } = market === 'JP' ? jpState : usState;
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2200);
+  };
+
+  // 更新ボタン: 生成側(sector-monitor)は決まった時刻にしかスナップショットを作らない。
+  // 押せば必ず新しい値が出る、という誤解を与えないよう、取得後に「更新できたのか
+  // すでに最新だったのか」を事実として出す(資金流入タブと同じ方針)。
+  const onRefresh = async () => {
+    setRefreshing(true);
+    lastFetchRef.current[market] = Date.now();
+    const before = data?.generated_at;
+    try {
+      const next = await refresh();
+      if (!next) flash('更新に失敗しました');
+      else if (next.generated_at && next.generated_at !== before) flash('最新データに更新しました');
+      else flash(`すでに最新です(${relTime(next.generated_at)}時点)`);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // アプリに戻ってきたときに取り直す(モバイルで開きっぱなしにしたまま翌日見る使い方でも
+  // 前日の値を掴んだままにならないように)。
+  // ただしセクターJSONは数MBあるため、復帰のたびに再取得すると通信量が無駄になる。
+  // 「生成時刻の古さ」ではなく「自分が最後に取りに行ってからの経過時間」で間引く
+  // (生成は1日3回なので、生成時刻で判定するとほぼ常に古い扱いになってしまう)。
+  useEffect(() => {
+    lastFetchRef.current[market] = Date.now();
+  }, [market]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - (lastFetchRef.current[market] ?? 0) < REFETCH_MIN_INTERVAL_MS) return;
+      lastFetchRef.current[market] = Date.now();
+      void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [market, refresh]);
 
   // 銘柄詳細からのジャンプ指示: 市場を合わせ、該当セクターで絞り込み+展開する。
   useEffect(() => {
@@ -199,8 +247,23 @@ export function SectorTab({ onSelectCode, focus }: Props) {
         <div className="sector-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
           {data && <span className="asof-date">{relTime(data.generated_at)}更新</span>}
+          <button
+            className={refreshing ? 'btn-icon spin' : 'btn-icon'}
+            onClick={onRefresh}
+            disabled={refreshing || sample}
+            aria-label="最新データに更新"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor"
+                strokeWidth="2.2" strokeLinecap="round" />
+              <path d="M20 4v5h-5" fill="none" stroke="currentColor"
+                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       </div>
+
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       {(allSectors.length > 15 || query !== '') && (
         <input

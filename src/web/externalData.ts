@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // 他リポジトリ(Stock_open_news / sector-monitor)が公開する JSON を取得する共通ロジック。
 // - 候補URLを順に試し、失敗したら次へ。全滅したらエラーを呼び出し側へ伝える。
@@ -186,12 +186,33 @@ function loadOnce<T>(cacheKey: string, urls: string[]): Promise<T> {
   return p;
 }
 
+/**
+ * 取得先URLの指定。関数を渡すと「キャッシュ破棄つき再取得か(bust)」を受け取れる。
+ * raw.githubusercontent.com は CDN が5分キャッシュするため、fetch の `cache: 'no-store'`
+ * (ブラウザキャッシュを無効化するだけ)では更新ボタンを押しても古い内容が返りうる。
+ * 明示更新時だけクエリを付けて確実に CDN を抜ける、という使い分けのために関数を許す。
+ */
+export type UrlSource = string[] | ((bust: boolean) => string[]);
+
+function resolveUrls(src: UrlSource, bust: boolean): string[] {
+  return typeof src === 'function' ? src(bust) : src;
+}
+
 interface UseLazyExternalJsonOptions<T> {
   cacheKey: string;
-  urls: string[];
+  urls: UrlSource;
   sampleData: T;
   /** true になった時点で初めて取得を開始する(遅延fetch)。false の間は idle 状態のまま。 */
   enabled: boolean;
+}
+
+export interface LazyExternalDataState<T> extends ExternalDataState<T> {
+  /**
+   * キャッシュ(メモリ/CDN)を無視して取り直し、取得できた値を返す(失敗時 null)。
+   * 「更新しました」なのか「すでに最新でした」なのかを呼び出し側が事実として
+   * 表示できるよう、reload と違い結果を Promise で返す。
+   */
+  refresh: () => Promise<T | null>;
 }
 
 /**
@@ -205,17 +226,51 @@ export function useLazyExternalJson<T>({
   urls,
   sampleData,
   enabled,
-}: UseLazyExternalJsonOptions<T>): ExternalDataState<T> {
+}: UseLazyExternalJsonOptions<T>): LazyExternalDataState<T> {
   const sample = isSampleMode();
   const [data, setData] = useState<T | null>(sample ? sampleData : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nonce, setNonce] = useState(0);
 
-  const reload = useCallback(() => {
-    memCache.delete(cacheKey);
-    setNonce((n) => n + 1);
-  }, [cacheKey]);
+  // 走っている取得のうち最新のものだけが state を更新する(世代カウンタ)。
+  const genRef = useRef(0);
+  const aliveRef = useRef(true);
+  // urls は呼び出し側でインライン生成されうるので ref 経由で読む(run の再生成を防ぐ)。
+  const urlsRef = useRef(urls);
+  urlsRef.current = urls;
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  const run = useCallback(
+    (bust: boolean): Promise<T | null> => {
+      if (sample) return Promise.resolve(sampleData);
+      const gen = ++genRef.current;
+      if (bust) memCache.delete(cacheKey);
+      setLoading(true);
+      setError(null);
+      return loadOnce<T>(cacheKey, resolveUrls(urlsRef.current, bust))
+        .then((v) => {
+          if (!aliveRef.current || gen !== genRef.current) return null;
+          setData(v);
+          setLoading(false);
+          return v;
+        })
+        .catch((e: unknown) => {
+          if (!aliveRef.current || gen !== genRef.current) return null;
+          setError(e instanceof Error ? e.message : String(e));
+          setLoading(false);
+          return null;
+        });
+    },
+    // sampleData は初回描画時の固定値のみ使う(依存に入れると毎描画で run が変わる)。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cacheKey, sample],
+  );
 
   useEffect(() => {
     if (sample) {
@@ -225,25 +280,14 @@ export function useLazyExternalJson<T>({
       return;
     }
     if (!enabled) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    loadOnce<T>(cacheKey, urls)
-      .then((v) => {
-        if (cancelled) return;
-        setData(v);
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    void run(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheKey, enabled, sample, nonce]);
+  }, [cacheKey, enabled, sample, run]);
 
-  return { data, loading, error, sample, reload };
+  const reload = useCallback(() => {
+    void run(true);
+  }, [run]);
+  const refresh = useCallback(() => run(true), [run]);
+
+  return { data, loading, error, sample, reload, refresh };
 }
