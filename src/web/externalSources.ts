@@ -21,25 +21,35 @@ export function rankingsUrls(region: Region, bust = false): string[] {
   ];
 }
 
-// 開示の最新版(Stock_open_news): リポジトリ肥大化対策で「data」orphanブランチ
-// (force-push配信)へ移行済み。raw のdataブランチを読む。旧Pages URLは
-// フォールバックとして残す(移行前の環境でも動くように)。
+// 開示データの配信元。
+//
+// 生成元の Stock_open_news は非公開リポジトリのため、raw も GitHub Pages も
+// ブラウザからは読めない(リポジトリ単位で404)。そこで生成側のワークフローが
+// 配信ぶんだけを本リポジトリ(公開)の `data-disclosures` ブランチへ同期し、
+// ダッシュボードはそこから読む。セクターデータと同じ方式。
+//
+// 旧URL(Stock_open_news の raw / Pages)はフォールバックとして残す:
+// 生成元を再び公開に戻した場合はそちらでも動く。
+const DISCLOSURES_BRANCH =
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data-disclosures';
+
 export const DISCLOSURES_URLS = [
+  `${DISCLOSURES_BRANCH}/disclosures.json`,
   'https://raw.githubusercontent.com/ITK03/Stock_open_news/data/disclosures.json',
   'https://itk03.github.io/Stock_open_news/data/disclosures.json',
 ];
 
 // 開示の日付別アーカイブ索引(過去日に遡って閲覧するための日付一覧)。
 export const DISCLOSURES_ARCHIVE_INDEX_URLS = [
+  `${DISCLOSURES_BRANCH}/archive/index.json`,
   'https://itk03.github.io/Stock_open_news/data/archive/index.json',
-  'https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/archive/index.json',
 ];
 
 /** 指定日(YYYY-MM-DD)の開示アーカイブの候補URL。disclosures.json と同形。 */
 export function disclosuresArchiveUrls(date: string): string[] {
   return [
+    `${DISCLOSURES_BRANCH}/archive/${date}.json`,
     `https://itk03.github.io/Stock_open_news/data/archive/${date}.json`,
-    `https://raw.githubusercontent.com/ITK03/Stock_open_news/main/docs/data/archive/${date}.json`,
   ];
 }
 
@@ -79,8 +89,13 @@ export const TICKER_INDEX_URL = [
   'https://itk03.github.io/Stock_sikin_ryunyu/data/ticker_index.json',
 ];
 
-/** 開示レーダー本家(Stock_open_news の GitHub Pages)。 */
-export const DISCLOSURE_RADAR_URL = 'https://itk03.github.io/Stock_open_news/';
+/**
+ * 開示レーダー本家(Stock_open_news の GitHub Pages)。
+ * 生成元リポジトリを非公開にしたため Pages は配信されない(404)。
+ * 空文字にするとヘッダーのリンク自体が表示されない。
+ * 再び公開に戻した場合はURLを書き戻せばリンクが復活する。
+ */
+export const DISCLOSURE_RADAR_URL = '';
 
 /**
  * リアルタイム版セクターモニター(Streamlit)の公開URL。

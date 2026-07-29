@@ -112,9 +112,11 @@ export function App() {
       </header>
 
       <nav className="ext-links">
-        <a className="link" href={DISCLOSURE_RADAR_URL} target="_blank" rel="noreferrer">
-          開示レーダー本家
-        </a>
+        {DISCLOSURE_RADAR_URL && (
+          <a className="link" href={DISCLOSURE_RADAR_URL} target="_blank" rel="noreferrer">
+            開示レーダー本家
+          </a>
+        )}
         {SECTOR_MONITOR_STREAMLIT_URL && (
           <a className="link" href={SECTOR_MONITOR_STREAMLIT_URL} target="_blank" rel="noreferrer">
             セクターモニター(リアルタイム)
