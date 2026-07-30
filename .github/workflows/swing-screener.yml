@@ -13,6 +13,12 @@ on:
   schedule:
     - cron: "0 8,13,23 * * 1-5"
   workflow_dispatch: {}
+  # .github/swing-kick を更新する push でも起動する(Actions画面を開けない環境からの
+  # 手動キック用。ファイルの中身は任意で、日時などを書き換えて commit すればよい)。
+  # data ブランチへの publish は [skip ci] かつ main を触らないため連鎖はしない。
+  push:
+    branches: [main]
+    paths: [".github/swing-kick"]
 
 permissions:
   contents: write

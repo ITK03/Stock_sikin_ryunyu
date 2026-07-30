@@ -1,0 +1,4 @@
+# スイングスクリーナーの手動キック用ファイル。
+# この行を書き換えて main に commit すると Swing Screener が起動する。
+# (Actions画面を開けないスマホからでも、GitHubのWeb編集で起動できる)
+last-kick: 2026-07-31T09:05+09:00
