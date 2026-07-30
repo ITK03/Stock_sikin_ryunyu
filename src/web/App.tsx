@@ -7,6 +7,7 @@ import { useExternalJson } from './externalData';
 import { DISCLOSURES_URLS, DISCLOSURE_RADAR_URL, SECTOR_MONITOR_STREAMLIT_URL } from './externalSources';
 import { SAMPLE_DISCLOSURES } from '../data/sampleDisclosures';
 import { WatchlistProvider } from './watchlist';
+import { StatusNoticeProvider, useStatusNotices } from './statusNotice';
 
 // 起動時に表示するのはホーム(概況)タブのみでよいため、他タブと銘柄詳細・検索は
 // タブ単位で遅延読み込みして初期バンドルを小さくする(モバイル回線での体感改善)。
@@ -45,6 +46,27 @@ function loadMainTab(): MainTabKey {
   } catch {
     return DEFAULT_TAB;
   }
+}
+
+/**
+ * 最上部バーの警告帯。表示中のタブに関係するものだけを出す。
+ * キーは "タブ名:識別子" 形式(接頭辞なしのキーは常に表示される全体向け通知)。
+ * 各タブは表示していない間もマウントされたままなので、この絞り込みが無いと
+ * 別タブの警告が出っぱなしになる。
+ */
+function AppBarNotices({ tab }: { tab: MainTabKey }) {
+  const notices = useStatusNotices().filter((n) => {
+    const i = n.key.indexOf(':');
+    return i < 0 || n.key.slice(0, i) === tab;
+  });
+  if (notices.length === 0) return null;
+  return (
+    <div className="appbar-notices" role="status">
+      {notices.map((n) => (
+        <span key={n.key} className={`appbar-notice ${n.tone}`}>{n.text}</span>
+      ))}
+    </div>
+  );
 }
 
 export function App() {
@@ -90,25 +112,29 @@ export function App() {
 
   return (
     <WatchlistProvider>
+    <StatusNoticeProvider>
     <div className="screen">
       <header className="appbar">
-        <div className="brand">
-          <Logo />
-          <div>
-            <h1>{TITLE[mainTab]}</h1>
+        <div className="appbar-row">
+          <div className="brand">
+            <Logo />
+            <div>
+              <h1>{TITLE[mainTab]}</h1>
+            </div>
           </div>
+          <button
+            type="button"
+            className="header-search-btn"
+            onClick={() => setSearchOpen(true)}
+            aria-label="銘柄を検索"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2.2" />
+              <path d="M20 20l-4.3-4.3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
-        <button
-          type="button"
-          className="header-search-btn"
-          onClick={() => setSearchOpen(true)}
-          aria-label="銘柄を検索"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2.2" />
-            <path d="M20 20l-4.3-4.3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-          </svg>
-        </button>
+        <AppBarNotices tab={mainTab} />
       </header>
 
       <nav className="ext-links">
@@ -182,6 +208,7 @@ export function App() {
         </Suspense>
       )}
     </div>
+    </StatusNoticeProvider>
     </WatchlistProvider>
   );
 }

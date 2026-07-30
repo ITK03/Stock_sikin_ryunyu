@@ -45,11 +45,33 @@ body {
 
 /* ---------- App bar ---------- */
 .appbar {
+  padding: calc(8px + env(safe-area-inset-top)) 2px 8px;
+}
+.appbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(8px + env(safe-area-inset-top)) 2px 8px;
+}
+
+/* データ遅延・サンプル表示などの警告帯。タブ内に置くとスクロールで流れて
+   見落とすため、最上部に固定して出す。表示中のタブの分だけを出す(App.tsx)。 */
+.appbar-notices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; padding: 0 2px; }
+.appbar-notice {
+  font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+}
+.appbar-notice.warn {
+  color: var(--gold); background: rgba(246, 198, 82, 0.14);
+  border: 1px solid rgba(246, 198, 82, 0.4);
+}
+.appbar-notice.info {
+  color: var(--accent-2); background: var(--surface-2); border: 1px solid var(--line);
+}
+
+/* 一覧・カードとも銘柄コードを銘柄名の前に置く(発注時に見る順序に合わせる) */
+.name-code {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums; margin-right: 6px;
 }
 
 .brand { display: flex; align-items: center; gap: 9px; }
@@ -1304,7 +1326,8 @@ button.sector-jump:active { opacity: 0.7; }
 .swing-compact .r-rank { width: 19px; font-size: 11.5px; }
 .swing-compact .r-code { width: 34px; font-size: 10px; }
 .swing-limit {
-  flex: none; width: 64px; text-align: right; white-space: nowrap;
+  /* 5桁+小数(例 23,641.2円)でも＋ボタンに食い込まない幅を確保する */
+  flex: none; width: 76px; text-align: right; white-space: nowrap;
   font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums;
   color: var(--accent);
 }

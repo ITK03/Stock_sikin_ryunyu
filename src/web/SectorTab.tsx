@@ -5,6 +5,7 @@ import { useLazyExternalJson } from './externalData';
 import { sectorUrls } from './externalSources';
 import { SAMPLE_SECTOR_JP, SAMPLE_SECTOR_US } from '../data/sampleSector';
 import { relTime, signedPct } from './format';
+import { useStatusNotice } from './statusNotice';
 import { TierBadge } from './TierBadge';
 import { WatchStar, useWatchlist } from './watchlist';
 
@@ -84,6 +85,16 @@ export function SectorTab({ onSelectCode, focus }: Props) {
     enabled: market === 'US',
   });
   const { data, loading, error, sample, reload, refresh } = market === 'JP' ? jpState : usState;
+
+  // セクターは生成が1日数回のため「昨日の値を今日の値だと思って見る」事故が起きやすい。
+  // 生成が2日以上止まっていたら最上部バーに出す(実際に2週間止まったことがある)。
+  const staleDays = data?.generated_at
+    ? Math.floor((Date.now() - Date.parse(data.generated_at)) / 86_400_000)
+    : 0;
+  useStatusNotice(
+    'sector:data',
+    sample ? 'サンプル表示' : staleDays >= 2 ? `データが${staleDays}日前から更新されていません` : null,
+  );
 
   const flash = (msg: string) => {
     setToast(msg);

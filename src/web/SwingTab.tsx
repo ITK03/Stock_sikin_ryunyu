@@ -5,6 +5,7 @@ import { SWING_SIGNALS_URLS } from './externalSources';
 import { priceText, relTime } from './format';
 import { SwingPaperLogView } from './SwingPaperLog';
 import { SwingPositions, type PositionPrefill } from './SwingPositions';
+import { useStatusNotice } from './statusNotice';
 import { WatchStar } from './watchlist';
 
 // スイングタブ。Twitter_Master 由来のスクリーナーが出力する signals.json を表示する。
@@ -79,6 +80,16 @@ export function SwingTab({ onSelectCode }: Props) {
     setListMode(m);
     localStorage.setItem(MODE_KEY, m);
   };
+
+  // 遅延・サンプル表示は最上部バーに出す(タブ内だとスクロールで隠れてしまう)。
+  useStatusNotice(
+    'swing:data',
+    sample
+      ? 'サンプル表示'
+      : data && data.status !== 'ok'
+      ? `データ遅延の可能性${data.status_reason ? `(${data.status_reason})` : ''}`
+      : null,
+  );
   // 買い候補タップで保有ポジションフォームへ前埋めする受け渡し用。
   const [prefill, setPrefill] = useState<PositionPrefill | null>(null);
 
@@ -246,8 +257,8 @@ export function SwingTab({ onSelectCode }: Props) {
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectCode(c.code)}
               >
                 <span className="r-rank">{c.priority}</span>
-                <span className="r-name">{c.name}</span>
                 <span className="r-code">{c.code}</span>
+                <span className="r-name">{c.name}</span>
                 <span className="swing-limit">{priceText(c.limit_price ?? c.close, 'JP')}</span>
                 <button
                   type="button"
@@ -282,10 +293,12 @@ export function SwingTab({ onSelectCode }: Props) {
                 <div className="card-top">
                   <span className="rankbadge">{c.priority}</span>
                   <div className="ident">
-                    <div className="name">{c.name}</div>
+                    <div className="name">
+                      <span className="name-code">{c.code}</span>
+                      {c.name}
+                    </div>
                     <div className="sub">
                       <WatchStar code={c.code} />
-                      <span className="code">{c.code}</span>
                       <span className="swing-rank-label">{c.rank_label}</span>
                     </div>
                   </div>
@@ -363,22 +376,14 @@ export function SwingTab({ onSelectCode }: Props) {
 
         {view === 'signals' && (
           <>
-            {/* 一覧表示では縦を候補に譲るため、この行は警告があるときだけ出す
-                (基準日・発注日は買い候補の見出しに、更新時刻はフッターに出ている)。
-                サンプル表示とデータ遅延の警告は見落とすと判断を誤るので常に残す。 */}
-            {(listMode === 'detail' || sample || (data && data.status !== 'ok')) && (
+            {/* 遅延・サンプルの警告は最上部バーへ集約した(useStatusNotice)。
+                ここに置くとスクロールで流れて見えなくなるため。
+                一覧表示では基準日・発注日は買い候補の見出しに出るのでこの行ごと省く。 */}
+            {listMode === 'detail' && (
               <div className="swing-status">
-                {sample && <span className="chip sample-chip">サンプル</span>}
-                {data && data.status !== 'ok' && (
-                  <span className="swing-badge warn">
-                    データ遅延の可能性{data.status_reason ? `(${data.status_reason})` : ''}
-                  </span>
-                )}
-                {listMode === 'detail' && (
-                  <span className="asof-date">
-                    {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
-                  </span>
-                )}
+                <span className="asof-date">
+                  {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
+                </span>
               </div>
             )}
 
