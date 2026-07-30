@@ -36,16 +36,18 @@ jobs:
         run: pip install -r swing/requirements.txt
       - name: Unit tests (screener)
         working-directory: swing
-        run: python -m pytest tests/test_screener.py -q
+        run: python -m pytest tests/test_screener.py tests/test_publish_guard.py -q
       - name: Seed paper_log from data branch (積み上げ状態の継続性)
         run: |
           set -eu
           # paper_log は積み上げ式の状態。前回分を data ブランチから取り込んでから
           # スクリーナーに更新させる(dataブランチが無い初回は main のseedを使う)。
+          # あわせて公開中の signals.json も取っておく(退行チェックで使う)。
           if git ls-remote --exit-code origin data >/dev/null 2>&1; then
             sha="$(git ls-remote origin data | cut -f1)"
             git fetch -q origin data || true
             git show "${sha}:paper_log.json" > swing/site/data/paper_log.json 2>/dev/null || true
+            git show "${sha}:signals.json" > /tmp/published_signals.json 2>/dev/null || true
           fi
       - name: Run screener
         working-directory: swing
@@ -59,6 +61,27 @@ jobs:
           # force-push する。履歴は常に1コミット=main/dataとも無限肥大化しない。
           test -s swing/site/data/signals.json
           test -s swing/site/data/paper_log.json
+
+          # 退行チェック: yfinance が最終営業日ぶんを返さないことがあり、そのまま
+          # 公開すると新しいデータを古いデータで上書きしてしまう。実際 2026-07-30 に
+          # 19:25JSTの実行(data_date=07-30)を 00:11JSTの実行(07-29)が巻き戻した。
+          # 古い場合は公開を見送り、次の実行(1日3回)に任せる。
+          if ! python swing/screener/publish_guard.py \
+                 swing/site/data/signals.json /tmp/published_signals.json; then
+            new_date="$(python -c "import json;print(json.load(open('swing/site/data/signals.json'))['data_date'])")"
+            old_date="$(python -c "import json;print(json.load(open('/tmp/published_signals.json'))['data_date'])")"
+            echo "::warning::取得データが公開中より古いため公開を見送りました(取得 ${new_date} < 公開中 ${old_date})。次回の実行で再取得します。"
+            {
+              echo "## 公開を見送りました(退行防止)"
+              echo ""
+              echo "- 今回取得: \`${new_date}\`"
+              echo "- 公開中: \`${old_date}\`"
+              echo ""
+              echo "yfinance が最終営業日ぶんを返さなかったためです。異常ではありません。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           TMP="$(mktemp -d)"
           cp swing/site/data/signals.json swing/site/data/paper_log.json "$TMP"/
           cd "$TMP"
