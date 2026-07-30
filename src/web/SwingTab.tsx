@@ -24,6 +24,13 @@ const VIEW_LABEL: Record<SwingView, string> = {
   paperlog: '検証ログ',
 };
 
+/** 買い候補の表示密度。compact は「どの銘柄をいくらで買うか」だけに絞り全件を1画面に収める。 */
+type ListMode = 'detail' | 'compact';
+
+// 表示の好みは端末に保持する(タブを開き直すたびに畳み直す/開き直すのは手間なので)。
+const INFO_KEY = 'swingShowInfo';
+const MODE_KEY = 'swingListMode';
+
 const EMPTY_FEED: SwingSignalsFeed = {
   version: 1,
   generated_at: '',
@@ -56,6 +63,22 @@ export function SwingTab({ onSelectCode }: Props) {
   const [stratId, setStratId] = useState<string | null>(null);
   const [showRule, setShowRule] = useState(false);
   const [showRisks, setShowRisks] = useState(false);
+  // 手法の説明は既定で畳む。毎回同じ説明を読む必要はなく、画面の大半を占めていたため。
+  const [showInfo, setShowInfo] = useState<boolean>(() => localStorage.getItem(INFO_KEY) === '1');
+  const [listMode, setListMode] = useState<ListMode>(
+    () => (localStorage.getItem(MODE_KEY) as ListMode) || 'detail',
+  );
+
+  const toggleInfo = () =>
+    setShowInfo((v) => {
+      localStorage.setItem(INFO_KEY, v ? '0' : '1');
+      return !v;
+    });
+
+  const changeListMode = (m: ListMode) => {
+    setListMode(m);
+    localStorage.setItem(MODE_KEY, m);
+  };
   // 買い候補タップで保有ポジションフォームへ前埋めする受け渡し用。
   const [prefill, setPrefill] = useState<PositionPrefill | null>(null);
 
@@ -113,9 +136,21 @@ export function SwingTab({ onSelectCode }: Props) {
 
     return (
       <>
-        {/* 戦略の概要とバックテスト成績 */}
-        <div className="swing-meta">
-          <div className="swing-meta-name">{selected.display_name}</div>
+        {/* 戦略の概要とバックテスト成績。既定では畳んでおき、見出し行だけを残す。
+            畳んでいても「どの戦略か」「期待値と勝率」は判断に要るので1行だけ出す。 */}
+        <div className={showInfo ? 'swing-meta' : 'swing-meta collapsed'}>
+          <button className="swing-meta-head" onClick={toggleInfo} aria-expanded={showInfo}>
+            <span className="swing-meta-name">{selected.display_name}</span>
+            {!showInfo && (
+              <span className="swing-meta-glance">
+                {oos.avg_ret !== undefined && `期待値${signedPctText(oos.avg_ret, 2)}・`}
+                勝率{pctText(oos.win_rate)}
+              </span>
+            )}
+            <span className="swing-meta-caret" aria-hidden>{showInfo ? '▲' : '▼'}</span>
+          </button>
+          {showInfo && (
+          <>
           <p className="swing-desc">{selected.description}</p>
           <div className="swing-stats">
             {oos.avg_ret !== undefined && (
@@ -169,14 +204,70 @@ export function SwingTab({ onSelectCode }: Props) {
               ))}
             </ul>
           )}
+          </>
+          )}
         </div>
 
         {/* 翌営業日の買い候補 */}
-        <h3 className="swing-section-title">
-          買い候補({selected.buy_candidates.length}) ・ {data?.trade_date} に指値
-        </h3>
+        <div className={listMode === 'compact' ? 'swing-sec-head dense' : 'swing-sec-head'}>
+          <h3 className="swing-section-title">
+            買い候補({selected.buy_candidates.length}) ・ {data?.trade_date}
+            {listMode === 'detail' ? ' に指値' : ' 発注'}
+          </h3>
+          <nav className="segmented swing-mode-seg" role="group" aria-label="買い候補の表示">
+            <button
+              className={listMode === 'detail' ? 'seg-btn active' : 'seg-btn'}
+              onClick={() => changeListMode('detail')}
+              aria-pressed={listMode === 'detail'}
+            >
+              詳細
+            </button>
+            <button
+              className={listMode === 'compact' ? 'seg-btn active' : 'seg-btn'}
+              onClick={() => changeListMode('compact')}
+              aria-pressed={listMode === 'compact'}
+            >
+              一覧
+            </button>
+          </nav>
+        </div>
         {selected.buy_candidates.length === 0 ? (
           <p className="empty">本日は条件を満たす買い候補がありません。</p>
+        ) : listMode === 'compact' ? (
+          // 一覧: 「銘柄」と「いくらで買うか」だけ。全候補を1画面に収めるための表示。
+          <ol className="rows swing-compact">
+            {selected.buy_candidates.map((c) => (
+              <li
+                key={c.code}
+                className="row row-tap"
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectCode(c.code)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectCode(c.code)}
+              >
+                <span className="r-rank">{c.priority}</span>
+                <span className="r-name">{c.name}</span>
+                <span className="r-code">{c.code}</span>
+                <span className="swing-limit">{priceText(c.limit_price ?? c.close, 'JP')}</span>
+                <button
+                  type="button"
+                  className="swing-add-mini"
+                  aria-label={`${c.name}を保有に追加`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startAddPosition({
+                      strategyId: selected.id,
+                      code: c.code,
+                      name: c.name,
+                      price: c.limit_price ?? c.close,
+                    });
+                  }}
+                >
+                  ＋
+                </button>
+              </li>
+            ))}
+          </ol>
         ) : (
           <ul className="cards">
             {selected.buy_candidates.map((c) => (
@@ -272,17 +363,24 @@ export function SwingTab({ onSelectCode }: Props) {
 
         {view === 'signals' && (
           <>
-            <div className="swing-status">
-              {sample && <span className="chip sample-chip">サンプル</span>}
-              {data && data.status !== 'ok' && (
-                <span className="swing-badge warn">
-                  データ遅延の可能性{data.status_reason ? `(${data.status_reason})` : ''}
-                </span>
-              )}
-              <span className="asof-date">
-                {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
-              </span>
-            </div>
+            {/* 一覧表示では縦を候補に譲るため、この行は警告があるときだけ出す
+                (基準日・発注日は買い候補の見出しに、更新時刻はフッターに出ている)。
+                サンプル表示とデータ遅延の警告は見落とすと判断を誤るので常に残す。 */}
+            {(listMode === 'detail' || sample || (data && data.status !== 'ok')) && (
+              <div className="swing-status">
+                {sample && <span className="chip sample-chip">サンプル</span>}
+                {data && data.status !== 'ok' && (
+                  <span className="swing-badge warn">
+                    データ遅延の可能性{data.status_reason ? `(${data.status_reason})` : ''}
+                  </span>
+                )}
+                {listMode === 'detail' && (
+                  <span className="asof-date">
+                    {data?.data_date || '—'} 基準 ・ {data?.trade_date || '—'} 発注 ・ {data?.universe_count ?? 0}銘柄
+                  </span>
+                )}
+              </div>
+            )}
 
             {strategies.length > 0 && (
               <nav className="segmented" role="tablist" aria-label="戦略">

@@ -232,6 +232,24 @@ class TestExpectedValueOrdering:
         assert all(a is not None for a in avg), "全戦略に avg_ret が必要"
         assert avg == sorted(avg, reverse=True), f"期待値の降順になっていない: {avg}"
 
+    def test_candidate_count_matches_max_positions(self):
+        """掲載する買い候補数が保有上限と一致すること。
+
+        以前は10件に固定されており、max_positions=20 にしても枠を埋められなかった。
+        """
+        from pathlib import Path
+        from screener.run import build_json, load_registry
+        reg = load_registry(Path("screener/registry.yaml"))
+        payload = build_json(self._prices(n_tickers=200), reg)
+        for s in payload["strategies"]:
+            cap = next(e.meta["engine"]["max_positions"] for e in reg if e.id == s["id"])
+            assert len(s["buy_candidates"]) <= cap
+            prios = [c["priority"] for c in s["buy_candidates"]]
+            assert prios == list(range(1, len(prios) + 1)), f"{s['id']}: 優先順位が連番でない"
+        # 候補が上限に達する戦略が最低1つはある(= 10件で頭打ちになっていない)
+        assert any(len(s["buy_candidates"]) > 10 for s in payload["strategies"]), \
+            "どの戦略も候補が10件を超えず、上限緩和が効いていない"
+
     def test_all_registry_entries_have_avg_ret_and_20_positions(self):
         """並び替えキーの欠落と、銘柄数設定の取りこぼしを防ぐ。"""
         import yaml

@@ -1269,7 +1269,56 @@ button.sector-jump:active { opacity: 0.7; }
   padding: 13px 14px;
   margin: 4px 0 14px;
 }
+/* 畳んだときは見出し行だけの薄い帯にする(候補一覧に画面を明け渡す) */
+.swing-meta.collapsed { padding: 0; margin: 4px 0 10px; }
+.swing-meta-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 0; border: 0; background: none; color: inherit;
+  text-align: left; cursor: pointer; font: inherit;
+}
+.swing-meta.collapsed .swing-meta-head { padding: 9px 12px; }
+.swing-meta-head:active { transform: scale(0.995); }
+.swing-meta-glance {
+  flex: none; margin-left: auto; font-size: 11px; font-weight: 700;
+  color: var(--accent-2); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.swing-meta-caret { flex: none; font-size: 9px; color: var(--muted); }
 .swing-meta-name { font-size: 15px; font-weight: 800; letter-spacing: 0.01em; }
+.swing-meta.collapsed .swing-meta-name {
+  font-size: 13px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 買い候補の見出し行 + 表示切替 */
+.swing-sec-head { display: flex; align-items: center; gap: 8px; margin: 4px 2px 8px; }
+.swing-sec-head .swing-section-title { margin: 0; flex: 1; min-width: 0; }
+.swing-mode-seg { flex: none; width: auto; }
+.swing-mode-seg .seg-btn { padding: 4px 10px; font-size: 11px; }
+
+/* 一覧表示: 20件の候補を1画面に収めるための密度。
+   1行あたり約25px。行そのものが銘柄詳細へのタップ領域なので、行内の＋(保有追加)は
+   小さめでも操作性は保てる。 */
+.swing-compact { margin-top: 0; padding: 1px 0; }
+.swing-compact .row { padding: 1px 9px; gap: 5px; }
+.swing-compact .r-name { font-size: 12.5px; }
+.swing-compact .r-rank { width: 19px; font-size: 11.5px; }
+.swing-compact .r-code { width: 34px; font-size: 10px; }
+.swing-limit {
+  flex: none; width: 64px; text-align: right; white-space: nowrap;
+  font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.swing-add-mini {
+  flex: none; width: 20px; height: 20px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface-2); color: var(--accent-2);
+  font-size: 11px; font-weight: 800; line-height: 1; cursor: pointer;
+}
+.swing-add-mini:active { transform: scale(0.92); }
+/* 一覧では見出しの文言を削り、切替だけを残して縦を稼ぐ(日付は上部の状態行に出ている) */
+.swing-sec-head.dense { margin: 0 2px 3px; }
+.swing-sec-head.dense .swing-mode-seg .seg-btn { padding: 3px 9px; }
 .swing-desc { margin: 6px 0 10px; font-size: 12px; line-height: 1.6; color: var(--text-dim); }
 .swing-stats { display: flex; gap: 8px; }
 .swing-stat {

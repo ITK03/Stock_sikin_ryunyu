@@ -144,11 +144,14 @@ def compute_strategy(prices: dict[str, pd.DataFrame], entry: StrategyEntry,
                 cand["limit_price"] = round(close * (1 - limit_entry), 1)
             candidates.append(cand)
 
+    # 掲載数は戦略の保有上限(max_positions)に揃える。ここが10に固定されていたため、
+    # 20銘柄保有の設定にしても候補が10件しか出ず、枠を埋められない状態だった。
+    top_n = int(engine.get("max_positions", 10))
     candidates.sort(key=lambda c: c["_rank"], reverse=True)
-    for i, c in enumerate(candidates[:10], start=1):
+    candidates = candidates[:top_n]
+    for i, c in enumerate(candidates, start=1):
         c["priority"] = i
         del c["_rank"]
-    candidates = candidates[:10]
     universe_status.sort(key=lambda r: r["code"])
 
     return {
