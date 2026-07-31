@@ -157,6 +157,40 @@ class ExplainedLevel:
     method: str = "regression"
 
 
+# 乖離がこれを超えたら、割高割安ではなくモデルが壊れていると判断して何も出さない。
+# 実データで fair=0.0 に潰れて +977273% と出た例があった。
+MAX_ABS_GAP_PCT = 200.0
+
+
+# 観測範囲の外へどこまで当てはめを許すか(範囲幅に対する割合)。
+# 0にすると、ROEが緩やかに低下し続けている銘柄で不当に不利になる。推定から
+# 直近3ヶ月を外している以上、今のROEが観測範囲をわずかに超えるのは正常なため。
+EXTRAPOLATION_MARGIN = 0.25
+
+
+def _clamp(value: float, observed: pd.Series) -> float:
+    """推定に使ったROEの範囲(に少し余裕を持たせた範囲)へ丸める。
+
+    範囲外への大きな外挿は根拠が無く、exp() が0や巨大値に飛ぶ原因になる。
+    一方で完全に閉じ込めると、ROEが趨勢的に動いている銘柄で歪む。
+    """
+    lo, hi = float(observed.min()), float(observed.max())
+    pad = (hi - lo) * EXTRAPOLATION_MARGIN
+    return float(min(max(value, lo - pad), hi + pad))
+
+
+def _build(fair: float, actual: float, r2: float, n: int,
+           method: str) -> ExplainedLevel | None:
+    """妥当水準が数値として成立している場合だけ結果を返す。"""
+    if not np.isfinite(fair) or fair <= 0 or not np.isfinite(actual) or actual <= 0:
+        return None
+    gap = (actual - fair) / fair * 100.0
+    if not np.isfinite(gap) or abs(gap) > MAX_ABS_GAP_PCT:
+        return None
+    return ExplainedLevel(fair=fair, actual=actual, gap_pct=gap,
+                          r2=r2, observations=int(n), method=method)
+
+
 # 関係を推定する際に除外する直近期間(営業日)。約3ヶ月。
 # 直近の異常値を推定に含めると、その異常が「その会社の平常」として基準線に
 # 取り込まれ、乖離を自分で薄めてしまう(実測で -30% の乖離が -18% に化けた)。
@@ -207,13 +241,12 @@ def explain_pbr_by_roe(v: pd.DataFrame,
         # なく推定方法が合っていないので、傾きを理論から固定する比率法に落とす。
         return _explain_by_ratio(df, fit)
 
-    fair = float(np.exp(a + b * float(df["roe"].iloc[-1])))
-    actual = float(df["pbr"].iloc[-1])
-    return ExplainedLevel(
-        fair=fair, actual=actual,
-        gap_pct=(actual - fair) / fair * 100.0,
-        r2=float(r2), observations=int(len(fit)), method="regression",
-    )
+    # 推定した関係は、観測されたROEの範囲でしか意味を持たない。範囲外へ外挿すると
+    # exp() が0や巨大値に飛ぶ。実データで fair=0.0 → 乖離+977273% という表示が
+    # 出たため、今のROEを観測範囲に丸めてから当てる。
+    roe_now = _clamp(float(df["roe"].iloc[-1]), fit["roe"])
+    fair = float(np.exp(a + b * roe_now))
+    return _build(fair, float(df["pbr"].iloc[-1]), float(r2), len(fit), "regression")
 
 
 def _explain_by_ratio(df: pd.DataFrame, fit: pd.DataFrame) -> ExplainedLevel | None:
@@ -250,10 +283,6 @@ def _explain_by_ratio(df: pd.DataFrame, fit: pd.DataFrame) -> ExplainedLevel | N
     q1, q3 = ratios.quantile([0.25, 0.75])
     if (q3 - q1) / ratio > 0.45:
         return None
-    fair = ratio * roe_now
-    actual = float(df["pbr"].iloc[-1])
-    return ExplainedLevel(
-        fair=fair, actual=actual,
-        gap_pct=(actual - fair) / fair * 100.0,
-        r2=0.0, observations=int(len(usable)), method="ratio",
-    )
+    # 回帰法と同じく、観測されたROEの範囲を超えて当てはめない。
+    fair = ratio * _clamp(roe_now, usable["roe"])
+    return _build(fair, float(df["pbr"].iloc[-1]), 0.0, len(usable), "ratio")

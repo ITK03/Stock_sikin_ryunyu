@@ -272,3 +272,45 @@ class TestRatioFallback:
     def test_still_none_without_enough_history(self):
         v = self._short_history([0.10, 0.10], n_per=60)
         assert explain_pbr_by_roe(v) is None
+
+
+class TestBrokenModelIsNotReported:
+    """モデルが壊れた結果を「割安/割高」として出さないこと。
+
+    実データで、回帰の外挿により fair=0.0 になり乖離が +977273% と表示された
+    (2267 ヤクルト本社)。推定した関係は観測されたROEの範囲でしか意味を持たない。
+    """
+
+    def test_extrapolation_beyond_observed_roe_is_clamped(self):
+        n = 500
+        roe = np.linspace(0.10, 0.12, n)
+        pbr = np.exp(0.5 + 30.0 * roe)     # 傾きが急な関係
+        v = pd.DataFrame({"roe": roe, "pbr": pbr}, index=days(n))
+        # 直近だけROEが観測範囲を大きく下回る(赤字転落寸前など)
+        v.iloc[-1, v.columns.get_loc("roe")] = -0.30
+        e = explain_pbr_by_roe(v, exclude_recent_days=0)
+        # 丸めるので極端な値にはならない。出す場合も妥当な範囲に収まること。
+        if e is not None:
+            assert e.fair > 0
+            assert abs(e.gap_pct) <= 200.0
+
+    def test_absurd_gap_is_suppressed(self):
+        """乖離が大きすぎる場合はモデルの破綻とみなして何も出さない。"""
+        n = 500
+        roe = np.linspace(0.02, 0.30, n)
+        # 極端な傾きで fair がほぼ0に潰れる形
+        pbr = np.exp(-40.0 + 200.0 * roe)
+        v = pd.DataFrame({"roe": roe, "pbr": pbr}, index=days(n))
+        v.iloc[-60:, v.columns.get_loc("pbr")] *= 1e6
+        e = explain_pbr_by_roe(v)
+        assert e is None or abs(e.gap_pct) <= 200.0
+
+    def test_never_returns_non_finite(self):
+        rng = np.random.default_rng(0)
+        for seed in range(12):
+            r = np.abs(rng.normal(0.08, 0.05, 500)) + 1e-6
+            p = np.exp(rng.normal(0, 2.0, 500))
+            e = explain_pbr_by_roe(pd.DataFrame({"roe": r, "pbr": p}, index=days(500)))
+            if e is not None:
+                assert np.isfinite(e.fair) and e.fair > 0
+                assert np.isfinite(e.gap_pct) and abs(e.gap_pct) <= 200.0
