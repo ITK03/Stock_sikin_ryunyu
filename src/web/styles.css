@@ -1497,3 +1497,67 @@ button.sector-jump:active { opacity: 0.7; }
 .swing-analysis-table td:first-child { text-align: left; }
 .swing-analysis-table th { color: var(--muted); font-size: 10.5px; font-weight: 700; }
 .swing-analysis-note { margin: 10px 2px 0; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+
+/* ── バリュエーション(自社の過去比) ─────────────────────────────────
+   比較対象はその銘柄自身の過去だけ。他社とは比べない(粗い業種分類で比べても
+   意味のある差が出ず、精度の高い類似企業の自動判定も現実的でないため)。 */
+.val-basis { margin: 0 0 10px; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+.val-metric { margin-bottom: 14px; }
+.val-metric-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.val-metric-label { font-size: 11px; font-weight: 800; color: var(--muted); }
+.val-metric-value { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.val-metric-pos { font-size: 11px; font-weight: 700; color: var(--accent-2); }
+.val-metric-note { font-size: 11px; color: var(--muted); }
+
+/* 自己レンジ内の位置。左端=過去最安、右端=過去最高。 */
+.val-bar {
+  position: relative; height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, rgba(88,214,141,0.30), rgba(246,198,82,0.30), rgba(240,110,110,0.30));
+  border: 1px solid var(--line-soft);
+}
+.val-bar-fill { display: none; }
+.val-bar-marker {
+  position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--text); transform: translateX(-1.5px);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+.val-bar-scale {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* ROEから説明される妥当PBRとの乖離 */
+.val-gap {
+  margin: 12px 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line-soft); background: var(--surface-2);
+}
+.val-gap.cheap { border-color: rgba(88,214,141,0.45); }
+.val-gap.rich { border-color: rgba(240,110,110,0.45); }
+.val-gap-head {
+  display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: var(--text-dim);
+}
+.val-gap-head strong { font-size: 14px; font-variant-numeric: tabular-nums; color: var(--text); }
+.val-gap-delta { margin-left: auto; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.val-gap.cheap .val-gap-delta { color: var(--up, #58d68d); }
+.val-gap.rich .val-gap-delta { color: var(--down, #f06e6e); }
+.val-gap-text { margin: 6px 0 0; font-size: 12px; font-weight: 700; }
+.val-gap-sub { margin: 4px 0 0; font-size: 10px; color: var(--muted); line-height: 1.5; }
+
+/* 年ごとのレンジ(日次系列を持たずに推移を見せる。1銘柄1KBに収めるため) */
+.val-years { margin-top: 12px; }
+.val-years-title { font-size: 10.5px; font-weight: 800; color: var(--muted); margin-bottom: 5px; }
+.val-year-row {
+  display: flex; align-items: center; gap: 8px; padding: 3px 0;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.val-year { flex: none; width: 34px; color: var(--muted); }
+.val-year-range { flex: 1; font-weight: 700; }
+.val-year-med { flex: none; color: var(--muted); font-size: 10px; }
+
+/* 精度の限界。隠すと、判断材料が無いことと平均的な水準の区別がつかなくなる。 */
+.val-caveats {
+  margin: 12px 0 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px;
+}
+.val-caveats li { font-size: 10px; line-height: 1.5; color: var(--muted); }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildStockProfile } from '../core/crosslink';
 import { isJpCode } from '../core/codes';
+import { ValuationPanel } from './ValuationPanel';
 import type { DisclosuresFeed, RankingDataset, Region, SectorFile, TickerIndexFile } from '../core/types';
 import { PERIODS } from '../core/periods';
 import { fetchFirstOk, useLazyExternalJson } from './externalData';
@@ -137,6 +138,14 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
                 </div>
               )}
             </section>
+
+            {/* バリュエーションは日本株のみ(生成側が東証の内国株を対象にしている) */}
+            {jp && (
+              <section>
+                <h3>バリュエーション（自社の過去比）</h3>
+                <ValuationPanel code={profile.code} price={profile.price} />
+              </section>
+            )}
 
             <section>
               <h3>所属セクター / テーマ</h3>

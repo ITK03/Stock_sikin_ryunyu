@@ -106,6 +106,19 @@ export const TICKER_INDEX_URL = [
   'https://itk03.github.io/Stock_sikin_ryunyu/data/ticker_index.json',
 ];
 
+// バリュエーション・プロファイル(swing/valuation が生成 → `valuation` ブランチ)。
+// 1銘柄1ファイル(約900B)。銘柄詳細を開いた瞬間にその銘柄ぶんだけ取得する。
+// 全銘柄をまとめると約1.3MB になり、実際に見るのは数銘柄なので大半が無駄になる。
+//
+// ファイルに株価は入っていない(EPS/BPSと過去の分位グリッドだけ)。現在のPERは
+// ブラウザ側で計算するので、決算のとき以外このファイルは変わらない。年4回しか
+// 変わらないため raw の5分CDNキャッシュは純粋な利点で、キャッシュ破棄は不要。
+export function valuationUrl(code: string): string[] {
+  return [
+    `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/valuation/${code}.json`,
+  ];
+}
+
 /**
  * 開示レーダー本家(Stock_open_news の GitHub Pages)。
  * 生成元リポジトリを非公開にしたため Pages は配信されない(404)。
