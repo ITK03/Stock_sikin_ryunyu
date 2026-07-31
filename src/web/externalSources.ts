@@ -53,10 +53,16 @@ export function disclosuresArchiveUrls(date: string): string[] {
   ];
 }
 
-// セクター(sector-monitor 生成 → Stock_sikin_ryunyu/public/data/ に同期)。
+// セクター(sector-monitor 生成 → 本リポジトリの `data-sector` ブランチへ同期)。
 // sector-monitor は private なため、本リポジトリ(public)経由で配信する。
-// raw.githubusercontent.com は push 直後から反映される(CDN 5分キャッシュ)。
-// GitHub Pages(dist/data/)は次回ビルドまでラグがあるためフォールバック。
+//
+// 配信先が main/public/data/ から `data-sector` orphanブランチに変わっている。
+// main への通常コミットは1回あたり約3.6MBを永久に残る履歴へ積む形で、1日8回の
+// 更新では月630MB・1年強で GitHub の推奨上限に達する計算だった。orphanブランチ
+// への force-push なら履歴は常に1コミットで、何年運用しても増えない。
+//
+// フォールバックは main/public/data/(ビルド同梱の最後のコピー)と Pages。
+// 配信ブランチが止まってもアプリは動く。
 //
 // bust=true は「更新ボタン」など明示的な再取得のときだけ付ける。raw も Pages も
 // CDN が5分キャッシュするため、クエリを変えないと押しても同じ内容が返ってくる
@@ -66,6 +72,7 @@ export function sectorUrls(region: Region, bust = false): string[] {
   const file = region === 'US' ? 'sector_us.json' : 'sector_jp.json';
   const q = bust ? `?t=${Date.now()}` : '';
   return [
+    `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data-sector/${file}${q}`,
     `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/${file}${q}`,
     `https://itk03.github.io/Stock_sikin_ryunyu/data/${file}${q}`,
   ];
@@ -92,7 +99,9 @@ export const SWING_PAPER_LOG_URLS = [
 ];
 
 // 銘柄横断インデックス(日本株のみ・所属セクターは全件)。銘柄詳細を最初に開いたときに遅延fetch。
+// セクターと同じく sector-monitor 生成物なので、配信元も `data-sector` ブランチ。
 export const TICKER_INDEX_URL = [
+  'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data-sector/ticker_index.json',
   'https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/main/public/data/ticker_index.json',
   'https://itk03.github.io/Stock_sikin_ryunyu/data/ticker_index.json',
 ];
