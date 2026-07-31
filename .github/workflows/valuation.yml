@@ -1,0 +1,111 @@
+name: Valuation Profiles
+
+# 銘柄ごとのバリュエーション・プロファイルを一定件数ずつ生成し、`valuation`
+# orphanブランチへ force-push する。履歴は常に1コミットなので、何年運用しても
+# リポジトリは増えない(全1526銘柄で約1.5MBで頭打ち)。
+#
+# プロファイルに株価は入れない。EPS/BPS と過去10年の分位グリッドだけを配信し、
+# 現在のPERはブラウザ側で「株価 ÷ EPS」として計算する。おかげで
+#  - ザラ場中でも評価が現在値で出る(バッチの鮮度に縛られない)
+#  - プロファイルは決算のときしか変わらない = 毎日作り直す必要がない
+#
+# 1回あたりの件数を絞っているのは、財務データの取得が1銘柄1リクエスト必要で
+# 全銘柄を毎回は回せないため。数日で一巡する(ローリング)。
+
+on:
+  schedule:
+    # 平日 UTC 12:00 / 20:00 = JST 21:00 / 翌05:00。相場時間を避ける。
+    - cron: "0 12,20 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      codes:
+        description: "銘柄コード(カンマ区切り)。指定するとその銘柄だけ生成する"
+        required: false
+        default: ""
+      limit:
+        description: "1回に生成する件数"
+        required: false
+        default: "150"
+  # .github/valuation-kick を更新する push でも起動する(スマホからの手動キック用)
+  push:
+    branches: [main]
+    paths: [".github/valuation-kick"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: valuation
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: swing/requirements.txt
+
+      - name: Install deps
+        run: pip install -r swing/requirements.txt
+
+      - name: Unit tests (valuation)
+        working-directory: swing
+        run: |
+          python -m pytest tests/test_valuation_history.py \
+                           tests/test_valuation_profile.py \
+                           tests/test_valuation_yf.py \
+                           tests/test_valuation_build.py -q
+
+      - name: Seed from published branch (ローリング生成の継続性)
+        run: |
+          set -eu
+          # 1回あたり150銘柄しか作らないので、前回までの成果物を取り込んでから
+          # 追記する。これをしないと毎回150銘柄だけの配信になってしまう。
+          mkdir -p public/data/valuation
+          if git ls-remote --exit-code origin valuation >/dev/null 2>&1; then
+            git fetch -q origin valuation
+            git --work-tree=public/data/valuation checkout FETCH_HEAD -- . 2>/dev/null || \
+              git archive FETCH_HEAD | tar -x -C public/data/valuation
+            echo "既存プロファイル: $(ls public/data/valuation/*.json 2>/dev/null | wc -l) 件"
+          else
+            echo "初回実行(既存ブランチなし)"
+          fi
+
+      - name: Build profiles
+        working-directory: swing
+        run: |
+          python -m valuation.build \
+            --limit "${{ github.event.inputs.limit || '150' }}" \
+            --codes "${{ github.event.inputs.codes || '' }}" \
+            --out ../public/data/valuation
+
+      - name: Publish to valuation branch (orphan, single commit, force-push)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          n=$(ls public/data/valuation/*.json 2>/dev/null | wc -l)
+          # 生成に失敗した回が、既に配信済みのプロファイルを消してしまわないように
+          # する(スイングで実際に起きた「古いデータで上書き」と同じ種類の事故)。
+          if [ "$n" -lt 2 ]; then
+            echo "::error::生成物が ${n} 件しかないため公開を見送りました。"
+            exit 1
+          fi
+          TMP="$(mktemp -d)"
+          cp public/data/valuation/*.json "$TMP"/
+          cd "$TMP"
+          git init -q -b valuation
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -q -m "valuation: プロファイル更新 [skip ci]"
+          git push --force -q \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:valuation
+          echo "公開 ${n} 件 / 合計 $(du -sh . | cut -f1)"
