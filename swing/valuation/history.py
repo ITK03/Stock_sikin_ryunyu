@@ -1,0 +1,210 @@
+"""過去バリュエーションの時系列を組み立て、現在の水準を評価する。
+
+中核となる考え方は3つ。
+
+1. **その日に見えていた数字だけを使う(point-in-time)**
+   決算は期末ではなく「公表日」に初めて市場から見える。EPSやBPSを期末日に
+   紐づけると、まだ誰も知らない数字で過去のPERを計算することになり、過去
+   レンジが実態より低く(=今が割高に)歪む。ここでは known_from(公表日)で
+   階段状に更新する。
+
+2. **市場全体の水準変化を取り除く**
+   同じPER15倍でも、市場平均が20倍の局面と12倍の局面では意味が逆になる。
+   自社PERを市場平均PERで割った「相対PER」の自己レンジも併せて見る。
+
+3. **収益力の変化で説明できる部分を取り除く**
+   ROEが12%から7%へ落ちた会社のPBRが下がるのは当然で、それは割安ではない。
+   自社の過去における ROE と PBR の関係を回帰し、今のROEから妥当PBRを求めて
+   その残差を見る。他社を一切使わずにバリュートラップを識別できる。
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+
+import numpy as np
+import pandas as pd
+
+# 自己レンジを取る既定の期間。長すぎると事業構造が変わった過去まで含み、
+# 短すぎると景気循環の1局面しか映さない。
+DEFAULT_YEARS = 10
+# パーセンタイル/回帰を出すのに最低限必要な観測数(営業日)。
+MIN_OBSERVATIONS = 250
+
+
+@dataclass(frozen=True)
+class FundamentalRecord:
+    """ある決算で公表された1株あたり指標。
+
+    known_from はその数字が市場から見えるようになった日(短信・有報の公表日)。
+    period_end(決算期末)ではないことが重要。
+    """
+
+    period_end: date
+    known_from: date
+    eps: float | None = None      # 1株利益(実績・年換算)
+    bps: float | None = None      # 1株純資産
+    roe: float | None = None      # 自己資本利益率(小数。0.12 = 12%)
+    sps: float | None = None      # 1株売上高
+    eps_guidance: float | None = None  # 会社予想EPS(今期)
+
+    def __post_init__(self) -> None:
+        if self.known_from < self.period_end:
+            raise ValueError(
+                f"公表日({self.known_from})が決算期末({self.period_end})より前になっている"
+            )
+
+
+def point_in_time_frame(records: list[FundamentalRecord],
+                        index: pd.DatetimeIndex) -> pd.DataFrame:
+    """各日付について「その時点で公表済みの最新決算」の値を並べた表を返す。
+
+    公表前の期間は NaN(まだ何も分からない)。同じ日に複数の公表がある場合は
+    期末が新しいほうを採用する(訂正・本決算と四半期の重複を想定)。
+    """
+    cols = ["eps", "bps", "roe", "sps", "eps_guidance"]
+    if not records:
+        return pd.DataFrame(np.nan, index=index, columns=cols)
+
+    # 公表日順に並べ、同一公表日は期末が新しいものを後ろへ(=後勝ち)
+    ordered = sorted(records, key=lambda r: (r.known_from, r.period_end))
+    rows = pd.DataFrame(
+        [[getattr(r, c) for c in cols] for r in ordered],
+        index=pd.DatetimeIndex([pd.Timestamp(r.known_from) for r in ordered]),
+        columns=cols,
+        dtype="float64",
+    )
+    rows = rows[~rows.index.duplicated(keep="last")].sort_index()
+
+    # 各日付に「その日以前で最も新しい公表」を割り当てる(階段状に更新)
+    return rows.reindex(rows.index.union(index)).ffill().reindex(index)
+
+
+def valuation_frame(prices: pd.Series,
+                    records: list[FundamentalRecord]) -> pd.DataFrame:
+    """日次の PER / PBR / PSR を組み立てる。
+
+    prices は終値の時系列(index=DatetimeIndex)。EPSが0以下の期間のPERは
+    定義できないため NaN にする(赤字企業を機械的に「割高」と誤判定しない)。
+    """
+    prices = prices.dropna().sort_index()
+    pit = point_in_time_frame(records, prices.index)
+
+    out = pd.DataFrame(index=prices.index)
+    out["close"] = prices
+    for name, col in (("per", "eps"), ("pbr", "bps"), ("psr", "sps")):
+        denom = pit[col].where(pit[col] > 0)
+        out[name] = prices / denom
+    out["roe"] = pit["roe"]
+    out["eps"] = pit["eps"]
+    out["bps"] = pit["bps"]
+    return out
+
+
+def _tail_years(s: pd.Series, years: int) -> pd.Series:
+    if s.empty:
+        return s
+    cutoff = s.index[-1] - pd.DateOffset(years=years)
+    return s[s.index >= cutoff]
+
+
+def percentile_rank(s: pd.Series, years: int = DEFAULT_YEARS) -> float | None:
+    """直近値が自己の過去レンジで何パーセンタイルかを返す(0=最安、100=最高)。
+
+    観測数が足りない場合は None(新規上場などで判断材料が無いことを隠さない)。
+    """
+    s = _tail_years(s.dropna(), years)
+    if len(s) < MIN_OBSERVATIONS:
+        return None
+    latest = s.iloc[-1]
+    return float((s < latest).mean() * 100.0)
+
+
+def band(s: pd.Series, years: int = DEFAULT_YEARS) -> dict | None:
+    """自己の過去レンジ(五分位点と現在値)を返す。表示用。"""
+    s = _tail_years(s.dropna(), years)
+    if len(s) < MIN_OBSERVATIONS:
+        return None
+    q = s.quantile([0.1, 0.25, 0.5, 0.75, 0.9])
+    return {
+        "current": float(s.iloc[-1]),
+        "p10": float(q.loc[0.1]), "p25": float(q.loc[0.25]),
+        "median": float(q.loc[0.5]),
+        "p75": float(q.loc[0.75]), "p90": float(q.loc[0.9]),
+        "years": years, "observations": int(len(s)),
+    }
+
+
+def market_adjusted(own: pd.Series, market: pd.Series) -> pd.Series:
+    """市場全体の水準で割った相対値。
+
+    市場平均が切り上がっただけの局面で「自己レンジの上位」と誤読するのを防ぐ。
+    """
+    aligned = market.reindex(own.index).ffill()
+    return own / aligned.where(aligned > 0)
+
+
+@dataclass(frozen=True)
+class ExplainedLevel:
+    """収益力から説明される水準と、実際との乖離。"""
+
+    fair: float          # 今のROEから導かれる妥当PBR
+    actual: float        # 実際のPBR
+    gap_pct: float       # (実際 - 妥当) / 妥当 * 100。マイナスが割安
+    r2: float            # 自社時系列での説明力。低ければ解釈しない
+    observations: int
+
+
+# 関係を推定する際に除外する直近期間(営業日)。約3ヶ月。
+# 直近の異常値を推定に含めると、その異常が「その会社の平常」として基準線に
+# 取り込まれ、乖離を自分で薄めてしまう(実測で -30% の乖離が -18% に化けた)。
+DEFAULT_EXCLUDE_RECENT_DAYS = 60
+
+
+def explain_pbr_by_roe(v: pd.DataFrame,
+                       years: int = DEFAULT_YEARS,
+                       min_r2: float = 0.2,
+                       exclude_recent_days: int = DEFAULT_EXCLUDE_RECENT_DAYS,
+                       ) -> ExplainedLevel | None:
+    """自社の過去における「ROE ↔ PBR」の関係から、今の妥当PBRを求める。
+
+    残余利益モデルでは妥当PBRはROEの増加関数になる。ここでは他社を使わず、
+    その会社自身の履歴で log(PBR) = a + b*ROE を推定する。ROEが落ちたことで
+    説明できるPBR低下は「割安」とみなさない、という判定がこれで自動化できる。
+
+    関係の推定には直近 exclude_recent_days を使わない。今の水準を、それ以前に
+    成立していた関係に照らして評価するためで、これをしないと直近の割安さが
+    基準線に吸収されて検出できなくなる。逆に言うと、割安な状態がこの期間より
+    長く続けば、いずれ「その会社の新しい平常」として扱われる。
+
+    説明力(r2)が低い場合は None を返す。関係が無いのに乖離を語らないため。
+    """
+    df = _tail_years(v[["pbr", "roe"]].dropna(), years)
+    df = df[df["pbr"] > 0]
+    if len(df) < MIN_OBSERVATIONS:
+        return None
+
+    fit = df.iloc[:-exclude_recent_days] if exclude_recent_days > 0 else df
+    if len(fit) < MIN_OBSERVATIONS:
+        fit = df       # 履歴が短い銘柄では除外せず全期間で推定する
+    # ROEがほぼ一定だと回帰が不安定になる(傾きが定まらない)
+    if float(fit["roe"].std()) < 1e-4:
+        return None
+
+    y = np.log(fit["pbr"].to_numpy())
+    x = fit["roe"].to_numpy()
+    b, a = np.polyfit(x, y, 1)
+    pred = a + b * x
+    ss_res = float(((y - pred) ** 2).sum())
+    ss_tot = float(((y - y.mean()) ** 2).sum())
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    if r2 < min_r2:
+        return None
+
+    fair = float(np.exp(a + b * float(df["roe"].iloc[-1])))
+    actual = float(df["pbr"].iloc[-1])
+    return ExplainedLevel(
+        fair=fair, actual=actual,
+        gap_pct=(actual - fair) / fair * 100.0,
+        r2=float(r2), observations=int(len(fit)),
+    )
