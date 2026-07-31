@@ -2,17 +2,26 @@ import { useEffect, useState } from 'react';
 import {
   GAP_TEXT,
   type Metric,
+  type Reading,
   type ValuationProfile,
   caveats,
   coverageText,
   gapVerdict,
+  comparableQuarters,
+  growthReadings,
+  healthSummary,
   methodText,
   metrics,
+  netCashRatio,
   percentileText,
   positionLabel,
+  profitabilityReadings,
+  safetyReadings,
+  yields,
 } from '../core/valuation';
 import { fetchFirstOk } from './externalData';
 import { valuationUrl } from './externalSources';
+import { Sparkline } from './Sparkline';
 
 // 銘柄詳細の「バリュエーション」欄。
 //
@@ -34,7 +43,7 @@ interface Props {
 // 同じ銘柄を開き直したときに再取得しないためのメモリキャッシュ。
 const cache = new Map<string, ValuationProfile | null>();
 
-function Bar({ m }: { m: Metric }) {
+function Bar({ m, series }: { m: Metric; series?: (number | null)[] }) {
   const pct = m.percentile;
   return (
     <div className="val-metric">
@@ -55,6 +64,12 @@ function Bar({ m }: { m: Metric }) {
           </>
         )}
       </div>
+      {series && series.length > 1 && (
+        <div className="val-spark-row">
+          <Sparkline values={series} />
+          <span className="val-spark-cap">5年推移</span>
+        </div>
+      )}
       {pct !== null && (
         <>
           <div className="val-bar">
@@ -72,7 +87,37 @@ function Bar({ m }: { m: Metric }) {
   );
 }
 
+function Readings({ title, rows }: { title: string; rows: Reading[] }) {
+  const shown = rows.filter((r) => r.text !== null);
+  if (shown.length === 0) return null;
+  return (
+    <div className="val-block">
+      <div className="val-block-title">{title}</div>
+      <div className="val-readings">
+        {shown.map((r) => (
+          <div className={`val-reading ${r.health}`} key={r.key}>
+            <span className="val-reading-label">{r.label}</span>
+            <span className="val-reading-value">{r.text}</span>
+            {r.note && <span className="val-reading-note">{r.note}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 詳細の開閉は端末に保持する。既定は畳む(パネル全体が2画面分になるため)。
+const DETAIL_KEY = 'valShowDetail';
+
 export function ValuationPanel({ code, price }: Props) {
+  const [showDetail, setShowDetail] = useState<boolean>(
+    () => localStorage.getItem(DETAIL_KEY) === '1',
+  );
+  const toggleDetail = () =>
+    setShowDetail((v) => {
+      localStorage.setItem(DETAIL_KEY, v ? '0' : '1');
+      return !v;
+    });
   const [profile, setProfile] = useState<ValuationProfile | null | undefined>(
     () => (cache.has(code) ? cache.get(code) : undefined),
   );
@@ -120,6 +165,10 @@ export function ValuationPanel({ code, price }: Props) {
   const ms = metrics(profile, price);
   const notes = caveats(profile);
   const gap = profile.roe_pbr;
+  const nc = netCashRatio(profile, price);
+  const yl = yields(profile, price);
+  const hist = profile.hist;
+  const quarters = comparableQuarters(profile);
 
   return (
     <div className="val-panel">
@@ -128,7 +177,7 @@ export function ValuationPanel({ code, price }: Props) {
       </p>
 
       {ms.map((m) => (
-        <Bar key={m.key} m={m} />
+        <Bar key={m.key} m={m} series={m.key === 'per' ? profile.per_m : profile.pbr_m} />
       ))}
 
       {gap && (
@@ -147,19 +196,87 @@ export function ValuationPanel({ code, price }: Props) {
         </div>
       )}
 
-      {profile.per_y.length > 0 && (
-        <div className="val-years">
-          <div className="val-years-title">年ごとのPERレンジ</div>
-          {profile.per_y.map(([y, lo, med, hi]) => (
-            <div className="val-year-row" key={y}>
-              <span className="val-year">{y}</span>
-              <span className="val-year-range">
-                {lo.toFixed(1)} 〜 {hi.toFixed(1)}
-              </span>
-              <span className="val-year-med">中央 {med.toFixed(1)}</span>
-            </div>
-          ))}
+      {/* 詳細を畳んでいても、稼げているか・危なくないか・伸びているかは常に見える */}
+      <div className="val-summary">
+        {healthSummary(profile).map((r) => (
+          <span className={`val-sum ${r.health}`} key={r.key}>
+            {r.label} <strong>{r.text}</strong>
+          </span>
+        ))}
+      </div>
+
+      <button className="val-detail-btn" onClick={toggleDetail} aria-expanded={showDetail}>
+        財務・成長の内訳 {showDetail ? '▲' : '▼'}
+      </button>
+
+      {showDetail && (
+      <>
+      <Readings title="収益性" rows={profitabilityReadings(profile)} />
+      <Readings title="財務の安全性" rows={safetyReadings(profile)} />
+      <Readings title="成長" rows={growthReadings(profile)} />
+
+      {(nc !== null || yl.fcf !== null || yl.dividend !== null) && (
+        <div className="val-block">
+          <div className="val-block-title">株価に対する厚み</div>
+          <div className="val-readings">
+            {nc !== null && (
+              <div className={`val-reading ${nc >= 0.3 ? 'good' : nc >= 0 ? 'ok' : 'watch'}`}>
+                <span className="val-reading-label">ネットキャッシュ</span>
+                <span className="val-reading-value">株価の{(nc * 100).toFixed(0)}%</span>
+                <span className="val-reading-note">現金−有利子負債。多いほどPERは実質割安</span>
+              </div>
+            )}
+            {yl.fcf !== null && (
+              <div className={`val-reading ${yl.fcf >= 0.06 ? 'good' : yl.fcf > 0 ? 'ok' : 'watch'}`}>
+                <span className="val-reading-label">FCF利回り</span>
+                <span className="val-reading-value">{(yl.fcf * 100).toFixed(1)}%</span>
+              </div>
+            )}
+            {yl.dividend !== null && (
+              <div className="val-reading ok">
+                <span className="val-reading-label">配当利回り</span>
+                <span className="val-reading-value">{(yl.dividend * 100).toFixed(2)}%</span>
+              </div>
+            )}
+          </div>
         </div>
+      )}
+
+      {hist && hist.years.length > 1 && (
+        <div className="val-block">
+          <div className="val-block-title">業績の推移（{hist.years[0]}〜{hist.years[hist.years.length - 1]}）</div>
+          <div className="val-trends">
+            {([['売上', hist.rev], ['営業利益', hist.op], ['EPS', hist.eps],
+               ['ROE', hist.roe]] as const).map(([label, vals]) => (
+              <div className="val-trend" key={label}>
+                <span className="val-trend-label">{label}</span>
+                <Sparkline values={[...vals]} width={72} height={22} fill={false} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {quarters.length > 0 && (
+        <div className="val-block">
+          <div className="val-block-title">四半期の前年同期比</div>
+          <div className="val-q">
+            {quarters.map((r) => (
+              <div className="val-q-row" key={r.label}>
+                <span className="val-q-label">{r.label}</span>
+                <span className={`val-q-yoy ${(r.rev ?? 0) >= 0 ? 'up' : 'down'}`}>
+                  {r.rev === null ? '—' : `売上 ${(r.rev * 100).toFixed(0)}%`}
+                </span>
+                <span className={`val-q-yoy ${(r.op ?? 0) >= 0 ? 'up' : 'down'}`}>
+                  {r.op === null ? '—' : `営業利益 ${(r.op * 100).toFixed(0)}%`}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="val-q-note">会社予想に対する進捗率は決算短信の取り込み後に対応します。</p>
+        </div>
+      )}
+      </>
       )}
 
       {notes.length > 0 && (

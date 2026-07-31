@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   caveats,
+  comparableQuarters,
   coverageText,
+  healthSummary,
   gapVerdict,
   metrics,
   percentileFromGrid,
@@ -207,5 +209,49 @@ describe('percentileText — 誤読しない表現', () => {
   it('値が無ければ空文字', () => {
     expect(percentileText(null)).toBe('');
     expect(percentileText(NaN)).toBe('');
+  });
+});
+
+// パネル全体が2画面分(1560px)になったため、詳細は畳んで要点だけ常時見せる。
+describe('healthSummary — 畳んでも判断の入口は残す', () => {
+  it('収益性・安全性・成長の3つを返す', () => {
+    const s = healthSummary(makeProfile({
+      fin: { op_margin: 0.12, gross_margin: 0.35, roa: 0.06, equity_ratio: 0.6,
+             de: 0.2, current_ratio: 2.0, interest_cover: 30 },
+      growth: { rev_yoy: 0.12, op_yoy: 0.15, eps_cagr3: 0.13 },
+    }));
+    expect(s.map((r) => r.label)).toEqual(['収益性', '安全性', '成長']);
+    expect(s.every((r) => r.health === 'good')).toBe(true);
+  });
+
+  it('ひとつでも要注意があれば要注意に倒す(悪い方を見落とさない)', () => {
+    const s = healthSummary(makeProfile({
+      fin: { equity_ratio: 0.6, de: 0.2, current_ratio: 2.0, interest_cover: 1.2 },
+    }));
+    expect(s.find((r) => r.label === '安全性')!.health).toBe('watch');
+  });
+
+  it('データが無ければ不明とする(0や良好で埋めない)', () => {
+    const s = healthSummary(makeProfile({ fin: {}, growth: {}, roe: null }));
+    expect(s.find((r) => r.label === '安全性')!.health).toBe('unknown');
+    expect(s.find((r) => r.label === '安全性')!.text).toBe('不明');
+  });
+});
+
+describe('comparableQuarters — 比較できない期を空行で並べない', () => {
+  it('前年同期比が両方nullの期は除く', () => {
+    const p = makeProfile({
+      q: {
+        labels: ['25Q1', '25Q2', '26Q1', '26Q2'],
+        rev: [1, 2, 3, 4], op: [1, 2, 3, 4],
+        rev_yoy: [null, null, 0.08, 0.09],
+        op_yoy: [null, null, 0.14, 0.13],
+      },
+    });
+    expect(comparableQuarters(p).map((r) => r.label)).toEqual(['26Q1', '26Q2']);
+  });
+
+  it('四半期データが無ければ空', () => {
+    expect(comparableQuarters(makeProfile())).toEqual([]);
   });
 });

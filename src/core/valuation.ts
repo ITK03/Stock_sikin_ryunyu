@@ -25,12 +25,29 @@ export interface ValuationProfile {
   /** [年, 最小, 中央, 最大] */
   per_y: [number, number, number, number][];
   pbr_y: [number, number, number, number][];
+  /** 月末値の系列(簡易グラフ用・最大60点)。v1 には無い。 */
+  per_m?: (number | null)[];
+  pbr_m?: (number | null)[];
   /** ROEから説明される妥当PBRとの乖離。関係が弱ければ null(何も語らない)。 */
   roe_pbr: {
     fair: number; gap: number; r2: number; n: number;
     /** "regression"=自社時系列の回帰 / "ratio"=自社平均のPBR÷ROE倍率。古い版には無い。 */
     method?: 'regression' | 'ratio';
   } | null;
+  /** 収益性・安全性・還元。取得できない項目は null。 */
+  fin?: Record<string, number | null>;
+  /** 成長率(前期比と3年CAGR)。 */
+  growth?: Record<string, number | null>;
+  /** 年次推移(売上・営業利益は初年度=100の指数)。 */
+  hist?: {
+    years: number[]; rev: (number | null)[]; op: (number | null)[];
+    eps: (number | null)[]; roe: (number | null)[]; eq: (number | null)[];
+  };
+  /** 四半期推移と前年同期比。 */
+  q?: {
+    labels: string[]; rev: (number | null)[]; op: (number | null)[];
+    rev_yoy: (number | null)[]; op_yoy: (number | null)[];
+  };
   cov: {
     years_max: number;
     span: [number, number] | null;
@@ -200,4 +217,139 @@ export function caveats(profile: ValuationProfile): string[] {
     out.push('ROEとPBRの関係が安定せず、妥当水準は算出していません');
   }
   return out;
+}
+
+
+// ── 財務の読み取り ──────────────────────────────────────────────
+// 数値をそのまま並べても判断できないので、「何を意味するか」を短い言葉にする。
+// ただし「買い」「割安」とは言わない。事実の言い換えに留める。
+
+export type Health = 'good' | 'ok' | 'watch' | 'unknown';
+
+export interface Reading {
+  key: string;
+  label: string;
+  /** 表示用の文字列。値が無ければ null。 */
+  text: string | null;
+  health: Health;
+  /** なぜその評価なのかの一言。 */
+  note?: string;
+}
+
+const pct = (v: number | null | undefined, digits = 1): string | null =>
+  v === null || v === undefined || !Number.isFinite(v) ? null : `${(v * 100).toFixed(digits)}%`;
+
+const times = (v: number | null | undefined, digits = 2): string | null =>
+  v === null || v === undefined || !Number.isFinite(v) ? null : `${v.toFixed(digits)}倍`;
+
+function band(v: number | null | undefined, good: number, watch: number,
+              higherIsBetter = true): Health {
+  if (v === null || v === undefined || !Number.isFinite(v)) return 'unknown';
+  if (higherIsBetter) return v >= good ? 'good' : v >= watch ? 'ok' : 'watch';
+  return v <= good ? 'good' : v <= watch ? 'ok' : 'watch';
+}
+
+/** 財務の安全性。閾値は日本の事業会社で一般的に使われる水準。 */
+export function safetyReadings(p: ValuationProfile): Reading[] {
+  const f = p.fin ?? {};
+  return [
+    {
+      key: 'equity_ratio', label: '自己資本比率', text: pct(f.equity_ratio, 0),
+      health: band(f.equity_ratio, 0.5, 0.3),
+      note: '総資産に占める自己資本。低いほど負債依存',
+    },
+    {
+      key: 'de', label: 'D/Eレシオ', text: times(f.de),
+      health: band(f.de, 0.5, 1.0, false),
+      note: '有利子負債 ÷ 自己資本。1倍超で借入が重い',
+    },
+    {
+      key: 'current_ratio', label: '流動比率', text: times(f.current_ratio, 1),
+      health: band(f.current_ratio, 1.5, 1.0),
+      note: '1年内に返す負債を短期資産で賄えるか',
+    },
+    {
+      key: 'interest_cover', label: '利払い余力', text: times(f.interest_cover, 1),
+      health: band(f.interest_cover, 10, 3),
+      note: '営業利益が支払利息の何倍か',
+    },
+  ];
+}
+
+/** 収益性。 */
+export function profitabilityReadings(p: ValuationProfile): Reading[] {
+  const f = p.fin ?? {};
+  return [
+    { key: 'roe', label: 'ROE', text: pct(p.roe), health: band(p.roe, 0.1, 0.05),
+      note: '自己資本に対する利益。8%が目安' },
+    { key: 'op_margin', label: '営業利益率', text: pct(f.op_margin),
+      health: band(f.op_margin, 0.1, 0.03), note: '本業の稼ぐ力' },
+    { key: 'gross_margin', label: '粗利率', text: pct(f.gross_margin),
+      health: band(f.gross_margin, 0.3, 0.15), note: '価格決定力の目安' },
+    { key: 'roa', label: 'ROA', text: pct(f.roa), health: band(f.roa, 0.05, 0.02),
+      note: '総資産に対する利益' },
+  ];
+}
+
+/** 成長。率が出せない(赤字からの回復など)場合は null のまま。 */
+export function growthReadings(p: ValuationProfile): Reading[] {
+  const g = p.growth ?? {};
+  return [
+    { key: 'rev_yoy', label: '売上 前期比', text: pct(g.rev_yoy),
+      health: band(g.rev_yoy, 0.1, 0) },
+    { key: 'op_yoy', label: '営業利益 前期比', text: pct(g.op_yoy),
+      health: band(g.op_yoy, 0.1, 0) },
+    { key: 'eps_cagr3', label: 'EPS 3年成長', text: pct(g.eps_cagr3),
+      health: band(g.eps_cagr3, 0.1, 0), note: '年率' },
+  ];
+}
+
+/** 1株ネットキャッシュが時価総額に対してどれだけあるか。 */
+export function netCashRatio(p: ValuationProfile, price: number | null): number | null {
+  const ps = p.fin?.net_cash_ps;
+  if (ps === null || ps === undefined || price === null || !price) return null;
+  return ps / price;
+}
+
+/** FCF利回り・配当利回りは株価が要るのでここで計算する。 */
+export function yields(p: ValuationProfile, price: number | null) {
+  const f = p.fin ?? {};
+  const y = (v: number | null | undefined) =>
+    v === null || v === undefined || price === null || !price ? null : v / price;
+  return { fcf: y(f.fcf_ps), dividend: y(f.dps) };
+}
+
+
+/**
+ * 収益性・安全性・成長を1つずつの信号にまとめる。
+ * 詳細を畳んでいても「稼げているか・危なくないか・伸びているか」だけは常に見える。
+ */
+export function healthSummary(p: ValuationProfile): Reading[] {
+  const worst = (rows: Reading[]): Health => {
+    const known = rows.filter((r) => r.health !== 'unknown');
+    if (known.length === 0) return 'unknown';
+    if (known.some((r) => r.health === 'watch')) return 'watch';
+    if (known.some((r) => r.health === 'ok')) return 'ok';
+    return 'good';
+  };
+  const text: Record<Health, string> = {
+    good: '良好', ok: '標準的', watch: '要注意', unknown: '不明',
+  };
+  const prof = profitabilityReadings(p);
+  const safe = safetyReadings(p);
+  const grow = growthReadings(p);
+  return [
+    { key: 'sum_prof', label: '収益性', text: text[worst(prof)], health: worst(prof) },
+    { key: 'sum_safe', label: '安全性', text: text[worst(safe)], health: worst(safe) },
+    { key: 'sum_grow', label: '成長', text: text[worst(grow)], health: worst(grow) },
+  ];
+}
+
+/** 前年同期比が算出できた四半期だけを返す(比較対象の無い期を空行で並べない)。 */
+export function comparableQuarters(p: ValuationProfile) {
+  const q = p.q;
+  if (!q) return [];
+  return q.labels
+    .map((label, i) => ({ label, rev: q.rev_yoy[i], op: q.op_yoy[i] }))
+    .filter((r) => r.rev !== null || r.op !== null);
 }

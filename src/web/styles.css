@@ -1561,3 +1561,76 @@ button.sector-jump:active { opacity: 0.7; }
   margin: 12px 0 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px;
 }
 .val-caveats li { font-size: 10px; line-height: 1.5; color: var(--muted); }
+
+/* ── 簡易グラフ(スパークライン) ─────────────────────────────────
+   軸も凡例も出さない。数値は隣のテキストに出ているので、ここでは推移の形
+   だけが分かればよい。 */
+.spark { display: block; overflow: visible; }
+.spark-line { fill: none; stroke: var(--accent-2); stroke-width: 1.6; stroke-linejoin: round; }
+.spark-area { fill: rgba(56, 189, 248, 0.12); stroke: none; }
+.spark-dot { fill: var(--accent); }
+.val-spark-row { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; }
+.val-spark-cap { font-size: 9.5px; color: var(--muted); }
+
+/* ── 財務・成長の読み取り ───────────────────────────────────── */
+.val-block { margin-top: 14px; }
+.val-block-title {
+  font-size: 10.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px;
+}
+.val-readings { display: flex; flex-direction: column; gap: 5px; }
+.val-reading {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 9px; border-radius: 8px;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-left-width: 3px;
+}
+/* 良い/普通/要注意。断定ではなく、一般的な目安に対する位置づけ。 */
+.val-reading.good { border-left-color: rgba(88, 214, 141, 0.8); }
+.val-reading.ok { border-left-color: rgba(246, 198, 82, 0.7); }
+.val-reading.watch { border-left-color: rgba(240, 110, 110, 0.8); }
+.val-reading.unknown { border-left-color: var(--line); opacity: 0.75; }
+.val-reading-label { flex: none; font-size: 11px; font-weight: 700; color: var(--text-dim); min-width: 88px; }
+.val-reading-value { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.val-reading-note { flex: 1 0 100%; font-size: 9.5px; color: var(--muted); line-height: 1.4; }
+
+/* 業績推移のミニグラフを横に並べる */
+.val-trends { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.val-trend {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 8px;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+}
+.val-trend-label { flex: none; font-size: 10px; font-weight: 700; color: var(--muted); width: 46px; }
+
+/* 四半期の前年同期比 */
+.val-q { display: flex; flex-direction: column; gap: 3px; }
+.val-q-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; font-variant-numeric: tabular-nums; padding: 2px 2px;
+}
+.val-q-label { flex: none; width: 42px; color: var(--muted); font-weight: 700; }
+.val-q-yoy { flex: 1; font-weight: 700; }
+.val-q-yoy.up { color: var(--accent); }
+.val-q-yoy.down { color: var(--danger); }
+.val-q-note { margin: 6px 0 0; font-size: 9.5px; color: var(--muted); line-height: 1.5; }
+
+/* 常時見せる健全性サマリー(詳細を畳んでいても判断の入口は残す) */
+.val-summary { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.val-sum {
+  flex: 1; min-width: 88px; padding: 6px 8px; border-radius: 8px;
+  font-size: 10.5px; color: var(--muted); text-align: center;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+}
+.val-sum strong { display: block; font-size: 12.5px; margin-top: 2px; color: var(--text); }
+.val-sum.good { border-color: rgba(88, 214, 141, 0.55); }
+.val-sum.ok { border-color: rgba(246, 198, 82, 0.5); }
+.val-sum.watch { border-color: rgba(240, 110, 110, 0.6); }
+.val-sum.unknown { opacity: 0.7; }
+
+.val-detail-btn {
+  width: 100%; margin-top: 10px; padding: 7px 2px;
+  border: 1px solid var(--line); border-radius: 9px;
+  background: var(--surface); color: var(--text-dim);
+  font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.val-detail-btn:active { transform: scale(0.99); }
