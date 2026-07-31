@@ -5,14 +5,15 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from valuation.history import FundamentalRecord
-from valuation.profile import (GRID_POINTS, build_profile, estimate_known_from,
+from valuation.profile import (GRID_POINTS, SPARK_MONTHS, build_profile,
+                               estimate_known_from, monthly_series,
                                percentile_from_grid, quantile_grid,
                                yearly_ranges)
 
@@ -96,12 +97,17 @@ class TestBuildProfile:
         assert "close" not in p and "price" not in p
         assert str(round(float(prices.iloc[-1]))) not in blob
 
-    def test_size_is_about_1kb(self):
-        """1銘柄1KB前後に収まること(全1526銘柄で約1.5MBという設計の根拠)。"""
+    def test_size_stays_within_delivery_budget(self):
+        """1銘柄2.5KB以内に収まること。
+
+        v2 で収益性・安全性・成長・四半期・月次スパークラインを足したため
+        約1KB→2KBになった。全1526銘柄で約3MB。orphanブランチへの
+        force-push なので履歴は増えず、1銘柄ぶんの取得は依然として即時。
+        """
         prices, records = make_case()
         p = build_profile("7203", "トヨタ自動車", prices, records)
         size = len(json.dumps(p, ensure_ascii=False, separators=(",", ":")).encode())
-        assert size < 1600, f"プロファイルが大きすぎる: {size}B"
+        assert size < 2600, f"プロファイルが大きすぎる: {size}B"
 
     def test_yearly_ranges_are_capped_by_window(self):
         """10年ローリングなので年次レンジの件数が増え続けないこと。"""
@@ -190,3 +196,56 @@ class TestCoverageHonesty:
         p = build_profile("999A", "新規", pd.Series(1000.0, index=idx), [])
         assert p["cov"]["span"] is None
         assert p["cov"]["obs"] == 0
+
+
+class TestSparkline:
+    """スペースを取らない簡易グラフ用の月次系列。"""
+
+    def test_monthly_points_are_capped(self):
+        idx = pd.bdate_range("2015-01-01", periods=2600)
+        s = pd.Series(np.linspace(10, 20, 2600), index=idx)
+        m = monthly_series(s)
+        assert len(m) <= SPARK_MONTHS
+        assert m[-1] == pytest.approx(20.0, abs=0.1)
+
+    def test_short_history_yields_short_series(self):
+        idx = pd.bdate_range("2025-01-01", periods=60)
+        m = monthly_series(pd.Series(np.linspace(10, 12, 60), index=idx))
+        assert 1 <= len(m) <= 4
+
+    def test_empty_series(self):
+        assert monthly_series(pd.Series(dtype=float)) == []
+
+    def test_profile_carries_sparkline_series(self):
+        prices, records = make_case()
+        p = build_profile("7203", "トヨタ", prices, records)
+        assert 0 < len(p["per_m"]) <= SPARK_MONTHS
+        assert 0 < len(p["pbr_m"]) <= SPARK_MONTHS
+
+
+class TestProfileV2Sections:
+    """収益性・安全性・成長・四半期が載っていること。"""
+
+    def test_financial_and_growth_sections_exist(self):
+        prices, records = make_case()
+        p = build_profile("7203", "トヨタ", prices, records)
+        assert p["v"] == 2
+        assert set(p["fin"]) >= {"op_margin", "equity_ratio", "de", "net_cash_ps"}
+        assert set(p["growth"]) >= {"rev_yoy", "eps_yoy", "eps_cagr3"}
+        assert p["hist"]["years"] == [r.period_end.year for r in records]
+
+    def test_quarterly_absence_is_reported(self):
+        """四半期データが無いことを missing に出す(黙って空にしない)。"""
+        prices, records = make_case()
+        p = build_profile("7203", "トヨタ", prices, records)
+        assert "quarterly" in p["cov"]["missing"]
+
+    def test_quarterly_included_when_given(self):
+        prices, records = make_case()
+        qs = [FundamentalRecord(period_end=date(2025, m, 28),
+                                known_from=date(2025, m, 28) + timedelta(days=45),
+                                revenue=100.0 + m, operating_income=8.0 + m)
+              for m in (3, 6, 9, 12)]
+        p = build_profile("7203", "トヨタ", prices, records, quarterly=qs)
+        assert len(p["q"]["labels"]) == 4
+        assert "quarterly" not in p["cov"]["missing"]

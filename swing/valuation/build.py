@@ -25,7 +25,7 @@ from backtest import data as data_mod
 from backtest.universe import load_universe_all, yf_tickers_all
 from screener.bizdays import JST
 from valuation.profile import build_profile
-from valuation.sources.yf import fetch_records
+from valuation.sources.yf import fetch_quarterly, fetch_records
 
 ROOT = Path(__file__).resolve().parent.parent
 # 自己レンジを10年取るための株価履歴。営業日換算で約2500日。
@@ -92,10 +92,13 @@ def market_index(codes: list[str], out_dir: Path) -> None:
 
 
 def build_one(code: str, name: str, prices: pd.Series) -> dict | None:
-    records = fetch_records(f"{code}.T")
+    ticker = f"{code}.T"
+    records = fetch_records(ticker)
     if not records:
         return None
-    return build_profile(code, name, prices, records)
+    # 四半期は取れなくても年次だけで成立させる(取得失敗で銘柄ごと落とさない)
+    return build_profile(code, name, prices, records,
+                         quarterly=fetch_quarterly(ticker))
 
 
 def main(argv: list[str] | None = None) -> int:

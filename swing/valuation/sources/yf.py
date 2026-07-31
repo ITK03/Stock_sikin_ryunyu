@@ -37,6 +37,19 @@ SHARES_ROWS = [
     "Diluted Average Shares", "Basic Average Shares", "Share Issued", "Ordinary Shares Number",
 ]
 REVENUE_ROWS = ["Total Revenue", "Operating Revenue"]
+GROSS_PROFIT_ROWS = ["Gross Profit"]
+OPERATING_INCOME_ROWS = ["Operating Income", "Total Operating Income As Reported",
+                         "EBIT"]
+TOTAL_ASSETS_ROWS = ["Total Assets"]
+TOTAL_DEBT_ROWS = ["Total Debt", "Net Debt"]
+CASH_ROWS = ["Cash Cash Equivalents And Short Term Investments",
+             "Cash And Cash Equivalents", "Cash Financial"]
+CURRENT_ASSETS_ROWS = ["Current Assets", "Total Current Assets"]
+CURRENT_LIABILITIES_ROWS = ["Current Liabilities", "Total Current Liabilities"]
+INTEREST_ROWS = ["Interest Expense", "Interest Expense Non Operating"]
+OCF_ROWS = ["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"]
+CAPEX_ROWS = ["Capital Expenditure", "Purchase Of PPE"]
+DIVIDENDS_ROWS = ["Cash Dividends Paid", "Common Stock Dividend Paid"]
 
 
 def _pick(df: pd.DataFrame, names: list[str], col) -> float | None:
@@ -66,6 +79,7 @@ def _as_date(col) -> date | None:
 
 def records_from_statements(income: pd.DataFrame,
                             balance: pd.DataFrame,
+                            cashflow: pd.DataFrame | None = None,
                             lag_days: int | None = None) -> list[FundamentalRecord]:
     """損益計算書と貸借対照表から、期ごとの1株指標を組み立てる。
 
@@ -109,8 +123,23 @@ def records_from_statements(income: pd.DataFrame,
 
         kf = estimate_known_from(pe) if lag_days is None else \
             estimate_known_from(pe, lag_days)
-        out.append(FundamentalRecord(period_end=pe, known_from=kf, eps=eps,
-                                     bps=bps, roe=roe, sps=sps))
+        cf = cashflow
+        out.append(FundamentalRecord(
+            period_end=pe, known_from=kf, eps=eps, bps=bps, roe=roe, sps=sps,
+            shares=shares, revenue=revenue, net_income=net,
+            gross_profit=_pick(income, GROSS_PROFIT_ROWS, col),
+            operating_income=_pick(income, OPERATING_INCOME_ROWS, col),
+            total_assets=_pick(balance, TOTAL_ASSETS_ROWS, col),
+            equity=equity,
+            total_debt=_pick(balance, TOTAL_DEBT_ROWS, col),
+            cash=_pick(balance, CASH_ROWS, col),
+            current_assets=_pick(balance, CURRENT_ASSETS_ROWS, col),
+            current_liabilities=_pick(balance, CURRENT_LIABILITIES_ROWS, col),
+            interest_expense=_pick(income, INTEREST_ROWS, col),
+            operating_cf=_pick(cf, OCF_ROWS, col),
+            capex=_pick(cf, CAPEX_ROWS, col),
+            dividends_paid=_pick(cf, DIVIDENDS_ROWS, col),
+        ))
     return out
 
 
@@ -122,7 +151,20 @@ def fetch_records(ticker: str) -> list[FundamentalRecord]:
     try:
         import yfinance as yf
         t = yf.Ticker(ticker)
-        return records_from_statements(t.income_stmt, t.balance_sheet)
+        return records_from_statements(t.income_stmt, t.balance_sheet, t.cashflow)
     except Exception as exc:           # noqa: BLE001 - 可用性優先
         print(f"WARNING: {ticker} の財務取得に失敗: {exc}")
+        return []
+
+
+def fetch_quarterly(ticker: str) -> list[FundamentalRecord]:
+    """四半期の実績推移。前年同期比の算出に使う(8期あれば4期ぶんのYoYが出る)。"""
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker)
+        return records_from_statements(t.quarterly_income_stmt,
+                                       t.quarterly_balance_sheet,
+                                       t.quarterly_cashflow)
+    except Exception as exc:           # noqa: BLE001 - 可用性優先
+        print(f"WARNING: {ticker} の四半期取得に失敗: {exc}")
         return []

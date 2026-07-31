@@ -22,8 +22,10 @@ import pandas as pd
 from valuation.history import (DEFAULT_YEARS, MIN_OBSERVATIONS,
                                FundamentalRecord, explain_pbr_by_roe,
                                market_adjusted, valuation_frame)
+from valuation.metrics import (financial_metrics, growth_metrics,
+                               quarterly_history, yearly_history)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 # 分位グリッドの点数。0%,5%,…,100% の21点。これ以上細かくしても表示は変わらず、
 # サイズだけ増える。
 GRID_POINTS = 21
@@ -88,6 +90,21 @@ def yearly_ranges(s: pd.Series, digits: int = 2) -> list[list]:
     return out
 
 
+# スパークライン用の月次点数。5年で60点。日次(1250点)をそのまま持つと1銘柄
+# 5KBを超えるが、月次なら数百バイトで推移の形は十分伝わる。
+SPARK_MONTHS = 60
+
+
+def monthly_series(s: pd.Series, digits: int = 2,
+                   months: int = SPARK_MONTHS) -> list[float | None]:
+    """月末値の系列(スパークライン用)。欠測月は None のまま残す。"""
+    s = s.dropna()
+    if s.empty:
+        return []
+    m = s.resample("ME").last().tail(months)
+    return [None if pd.isna(v) else round(float(v), digits) for v in m]
+
+
 def _latest(v: pd.DataFrame, col: str) -> float | None:
     s = v[col].dropna()
     return round(float(s.iloc[-1]), 4) if len(s) else None
@@ -98,7 +115,8 @@ def build_profile(code: str, name: str, prices: pd.Series,
                   market_per: pd.Series | None = None,
                   years: int = DEFAULT_YEARS,
                   source: str = "yfinance",
-                  known_from_estimated: bool = True) -> dict:
+                  known_from_estimated: bool = True,
+                  quarterly: list[FundamentalRecord] | None = None) -> dict:
     """配信するプロファイル1件を組み立てる。
 
     データが足りない項目は None のまま残し、cov.missing に列挙する。欠測を
@@ -129,6 +147,9 @@ def build_profile(code: str, name: str, prices: pd.Series,
             missing.append(col)
     profile["per_y"] = yearly_ranges(v["per"]) if "per" in v else []
     profile["pbr_y"] = yearly_ranges(v["pbr"]) if "pbr" in v else []
+    # スパークライン用の月次推移
+    profile["per_m"] = monthly_series(v["per"]) if "per" in v else []
+    profile["pbr_m"] = monthly_series(v["pbr"]) if "pbr" in v else []
 
     # 市場全体の水準変化を除いた相対PER。市場平均が切り上がっただけの局面を
     # 「自己レンジの上位」と誤読しないため。
@@ -161,6 +182,15 @@ def build_profile(code: str, name: str, prices: pd.Series,
         valid = v["pbr"].dropna()
     span = ([int(valid.index[0].year), int(valid.index[-1].year)]
             if len(valid) else None)
+
+    # 「安いか」だけでなく「そもそも買ってよい会社か」を見るための指標群。
+    # 収益性・安全性・成長がここに入る。
+    profile["fin"] = financial_metrics(records[-1]) if records else {}
+    profile["growth"] = growth_metrics(records)
+    profile["hist"] = yearly_history(records)
+    profile["q"] = quarterly_history(quarterly or [])
+    if not profile["q"]["labels"]:
+        missing.append("quarterly")
 
     profile["cov"] = {
         # 要求した窓の上限。実際の収録期間は span を見る。

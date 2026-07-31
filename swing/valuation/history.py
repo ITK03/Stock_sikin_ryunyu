@@ -48,6 +48,25 @@ class FundamentalRecord:
     sps: float | None = None      # 1株売上高
     eps_guidance: float | None = None  # 会社予想EPS(今期)
 
+    # ── 以下は財務の健全性・成長率の算出に使う実額 ──────────────────
+    # 「安いか」だけでなく「そもそも買ってよい会社か」を見るために必要。
+    # 取得できない項目は None のままにし、指標側で欠測として扱う。
+    shares: float | None = None
+    revenue: float | None = None
+    gross_profit: float | None = None
+    operating_income: float | None = None
+    net_income: float | None = None
+    total_assets: float | None = None
+    equity: float | None = None
+    total_debt: float | None = None
+    cash: float | None = None
+    current_assets: float | None = None
+    current_liabilities: float | None = None
+    interest_expense: float | None = None
+    operating_cf: float | None = None
+    capex: float | None = None
+    dividends_paid: float | None = None
+
     def __post_init__(self) -> None:
         if self.known_from < self.period_end:
             raise ValueError(
