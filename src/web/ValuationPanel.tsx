@@ -7,7 +7,11 @@ import {
   caveats,
   coverageText,
   gapVerdict,
+  PROGRESS_TEXT,
   comparableQuarters,
+  forwardDividendYield,
+  forwardPer,
+  progressRows,
   growthReadings,
   healthSummary,
   methodText,
@@ -169,6 +173,10 @@ export function ValuationPanel({ code, price }: Props) {
   const yl = yields(profile, price);
   const hist = profile.hist;
   const quarters = comparableQuarters(profile);
+  const g = profile.guidance;
+  const fPer = forwardPer(profile, price);
+  const fYield = forwardDividendYield(profile, price);
+  const pRows = progressRows(profile);
 
   return (
     <div className="val-panel">
@@ -193,6 +201,63 @@ export function ValuationPanel({ code, price }: Props) {
           <p className="val-gap-sub">
             ROE低下で説明できるPBR低下は割安とみなさない判定。{methodText(gap)}
           </p>
+        </div>
+      )}
+
+      {/* 会社予想と進捗。決算短信XBRLから取っているのでアナリスト予想ではない。
+          進捗率は経過率と並べて出す(単独では判断できないため)。 */}
+      {g && (
+        <div className="val-guide">
+          <div className="val-guide-head">
+            <span className="val-guide-title">会社予想</span>
+            {g.known_from && <span className="val-guide-date">{g.known_from} 開示</span>}
+          </div>
+          <div className="val-guide-row">
+            {fPer !== null && (
+              <span className="val-guide-item">
+                予想PER <strong>{fPer.toFixed(1)}倍</strong>
+              </span>
+            )}
+            {fYield !== null && (
+              <span className="val-guide-item">
+                予想配当利回り <strong>{(fYield * 100).toFixed(2)}%</strong>
+              </span>
+            )}
+            {g.eps !== null && (
+              <span className="val-guide-item">
+                予想EPS <strong>{g.eps.toFixed(1)}円</strong>
+              </span>
+            )}
+          </div>
+          {g.progress && (
+            <div className={`val-progress ${g.progress.verdict}`}>
+              <div className="val-progress-head">
+                第{g.progress.quarter}四半期時点の進捗
+                <strong>
+                  {g.progress.lead === null ? '—' : `${(g.progress.lead * 100).toFixed(0)}%`}
+                </strong>
+                <span className="val-progress-elapsed">
+                  経過率 {(g.progress.elapsed * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="val-progress-bar">
+                <div className="val-progress-fill"
+                  style={{ width: `${Math.min(100, (g.progress.lead ?? 0) * 100)}%` }} />
+                <div className="val-progress-mark"
+                  style={{ left: `${g.progress.elapsed * 100}%` }} />
+              </div>
+              <p className="val-progress-text">{PROGRESS_TEXT[g.progress.verdict]}</p>
+              {pRows.length > 1 && (
+                <div className="val-progress-rows">
+                  {pRows.map((r) => (
+                    <span key={r.label} className="val-progress-item">
+                      {r.label} {(r.ratio * 100).toFixed(0)}%
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

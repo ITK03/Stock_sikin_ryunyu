@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PROGRESS_TEXT,
   caveats,
+  forwardDividendYield,
+  forwardPer,
+  progressRows,
   comparableQuarters,
   coverageText,
   healthSummary,
@@ -253,5 +257,51 @@ describe('comparableQuarters — 比較できない期を空行で並べない',
 
   it('四半期データが無ければ空', () => {
     expect(comparableQuarters(makeProfile())).toEqual([]);
+  });
+});
+
+// 決算短信XBRL由来の会社予想。アナリスト予想ではなく企業の正式な計画。
+describe('会社予想と進捗率', () => {
+  const withGuidance = (over = {}) => makeProfile({
+    guidance: {
+      doc_id: 'D1', known_from: '2026-07-29', consolidated: true,
+      eps: 150, dps: 45,
+      progress: { quarter: 1, elapsed: 0.25, lead: 0.40, verdict: 'ahead',
+                  revenue: 0.26, operating_income: 0.40 },
+      ...over,
+    },
+  });
+
+  it('予想EPSから予想PERを出す', () => {
+    expect(forwardPer(withGuidance(), 3000)).toBeCloseTo(20, 6);
+  });
+
+  it('予想が無ければ予想PERは出さない', () => {
+    expect(forwardPer(makeProfile(), 3000)).toBeNull();
+    expect(forwardPer(withGuidance({ eps: null }), 3000)).toBeNull();
+  });
+
+  it('赤字予想では予想PERを出さない', () => {
+    expect(forwardPer(withGuidance({ eps: -20 }), 3000)).toBeNull();
+  });
+
+  it('予想配当利回り', () => {
+    expect(forwardDividendYield(withGuidance(), 3000)).toBeCloseTo(0.015, 6);
+  });
+
+  it('進捗の内訳は値のある項目だけ返す', () => {
+    const rows = progressRows(withGuidance());
+    expect(rows.map((r) => r.label)).toEqual(['売上', '営業利益']);
+    expect(rows[1].ratio).toBeCloseTo(0.40, 6);
+  });
+
+  it('進捗が無ければ空', () => {
+    expect(progressRows(makeProfile())).toEqual([]);
+  });
+
+  it('判定の日本語が揃っている', () => {
+    expect(PROGRESS_TEXT.ahead).toContain('上回る');
+    expect(PROGRESS_TEXT.behind).toContain('遅れ');
+    expect(PROGRESS_TEXT.ontrack).toContain('どおり');
   });
 });

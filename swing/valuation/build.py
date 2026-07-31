@@ -24,13 +24,82 @@ import pandas as pd
 from backtest import data as data_mod
 from backtest.universe import load_universe_all, yf_tickers_all
 from screener.bizdays import JST
+from valuation.guidance import guidance_block
 from valuation.profile import build_profile
+from valuation.sources.tdnet import fetch_summary
 from valuation.sources.yf import fetch_quarterly, fetch_records
 
 ROOT = Path(__file__).resolve().parent.parent
 # 自己レンジを10年取るための株価履歴。営業日換算で約2500日。
 PRICE_LOOKBACK_DAYS = 3800
 INDEX_FILE = "index.json"
+
+# 配信中の開示フィード。決算短信の文書IDをここから引く。
+DISCLOSURES_URL = ("https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/"
+                   "data-disclosures/disclosures.json")
+
+
+def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str]]:
+    """開示フィードから {銘柄コード: (文書ID, 開示時刻)} を作る。
+
+    決算短信の公表日はここで確定する。yfinance で使っている「期末+45日」の
+    推定と違い、これは市場が実際に知った日そのもの。
+    """
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310
+            feed = json.loads(resp.read())
+    except Exception as exc:           # noqa: BLE001 - 開示が取れなくても続行
+        print(f"WARNING: 開示フィードを取得できません: {exc}")
+        return {}
+    out: dict[str, tuple[str, str]] = {}
+    for it in feed.get("items", []):
+        if it.get("category") != "決算" or it.get("is_correction"):
+            continue
+        code, doc_id, t = it.get("code"), it.get("id"), it.get("time") or ""
+        if not code or not doc_id:
+            continue
+        # 同じ銘柄が複数あれば新しいほうを採用
+        if code not in out or t > out[code][1]:
+            out[code] = (doc_id, t)
+    return out
+
+
+def load_existing(out_dir: Path, code: str) -> dict | None:
+    """既に配信済みのプロファイル。会社予想を引き継ぐために読む。"""
+    p = out_dir / f"{code}.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def resolve_guidance(code: str, docs: dict[str, tuple[str, str]],
+                     previous: dict | None, shares: float | None) -> dict | None:
+    """会社予想を決める。新しい短信があれば取り直し、無ければ前回のを引き継ぐ。
+
+    開示フィードは直近1ヶ月ぶんしか無いため、毎回取り直す方式だと決算期以外は
+    会社予想が消えてしまう。抽出済みのものは保持し、より新しい短信が出たときだけ
+    更新する(これが point-in-time の蓄積になる)。
+    """
+    prev = (previous or {}).get("guidance")
+    doc = docs.get(code)
+    if doc is None:
+        return prev
+    doc_id, disclosed_at = doc
+    # 同じ短信を何度も取りに行かない
+    if prev and prev.get("doc_id") == doc_id:
+        return prev
+    summary = fetch_summary(doc_id)
+    if summary is None:
+        return prev
+    block = guidance_block(summary, disclosed_at[:10], shares=shares)
+    if block is None:
+        return prev
+    block["doc_id"] = doc_id
+    return block
 
 
 def load_index(out_dir: Path) -> dict[str, str]:
@@ -91,14 +160,21 @@ def market_index(codes: list[str], out_dir: Path) -> None:
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
-def build_one(code: str, name: str, prices: pd.Series) -> dict | None:
+def build_one(code: str, name: str, prices: pd.Series,
+              docs: dict[str, tuple[str, str]] | None = None,
+              previous: dict | None = None) -> dict | None:
     ticker = f"{code}.T"
     records = fetch_records(ticker)
     if not records:
         return None
     # 四半期は取れなくても年次だけで成立させる(取得失敗で銘柄ごと落とさない)
-    return build_profile(code, name, prices, records,
-                         quarterly=fetch_quarterly(ticker))
+    profile = build_profile(code, name, prices, records,
+                            quarterly=fetch_quarterly(ticker))
+    guidance = resolve_guidance(code, docs or {}, previous, records[-1].shares)
+    profile["guidance"] = guidance
+    if guidance is None:
+        profile["cov"]["missing"].append("guidance")
+    return profile
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -129,13 +205,19 @@ def main(argv: list[str] | None = None) -> int:
     raw = data_mod.fetch([f"{c}.T" for c in batch], start=start, out=None)
     prices = data_mod.frame_to_dict(raw, min_rows=250)
 
-    ok = skipped = 0
+    docs = latest_earnings_docs()
+    print(f"開示フィードの決算短信: {len(docs)}銘柄")
+
+    ok = skipped = with_guidance = 0
     for code in batch:
         df = prices.get(code)
         if df is None or df.empty:
             skipped += 1
             continue
-        profile = build_one(code, names.get(code, code), df["close"])
+        profile = build_one(code, names.get(code, code), df["close"],
+                            docs, load_existing(out_dir, code))
+        if profile is not None and profile.get("guidance"):
+            with_guidance += 1
         if profile is None:
             skipped += 1
             continue
@@ -146,7 +228,8 @@ def main(argv: list[str] | None = None) -> int:
 
     market_index(universe, out_dir)
     total = len(list(out_dir.glob("*.json"))) - 1
-    print(f"生成 {ok}件 / 失敗 {skipped}件 / 累計 {total}銘柄")
+    print(f"生成 {ok}件 / 失敗 {skipped}件 / 会社予想あり {with_guidance}件 "
+          f"/ 累計 {total}銘柄")
     return 0
 
 

@@ -48,6 +48,28 @@ export interface ValuationProfile {
     labels: string[]; rev: (number | null)[]; op: (number | null)[];
     rev_yoy: (number | null)[]; op_yoy: (number | null)[];
   };
+  /**
+   * 決算短信XBRLから取った会社予想。アナリスト予想ではなく企業の正式な計画で、
+   * 進捗率もこれが無ければ計算できない。まだ短信を拾えていない銘柄では null。
+   */
+  guidance?: {
+    doc_id?: string;
+    /** 短信の開示日。ここは推定ではなく市場が実際に知った日。 */
+    known_from: string | null;
+    consolidated: boolean;
+    eps: number | null;
+    dps: number | null;
+    progress?: {
+      quarter: number;
+      elapsed: number;
+      lead: number | null;
+      verdict: 'ahead' | 'ontrack' | 'behind' | 'unknown';
+      revenue?: number;
+      operating_income?: number;
+      ordinary_income?: number;
+      net_income?: number;
+    };
+  } | null;
   cov: {
     years_max: number;
     span: [number, number] | null;
@@ -352,4 +374,50 @@ export function comparableQuarters(p: ValuationProfile) {
   return q.labels
     .map((label, i) => ({ label, rev: q.rev_yoy[i], op: q.op_yoy[i] }))
     .filter((r) => r.rev !== null || r.op !== null);
+}
+
+
+// ── 会社予想と進捗率 ────────────────────────────────────────────
+// 進捗率は単独では意味を持たない。第1四半期で25%は平常なので、経過率と
+// 比べて初めて「上振れ/遅れ」が言える。
+
+export const PROGRESS_TEXT: Record<string, string> = {
+  ahead: '計画を上回るペース',
+  ontrack: '計画どおりのペース',
+  behind: '計画に対して遅れ',
+  unknown: '判定できません',
+};
+
+/** 会社予想EPSから求める予想PER。実績PERより先を見ている。 */
+export function forwardPer(p: ValuationProfile, price: number | null): number | null {
+  const eps = p.guidance?.eps;
+  if (!eps || eps <= 0 || price === null || !Number.isFinite(price)) return null;
+  return price / eps;
+}
+
+/** 会社予想配当からの予想利回り。 */
+export function forwardDividendYield(p: ValuationProfile, price: number | null): number | null {
+  const dps = p.guidance?.dps;
+  if (dps === null || dps === undefined || price === null || !price) return null;
+  return dps / price;
+}
+
+export interface ProgressRow {
+  label: string;
+  ratio: number;
+}
+
+/** 進捗率の内訳(売上・営業利益など)。値のある項目だけ返す。 */
+export function progressRows(p: ValuationProfile): ProgressRow[] {
+  const pr = p.guidance?.progress;
+  if (!pr) return [];
+  const defs: [string, keyof typeof pr][] = [
+    ['売上', 'revenue'],
+    ['営業利益', 'operating_income'],
+    ['経常利益', 'ordinary_income'],
+    ['純利益', 'net_income'],
+  ];
+  return defs
+    .map(([label, key]) => ({ label, ratio: pr[key] as number | undefined }))
+    .filter((r): r is ProgressRow => typeof r.ratio === 'number');
 }
