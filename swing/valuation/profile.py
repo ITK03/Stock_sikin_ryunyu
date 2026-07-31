@@ -150,7 +150,8 @@ def build_profile(code: str, name: str, prices: pd.Series,
         missing.append("roe_pbr")
     else:
         profile["roe_pbr"] = {"fair": round(e.fair, 3), "gap": round(e.gap_pct, 1),
-                              "r2": round(e.r2, 3), "n": e.observations}
+                              "r2": round(e.r2, 3), "n": e.observations,
+                              "method": e.method}
 
     # 実際にバリュエーションを計算できた期間。要求した窓(years)ではなく実測を
     # 出す。yfinance の財務は4〜5年しか遡れず、10年を要求しても中身は5年ぶん

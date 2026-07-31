@@ -144,16 +144,18 @@ describe('coverage と caveats — 実測を出し、弱点を隠さない', () 
     expect(coverageText({ ...withYears, per_y: [], pbr_y: [] })).toBe('履歴なし');
   });
 
-  it('5年しか無いこと・公表日が推定であることを注意書きに出す', () => {
-    const c = caveats(makeProfile());
-    expect(c.some((s) => s.includes('5.0年'))).toBe(true);
-    expect(c.some((s) => s.includes('推定'))).toBe(true);
+  it('公表日が推定であることを注意書きに出す', () => {
+    expect(caveats(makeProfile()).some((s) => s.includes('推定'))).toBe(true);
   });
 
-  it('十分な履歴かつ公表日が実測なら注意書きは出ない', () => {
-    const p = makeProfile({
-      cov: { ...makeProfile().cov, span_years: 10, known_from_estimated: false },
-    });
+  it('収録年数は基準行に出すので注意書きでは繰り返さない', () => {
+    // 4〜5年で足りるという前提の運用。毎銘柄に不足として出すと雑音になる。
+    expect(caveats(makeProfile()).some((s) => s.includes('遡れていません'))).toBe(false);
+    expect(coverageText(makeProfile())).toContain('約5.0年');
+  });
+
+  it('公表日が実測で妥当水準も出ていれば注意書きは出ない', () => {
+    const p = makeProfile({ cov: { ...makeProfile().cov, known_from_estimated: false } });
     expect(caveats(p)).toEqual([]);
   });
 
@@ -181,10 +183,6 @@ describe('スキーマ差の吸収', () => {
     const t = coverageText(legacy());
     expect(t).not.toBe('履歴なし');
     expect(t).toContain('2024〜2025年');
-  });
-
-  it('導いた期間でも「5年しかない」注意書きが出る', () => {
-    expect(caveats(legacy()).some((s) => s.includes('遡れていません'))).toBe(true);
   });
 
   it('年次レンジも無ければ正直に履歴なしとする', () => {

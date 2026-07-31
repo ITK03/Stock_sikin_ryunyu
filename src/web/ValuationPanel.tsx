@@ -6,6 +6,7 @@ import {
   caveats,
   coverageText,
   gapVerdict,
+  methodText,
   metrics,
   percentileText,
   positionLabel,
@@ -141,7 +142,7 @@ export function ValuationPanel({ code, price }: Props) {
           </div>
           <p className="val-gap-text">{GAP_TEXT[gapVerdict(gap.gap)]}</p>
           <p className="val-gap-sub">
-            ROE低下で説明できるPBR低下は割安とみなさない判定。説明力 r²={gap.r2.toFixed(2)}
+            ROE低下で説明できるPBR低下は割安とみなさない判定。{methodText(gap)}
           </p>
         </div>
       )}

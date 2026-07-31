@@ -151,8 +151,10 @@ class ExplainedLevel:
     fair: float          # 今のROEから導かれる妥当PBR
     actual: float        # 実際のPBR
     gap_pct: float       # (実際 - 妥当) / 妥当 * 100。マイナスが割安
-    r2: float            # 自社時系列での説明力。低ければ解釈しない
+    r2: float            # 自社時系列での説明力(比率法では0.0)
     observations: int
+    # "regression" = 自社時系列の回帰 / "ratio" = 自社平均のPBR÷ROE比率
+    method: str = "regression"
 
 
 # 関係を推定する際に除外する直近期間(営業日)。約3ヶ月。
@@ -187,9 +189,10 @@ def explain_pbr_by_roe(v: pd.DataFrame,
     fit = df.iloc[:-exclude_recent_days] if exclude_recent_days > 0 else df
     if len(fit) < MIN_OBSERVATIONS:
         fit = df       # 履歴が短い銘柄では除外せず全期間で推定する
-    # ROEがほぼ一定だと回帰が不安定になる(傾きが定まらない)
+    # ROEがほぼ一定だと回帰の傾きが定まらない。比率法なら傾きを理論から
+    # 固定するので、この場合でも妥当水準を出せる。
     if float(fit["roe"].std()) < 1e-4:
-        return None
+        return _explain_by_ratio(df, fit)
 
     y = np.log(fit["pbr"].to_numpy())
     x = fit["roe"].to_numpy()
@@ -199,12 +202,58 @@ def explain_pbr_by_roe(v: pd.DataFrame,
     ss_tot = float(((y - y.mean()) ** 2).sum())
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
     if r2 < min_r2:
-        return None
+        # 決算が4〜5期しか無いとROEが数個の値しか取らず、日次PBRの変動の大半が
+        # 「同じROEの中での値動き」になって決定係数が上がらない。関係が無いのでは
+        # なく推定方法が合っていないので、傾きを理論から固定する比率法に落とす。
+        return _explain_by_ratio(df, fit)
 
     fair = float(np.exp(a + b * float(df["roe"].iloc[-1])))
     actual = float(df["pbr"].iloc[-1])
     return ExplainedLevel(
         fair=fair, actual=actual,
         gap_pct=(actual - fair) / fair * 100.0,
-        r2=float(r2), observations=int(len(fit)),
+        r2=float(r2), observations=int(len(fit)), method="regression",
+    )
+
+
+def _explain_by_ratio(df: pd.DataFrame, fit: pd.DataFrame) -> ExplainedLevel | None:
+    """自社の平均的な「PBR ÷ ROE」倍率から妥当PBRを求める(比率法)。
+
+    残余利益モデルでは、成長ゼロなら 妥当PBR = ROE / 株主資本コスト となり、
+    PBRはROEに比例する。つまり PBR/ROE は本来その会社の資本コストを表す定数で、
+    自社の過去平均から推定できる。
+
+    回帰法より弱い仮定に見えるが、履歴が短いときはむしろこちらが妥当である。
+    決算が4〜5期しか無いとROEは4〜5個の値しか取らず、日次PBRの変動の大半が
+    「同じROEの中での値動き」になるため、自由な傾きの回帰は決定係数が上がらず
+    棄却されてしまう(実測で成立率45%)。比率法は傾きを理論から固定するので、
+    観測数が少なくても安定する。
+
+    ROEが0以下の期は比率が意味を持たないため除く。
+    """
+    usable = fit[fit["roe"] > 0]
+    if len(usable) < 60:
+        return None
+    roe_now = float(df["roe"].iloc[-1])
+    if roe_now <= 0:
+        return None
+    ratios = (usable["pbr"] / usable["roe"]).replace([np.inf, -np.inf], np.nan).dropna()
+    if len(ratios) < 60:
+        return None
+    # 外れ値に引きずられないよう中央値を使う(実質の株主資本コストの逆数)
+    ratio = float(ratios.median())
+    if ratio <= 0:
+        return None
+    # 倍率自体が安定していなければ基準として使えない。「関係が無いのに乖離を
+    # 語らない」という回帰法の原則を比率法でも守る。閾値は実測で決めた:
+    #   関係なし(ランダム) 0.63 / ROE一定でPBR2倍 0.33 / 5期の実例 0.16
+    q1, q3 = ratios.quantile([0.25, 0.75])
+    if (q3 - q1) / ratio > 0.45:
+        return None
+    fair = ratio * roe_now
+    actual = float(df["pbr"].iloc[-1])
+    return ExplainedLevel(
+        fair=fair, actual=actual,
+        gap_pct=(actual - fair) / fair * 100.0,
+        r2=0.0, observations=int(len(usable)), method="ratio",
     )

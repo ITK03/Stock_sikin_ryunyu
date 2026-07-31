@@ -178,12 +178,17 @@ class TestExplainPbrByRoe:
             self._frame(rng.normal(0.08, 0.02, n), rng.lognormal(0, 0.4, n), n))
         assert e is None
 
-    def test_returns_none_when_roe_is_constant(self):
-        """ROEが動いていなければ傾きが定まらないので判定しない。"""
+    def test_constant_roe_falls_back_to_ratio(self):
+        """ROEが動かず回帰の傾きが定まらない場合でも、比率法で水準は語れる。
+
+        「ROEは変わっていないのにPBRだけ2倍になった」は、傾きが推定できなくても
+        自社の平常倍率との比較として意味のある情報になる。
+        """
         n = 500
         e = explain_pbr_by_roe(self._frame(np.full(n, 0.08),
                                            np.linspace(1.0, 2.0, n), n))
-        assert e is None
+        assert e is not None and e.method == "ratio"
+        assert e.gap_pct > 20.0
 
     def test_returns_none_without_enough_history(self):
         assert explain_pbr_by_roe(
@@ -206,3 +211,64 @@ class TestEndToEndNoLookahead:
         cut = 400
         part = valuation_frame(prices.iloc[:cut], records)
         pd.testing.assert_series_equal(part["per"], full["per"].iloc[:cut])
+
+
+class TestRatioFallback:
+    """決算が4〜5期しかない銘柄でも妥当PBRを出せること。
+
+    yfinance の財務は4〜5年しか遡れず、ROEが数個の値しか取らないため自由な傾きの
+    回帰は決定係数が上がらず棄却される(実測で成立率45%)。傾きを理論から固定する
+    比率法に落とすことで、短い履歴でも判定できる。
+    """
+
+    def _short_history(self, roe_levels, pbr_scale=1.0, n_per=125):
+        """年1回決算・ROEが階段状に変わる銘柄(5期ぶん)を作る。"""
+        roe, pbr = [], []
+        for lv in roe_levels:
+            roe += [lv] * n_per
+            # PBR = 12 * ROE を基本形にし、日々のノイズを乗せる
+            rng = np.random.default_rng(int(lv * 1000))
+            pbr += list(12.0 * lv * pbr_scale * (1 + rng.normal(0, 0.12, n_per)))
+        idx = days(len(roe))
+        return pd.DataFrame({"roe": roe, "pbr": pbr}, index=idx)
+
+    def test_estimates_from_short_history(self):
+        """5期しかなくても妥当水準を出せること(回帰・比率どちらで通ってもよい)。"""
+        v = self._short_history([0.10, 0.09, 0.11, 0.10, 0.09])
+        e = explain_pbr_by_roe(v)
+        assert e is not None, "5期しかない銘柄で妥当水準が出せていない"
+        # PBR = 12 * ROE の関係なので、ROE 9% なら妥当PBRは約1.08倍
+        assert e.fair == pytest.approx(12.0 * 0.09, rel=0.15)
+
+    def test_detects_unexplained_discount_on_short_history(self):
+        """ROEは変わらないのにPBRだけ切り下がった場合を捉えること。"""
+        v = self._short_history([0.10, 0.10, 0.10, 0.10, 0.10])
+        v.iloc[-60:, v.columns.get_loc("pbr")] *= 0.7
+        e = explain_pbr_by_roe(v)
+        assert e is not None
+        assert e.gap_pct < -20.0
+
+    def test_roe_decline_is_not_called_cheap(self):
+        """ROE低下に見合ったPBR低下は割安と判定しないこと(比率法でも同じ)。"""
+        v = self._short_history([0.12, 0.11, 0.10, 0.09, 0.08])
+        e = explain_pbr_by_roe(v)
+        assert e is not None
+        assert abs(e.gap_pct) < 15.0
+
+    def test_regression_is_preferred_when_it_fits(self):
+        """十分な履歴で関係が強いときは回帰法を使うこと。"""
+        n = 500
+        roe = np.linspace(0.12, 0.06, n)
+        v = pd.DataFrame({"roe": roe, "pbr": np.exp(0.5 + 8.0 * roe)}, index=days(n))
+        e = explain_pbr_by_roe(v)
+        assert e is not None and e.method == "regression"
+
+    def test_no_estimate_when_roe_is_negative(self):
+        """赤字(ROEが負)では比率が意味を持たないので何も出さない。"""
+        v = self._short_history([0.10, 0.10, 0.10, 0.10, 0.10])
+        v.iloc[-125:, v.columns.get_loc("roe")] = -0.05
+        assert explain_pbr_by_roe(v) is None
+
+    def test_still_none_without_enough_history(self):
+        v = self._short_history([0.10, 0.10], n_per=60)
+        assert explain_pbr_by_roe(v) is None

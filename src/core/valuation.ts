@@ -26,7 +26,11 @@ export interface ValuationProfile {
   per_y: [number, number, number, number][];
   pbr_y: [number, number, number, number][];
   /** ROEから説明される妥当PBRとの乖離。関係が弱ければ null(何も語らない)。 */
-  roe_pbr: { fair: number; gap: number; r2: number; n: number } | null;
+  roe_pbr: {
+    fair: number; gap: number; r2: number; n: number;
+    /** "regression"=自社時系列の回帰 / "ratio"=自社平均のPBR÷ROE倍率。古い版には無い。 */
+    method?: 'regression' | 'ratio';
+  } | null;
   cov: {
     years_max: number;
     span: [number, number] | null;
@@ -105,10 +109,6 @@ export function metrics(profile: ValuationProfile, price: number | null): Metric
 }
 
 /**
- * 自己レンジ内の位置を短い日本語にする。
- * 「割安」「買い」といった断定は使わない。位置を述べるだけに留める。
- */
-/**
  * パーセンタイルを誤読しようのない日本語にする。
  *
  * 「下位99%」のような書き方は、レンジ上端にいるのに「下位」と読めてしまう。
@@ -119,6 +119,10 @@ export function percentileText(percentile: number | null): string {
   return `過去の${percentile.toFixed(0)}%より高い`;
 }
 
+/**
+ * 自己レンジ内の位置を短い日本語にする。
+ * 「割安」「買い」といった断定は使わない。位置を述べるだけに留める。
+ */
 export function positionLabel(percentile: number | null): string {
   if (percentile === null || !Number.isFinite(percentile)) return '—';
   if (percentile < 10) return '過去最安圏';
@@ -140,6 +144,17 @@ export function gapVerdict(gapPct: number): GapVerdict {
   if (gapPct <= -15) return 'cheap';
   if (gapPct >= 15) return 'rich';
   return 'fair';
+}
+
+/**
+ * 妥当PBRの推定根拠。決算が4〜5期しかない銘柄では、日次PBRの変動の大半が
+ * 「同じROEの中での値動き」になり自由な傾きの回帰が通らないため、傾きを理論から
+ * 固定した比率法(PBRはROEに比例する)に落ちる。どちらで出したかは表示する。
+ */
+export function methodText(m: ValuationProfile['roe_pbr']): string {
+  if (!m) return '';
+  if (m.method === 'ratio') return '自社の平常倍率(PBR÷ROE)を基準';
+  return `自社の時系列回帰・説明力 r²=${m.r2.toFixed(2)}`;
 }
 
 export const GAP_TEXT: Record<GapVerdict, string> = {
@@ -174,11 +189,10 @@ export function coverageText(profile: ValuationProfile): string {
 
 /** 精度に関わる注意書き。該当が無ければ空配列。 */
 export function caveats(profile: ValuationProfile): string[] {
+  // 収録年数は冒頭の基準行に出しているので、ここでは繰り返さない。
+  // 4〜5年あれば足りるという前提での運用(10年前のレンジは事業構造も相場環境も
+  // 変わっていて当てにならない)。
   const out: string[] = [];
-  const { years } = coverage(profile);
-  if (years > 0 && years < 7) {
-    out.push(`過去${years.toFixed(1)}年ぶんしか遡れていません`);
-  }
   if (profile.cov.known_from_estimated) {
     out.push('決算の公表日が推定値です');
   }
