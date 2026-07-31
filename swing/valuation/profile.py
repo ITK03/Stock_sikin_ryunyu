@@ -152,9 +152,22 @@ def build_profile(code: str, name: str, prices: pd.Series,
         profile["roe_pbr"] = {"fair": round(e.fair, 3), "gap": round(e.gap_pct, 1),
                               "r2": round(e.r2, 3), "n": e.observations}
 
+    # 実際にバリュエーションを計算できた期間。要求した窓(years)ではなく実測を
+    # 出す。yfinance の財務は4〜5年しか遡れず、10年を要求しても中身は5年ぶん
+    # しか無い。「過去10年レンジの下位8%」と表示してしまうと事実と違う。
+    valid = v["per"].dropna() if "per" in v else pd.Series(dtype=float)
+    if valid.empty and "pbr" in v:
+        valid = v["pbr"].dropna()
+    span = ([int(valid.index[0].year), int(valid.index[-1].year)]
+            if len(valid) else None)
+
     profile["cov"] = {
-        "years": years,
-        "obs": int(len(v)),
+        # 要求した窓の上限。実際の収録期間は span を見る。
+        "years_max": years,
+        "span": span,
+        "span_years": (round(len(valid) / 245.0, 1) if len(valid) else 0.0),
+        "obs": int(len(valid)),
+        "price_obs": int(len(v)),
         "records": len(records),
         # 公表日が推定値かどうか。推定のままだと過去レンジにわずかな先読みが
         # 混じるため、画面にもそのまま出す。

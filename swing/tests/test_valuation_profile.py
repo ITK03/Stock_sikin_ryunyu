@@ -156,3 +156,37 @@ class TestEstimateKnownFrom:
         """FundamentalRecord の検証を通る値になっていること。"""
         pe = date(2025, 3, 31)
         FundamentalRecord(period_end=pe, known_from=estimate_known_from(pe), eps=1.0)
+
+
+class TestCoverageHonesty:
+    """収録期間を要求値ではなく実測で出すこと。
+
+    yfinance の財務は4〜5年しか遡れないため、years=10 を要求しても中身は5年
+    しかない。「過去10年レンジの下位8%」と表示すると事実と違う。
+    """
+
+    def test_span_reflects_actual_data_not_requested_window(self):
+        prices, records = make_case(years=11)
+        # 直近3期ぶんの決算しか無い銘柄
+        p = build_profile("7203", "トヨタ", prices, records[-3:], years=10)
+        assert p["cov"]["years_max"] == 10
+        lo, hi = p["cov"]["span"]
+        assert hi - lo <= 4, f"実収録が10年に満たないのに span が広すぎる: {lo}-{hi}"
+        assert p["cov"]["span_years"] < 6.0
+
+    def test_span_years_matches_observation_count(self):
+        prices, records = make_case(years=11)
+        p = build_profile("7203", "トヨタ", prices, records)
+        assert p["cov"]["span_years"] == pytest.approx(p["cov"]["obs"] / 245.0, abs=0.1)
+
+    def test_obs_counts_valuation_days_not_price_days(self):
+        """公表前の期間は評価できないので obs に数えない。"""
+        prices, records = make_case(years=11)
+        p = build_profile("7203", "トヨタ", prices, records[-2:], years=10)
+        assert p["cov"]["obs"] < p["cov"]["price_obs"]
+
+    def test_span_is_none_without_any_valuation(self):
+        idx = pd.bdate_range("2025-01-01", periods=300)
+        p = build_profile("999A", "新規", pd.Series(1000.0, index=idx), [])
+        assert p["cov"]["span"] is None
+        assert p["cov"]["obs"] == 0
