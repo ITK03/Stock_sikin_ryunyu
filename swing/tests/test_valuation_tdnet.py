@@ -456,3 +456,51 @@ class TestProgressSpread:
         p = progress(s)
         assert "spread" not in p
         assert p["verdict"] == "ahead"
+
+
+class TestDividendOnlyForecast:
+    """配当予想しか出していない会社の予想を落とさないこと。
+
+    1株当たり配当は会社として決めるもので、コンテキストに連結/非連結の区別が
+    入らない。基準ごとに分けた箱に入れると、連結の実績と非連結側の配当予想で
+    箱が分かれ、どちらの箱も「実績と予想が揃わない」状態になる。実測で
+    キオクシア・SBI・エフピコなど7銘柄の会社予想がこれで消えていた。
+    """
+
+    def test_keeps_dividend_forecast_declared_without_basis(self):
+        got = parse_summary(xbrl([
+            ("NetSales",
+             "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "70000"),
+            ("OperatingIncome",
+             "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "6000"),
+            # 配当予想には連結/非連結の指定が無い
+            ("DividendPerShare", "CurrentYearDuration_ForecastMember", "31.5"),
+        ]))
+        assert got["consolidated"] is True
+        assert got["actual"]["revenue"] == 70000
+        assert got["forecast"]["dps"] == 31.5
+
+    def test_dividend_only_forecast_still_produces_a_block(self):
+        got = parse_summary(xbrl([
+            ("NetSales",
+             "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "70000"),
+            ("DividendPerShare", "CurrentYearDuration_ForecastMember", "30.0"),
+        ]))
+        block = guidance_block(got, "2026-07-31", shares=None)
+        assert block is not None, "配当予想だけの会社で予想が丸ごと消えている"
+        assert block["dps"] == 30.0
+        assert block["eps"] is None
+        # 予想に売上・利益が無いので進捗率は出せない。出さないのが正しい。
+        assert "progress" not in block
+
+    def test_consolidated_eps_forecast_still_wins_over_parent(self):
+        """配当を補うようにしても、EPSの基準揃えは崩さないこと。"""
+        got = parse_summary(xbrl([
+            ("NetIncomePerShare",
+             "CurrentYearDuration_NonConsolidatedMember_ForecastMember", "10.0"),
+            ("NetIncomePerShare",
+             "CurrentYearDuration_ConsolidatedMember_ForecastMember", "88.0"),
+            ("OperatingIncome",
+             "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "6000"),
+        ]))
+        assert got["forecast"]["eps"] == 88.0

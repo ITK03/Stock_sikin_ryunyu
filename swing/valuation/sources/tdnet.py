@@ -40,6 +40,11 @@ FIELD_ELEMENTS: dict[str, tuple[str, ...]] = {
 }
 _ELEMENT_TO_FIELD = {el: f for f, els in FIELD_ELEMENTS.items() for el in els}
 
+# 連結/非連結の区別が無い項目。1株当たり配当は会社として決めるもので、
+# コンテキストにも区別が入らない。基準ごとに分けた箱の片方にしか現れないため、
+# もう片方から補わないと落ちる。
+BASIS_NEUTRAL_FIELDS = ("dps",)
+
 # 累計実績のコンテキスト(第n四半期の累計)。四半期番号も取り出す。
 _ACCUM_RE = re.compile(r"CurrentAccumulatedQ(\d)Duration", re.I)
 
@@ -208,17 +213,27 @@ def parse_summary(xml_bytes: bytes) -> dict:
 
     def result(cons: bool) -> dict:
         actual, forecast, quarter = unpack(buckets[cons])
+        other = unpack(buckets[not cons])[1]
+        # 1株当たり配当は会社として決めるもので、連結/非連結の区別が無い。
+        # コンテキストに区別が入らないため非連結側の箱に落ちる。基準を揃える
+        # ために弾くと、配当予想しか出していない会社の予想が丸ごと消える
+        # (実測で7銘柄。連結の実績と非連結側の配当予想で箱が分かれ、どちらの
+        # 箱も「実績と予想が揃わない」状態になっていた)。
+        for f in BASIS_NEUTRAL_FIELDS:
+            if f not in forecast and f in other:
+                forecast[f] = other[f]
         return {"actual": actual, "forecast": forecast,
                 "quarter": quarter, "consolidated": cons}
 
-    # 実績と予想が揃う基準を優先する(連結 → 非連結)。揃わなければ、
-    # 片方しか無くても情報がある方を返す(進捗率は出せないが予想は出せる)。
-    for require_both in (True, False):
-        for cons in (True, False):
-            got = result(cons)
-            if got["actual"] and got["forecast"]:
-                return got
-            if not require_both and (got["actual"] or got["forecast"]):
+    # 実績と予想が揃う基準を優先する(連結 → 非連結)。揃わなければ予想がある
+    # ほうを取る。会社予想は予想が無いと何も出せないが、実績だけなら
+    # プロファイル本体が持っているため。
+    candidates = [result(True), result(False)]
+    for accept in (lambda g: g["actual"] and g["forecast"],
+                   lambda g: g["forecast"],
+                   lambda g: g["actual"]):
+        for got in candidates:
+            if accept(got):
                 return got
     return {"actual": {}, "forecast": {}, "quarter": None, "consolidated": False}
 
