@@ -179,3 +179,75 @@ class TestLatestEarningsDocs:
             raise OSError("network down")
         monkeypatch.setattr("urllib.request.urlopen", boom)
         assert b.latest_earnings_docs() == {}
+
+
+class TestSchemaUpgrade:
+    """スキーマが古いプロファイルを最優先で作り直すこと。
+
+    v2 を足したあと、未生成を優先する順序のせいで生成済み450銘柄が v1 のまま
+    残り、追加した収益性・安全性・成長・会社予想が画面にまったく出なかった。
+    未生成なら「まだ集計されていません」と正直に出るが、古いスキーマは項目が
+    欠けたパネルが出てしまい、機能が無いのか壊れているのか区別できない。
+    """
+
+    def test_outdated_profiles_come_before_unbuilt(self):
+        universe = ["1000", "1001", "1002", "1003"]
+        done = {"1000": "2026-08-01", "1001": "2026-08-01"}
+        schema = {"1000": 1, "1001": 2}      # 1000 だけ古い
+        batch = select_batch(universe, done, limit=2, schema=schema, current_schema=2)
+        assert batch[0] == "1000", "古い版が未生成より先に来ていない"
+
+    def test_unknown_version_is_not_treated_as_outdated(self):
+        """版が分からないだけで作り直さない(一巡ぶんの生成が無駄になる)。"""
+        universe = ["1000", "1001"]
+        done = {"1000": "2026-08-01"}
+        batch = select_batch(universe, done, limit=2, schema={}, current_schema=2)
+        assert batch[0] == "1001"           # 未生成が先
+
+    def test_priority_still_wins_among_outdated(self):
+        universe = ["1000", "1001", "1002"]
+        done = {c: "2026-08-01" for c in universe}
+        schema = {c: 1 for c in universe}
+        batch = select_batch(universe, done, limit=1, schema=schema,
+                             priority=["1002"], current_schema=2)
+        assert batch == ["1002"]
+
+    def test_all_current_schema_falls_back_to_oldest_first(self):
+        universe = ["1000", "1001"]
+        done = {"1000": "2026-07-01", "1001": "2026-08-01"}
+        schema = {c: 2 for c in universe}
+        batch = select_batch(universe, done, limit=1, schema=schema, current_schema=2)
+        assert batch == ["1000"]
+
+    def test_upgrade_completes_in_a_few_cycles(self):
+        """古い版が数回の実行で一掃されること。"""
+        universe = [f"{1000 + i}" for i in range(10)]
+        done = {c: "2026-08-01" for c in universe}
+        schema = {c: 1 for c in universe}
+        for _ in range(4):
+            batch = select_batch(universe, done, limit=3, schema=schema, current_schema=2)
+            for c in batch:
+                schema[c] = 2
+        assert all(v == 2 for v in schema.values())
+
+
+class TestIndexRecordsSchema:
+    def test_index_carries_schema_versions(self, tmp_path):
+        import json as _json
+        from valuation.build import load_schema_versions
+        (tmp_path / "7203.json").write_text(
+            _json.dumps({"code": "7203", "as_of": "2026-08-01", "v": 2}), encoding="utf-8")
+        (tmp_path / "6758.json").write_text(
+            _json.dumps({"code": "6758", "as_of": "2026-08-01", "v": 1}), encoding="utf-8")
+        market_index(["7203", "6758"], tmp_path)
+        idx = _json.loads((tmp_path / INDEX_FILE).read_text(encoding="utf-8"))
+        assert idx["schema"] == {"7203": 2, "6758": 1}
+        assert idx["outdated"] >= 1
+        assert load_schema_versions(tmp_path) == {"7203": 2, "6758": 1}
+
+    def test_missing_version_defaults_to_one(self, tmp_path):
+        import json as _json
+        from valuation.build import load_schema_versions
+        (tmp_path / "7203.json").write_text(
+            _json.dumps({"code": "7203", "as_of": "2026-08-01"}), encoding="utf-8")
+        assert load_schema_versions(tmp_path) == {"7203": 1}

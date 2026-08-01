@@ -15,6 +15,8 @@ name: Valuation Profiles
 on:
   schedule:
     # 平日 UTC 12:00 / 20:00 = JST 21:00 / 翌05:00。相場時間を避ける。
+    # 1回300銘柄(実測: 150銘柄で191秒なので余裕がある)。全1526銘柄を
+    # 約3日で一巡し、スキーマを上げた直後の作り直しも2〜3日で終わる。
     - cron: "0 12,20 * * 1-5"
   workflow_dispatch:
     inputs:
@@ -25,7 +27,7 @@ on:
       limit:
         description: "1回に生成する件数"
         required: false
-        default: "150"
+        default: "300"
   # .github/valuation-kick を更新する push でも起動する(スマホからの手動キック用)
   push:
     branches: [main]
@@ -65,8 +67,8 @@ jobs:
       - name: Seed from published branch (ローリング生成の継続性)
         run: |
           set -eu
-          # 1回あたり150銘柄しか作らないので、前回までの成果物を取り込んでから
-          # 追記する。これをしないと毎回150銘柄だけの配信になってしまう。
+          # 1回あたり一定件数しか作らないので、前回までの成果物を取り込んでから
+          # 追記する。これをしないと毎回その回のぶんだけの配信になってしまう。
           mkdir -p public/data/valuation
           if git ls-remote --exit-code origin valuation >/dev/null 2>&1; then
             git fetch -q origin valuation
@@ -81,7 +83,7 @@ jobs:
         working-directory: swing
         run: |
           python -m valuation.build \
-            --limit "${{ github.event.inputs.limit || '150' }}" \
+            --limit "${{ github.event.inputs.limit || '300' }}" \
             --codes "${{ github.event.inputs.codes || '' }}" \
             --out ../public/data/valuation
 

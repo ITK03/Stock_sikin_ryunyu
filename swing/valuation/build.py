@@ -25,7 +25,7 @@ from backtest import data as data_mod
 from backtest.universe import load_universe_all, yf_tickers_all
 from screener.bizdays import JST
 from valuation.guidance import guidance_block
-from valuation.profile import build_profile
+from valuation.profile import SCHEMA_VERSION, build_profile
 from valuation.sources.tdnet import fetch_summary
 from valuation.sources.yf import fetch_quarterly, fetch_records
 
@@ -113,17 +113,51 @@ def load_index(out_dir: Path) -> dict[str, str]:
         return {}
 
 
+def load_schema_versions(out_dir: Path) -> dict[str, int]:
+    """生成済みプロファイルの {コード: スキーマ版} を返す。
+
+    index.json に無い場合(古い世代の index)は各ファイルから読む。
+    """
+    p = out_dir / INDEX_FILE
+    if p.exists():
+        try:
+            v = json.loads(p.read_text(encoding="utf-8")).get("schema", {})
+            if v:
+                return {k: int(x) for k, x in v.items()}
+        except (OSError, ValueError, TypeError):
+            pass
+    out: dict[str, int] = {}
+    for f in out_dir.glob("*.json"):
+        if f.name == INDEX_FILE:
+            continue
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if d.get("code"):
+            out[d["code"]] = int(d.get("v") or 1)
+    return out
+
+
 def select_batch(universe: list[str], done: dict[str, str], limit: int,
-                 priority: list[str] | None = None) -> list[str]:
+                 priority: list[str] | None = None,
+                 schema: dict[str, int] | None = None,
+                 current_schema: int = SCHEMA_VERSION) -> list[str]:
     """今回更新する銘柄を選ぶ。
 
-    1. 未生成の銘柄(優先リストにあるものを先に)
-    2. 生成済みのうち as_of が古いもの
+    1. **スキーマが古い生成済み銘柄**(表示項目が欠けたまま残るため最優先)
+    2. 未生成の銘柄(優先リストにあるものを先に)
+    3. 生成済みのうち as_of が古いもの
 
-    優先リストは「実際に開かれる可能性が高い銘柄」を先に埋めるためのもの。
-    全銘柄が揃うまでの間、見たい銘柄が未取得である確率を下げる。
+    1を最優先にしているのは、未生成なら画面に「まだ集計されていません」と正直に
+    出るのに対し、古いスキーマは「項目が欠けたパネル」が出てしまい、機能が
+    無いのか壊れているのか区別できないため。実際 v2 を足した後も、未生成を
+    優先する順序のせいで生成済み450銘柄が v1 のまま更新されず、追加した
+    収益性・安全性・成長・会社予想が画面にまったく出ない状態になっていた。
     """
-    priority = [c for c in (priority or []) if c in set(universe)]
+    uset = set(universe)
+    priority = [c for c in (priority or []) if c in uset]
+    schema = schema or {}
     seen: set[str] = set()
     ordered: list[str] = []
 
@@ -133,6 +167,13 @@ def select_batch(universe: list[str], done: dict[str, str], limit: int,
                 seen.add(c)
                 ordered.append(c)
 
+    # 版が分からない銘柄は「古い」とみなさない。情報が無いことを理由に全件
+    # 作り直すと、スキーマを上げるたびに一巡ぶんの生成が無駄になる。
+    outdated = [c for c in universe
+                if c in done and schema.get(c) is not None
+                and schema[c] < current_schema]
+    push([c for c in priority if c in set(outdated)])     # 古い版かつ優先
+    push(outdated)                                        # 古い版
     push([c for c in priority if c not in done])          # 未生成かつ優先
     push([c for c in universe if c not in done])          # 未生成
     push(sorted((c for c in universe if c in done),       # 生成済みは古い順
@@ -143,6 +184,7 @@ def select_batch(universe: list[str], done: dict[str, str], limit: int,
 def market_index(codes: list[str], out_dir: Path) -> None:
     """index.json を書き出す。フロントは未取得銘柄をこれで判別する。"""
     as_of: dict[str, str] = {}
+    schema: dict[str, int] = {}
     for p in sorted(out_dir.glob("*.json")):
         if p.name == INDEX_FILE:
             continue
@@ -152,12 +194,20 @@ def market_index(codes: list[str], out_dir: Path) -> None:
             continue
         if d.get("as_of"):
             as_of[d["code"]] = d["as_of"]
+        if d.get("code"):
+            schema[d["code"]] = int(d.get("v") or 1)
+    outdated = sum(1 for v in schema.values() if v < SCHEMA_VERSION)
     (out_dir / INDEX_FILE).write_text(json.dumps({
         "v": 1,
         "generated_at": datetime.now(JST).isoformat(timespec="seconds"),
         "count": len(as_of),
+        # 各プロファイルのスキーマ版。古い版が残っていないかをここで追える。
+        "schema": schema,
+        "outdated": outdated,
         "as_of": as_of,
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    if outdated:
+        print(f"スキーマが古いプロファイル: {outdated}件(次回以降で優先的に再生成)")
 
 
 def build_one(code: str, name: str, prices: pd.Series,
@@ -195,7 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         batch = [c.strip() for c in args.codes.split(",") if c.strip() in names]
     else:
         batch = select_batch(universe, load_index(out_dir), args.limit,
-                             [c.strip() for c in args.priority.split(",") if c.strip()])
+                             [c.strip() for c in args.priority.split(",") if c.strip()],
+                             schema=load_schema_versions(out_dir))
     if not batch:
         print("対象銘柄なし")
         return 0
