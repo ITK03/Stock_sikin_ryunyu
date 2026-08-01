@@ -470,3 +470,84 @@ class TestPriorityReserve:
                              priority_reserve=0.5)
         assert len(batch) == 6
         assert batch[0] == "7019"
+
+
+class TestPeriodSelection:
+    """同時刻に複数期の短信が出ても、対象会計期間が最新のものを選ぶこと。
+
+    決算が遅れた会社は複数期ぶんをまとめて開示する。実例として
+    エア・ウォーターが 2026-07-31 15:30 に第3四半期と通期の短信を同時開示して
+    おり、時刻だけで選んでいたためフィードの並び順で第3四半期を掴んでいた。
+    その結果、終了済み年度の四半期予想を「会社予想」として出していた。
+    """
+
+    @staticmethod
+    def _docs(monkeypatch, items):
+        import json as _json
+        import valuation.build as b
+
+        class Resp:
+            def read(self): return _json.dumps({"items": items}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Resp())
+        return b.latest_earnings_docs()
+
+    def test_prefers_full_year_over_same_time_quarter(self, monkeypatch):
+        docs = self._docs(monkeypatch, [
+            {"code": "4088", "id": "Q3", "time": "2026-07-31T15:30",
+             "category": "決算", "xbrl_url": "https://x.test/q3.zip",
+             "title": "2026年３月期第３四半期決算短信〔ＩＦＲＳ〕（連結）"},
+            {"code": "4088", "id": "FY", "time": "2026-07-31T15:30",
+             "category": "決算", "xbrl_url": "https://x.test/fy.zip",
+             "title": "2026年３月期決算短信〔ＩＦＲＳ〕(連結)"},
+        ])
+        assert docs["4088"][0] == "FY"
+
+    def test_next_fiscal_year_q1_beats_previous_full_year(self, monkeypatch):
+        docs = self._docs(monkeypatch, [
+            {"code": "7203", "id": "FY26", "time": "2026-07-31T15:30",
+             "category": "決算", "xbrl_url": "https://x.test/a.zip",
+             "title": "2026年3月期決算短信〔日本基準〕(連結)"},
+            {"code": "7203", "id": "Q1_27", "time": "2026-07-31T15:30",
+             "category": "決算", "xbrl_url": "https://x.test/b.zip",
+             "title": "2027年3月期　第1四半期決算短信〔日本基準〕(連結)"},
+        ])
+        assert docs["7203"][0] == "Q1_27"
+
+    def test_falls_back_to_time_when_titles_are_unparsable(self, monkeypatch):
+        docs = self._docs(monkeypatch, [
+            {"code": "9999", "id": "OLD", "time": "2026-07-30T15:00",
+             "category": "決算", "xbrl_url": "https://x.test/a.zip", "title": "決算短信"},
+            {"code": "9999", "id": "NEW", "time": "2026-07-31T15:00",
+             "category": "決算", "xbrl_url": "https://x.test/b.zip", "title": "決算短信"},
+        ])
+        assert docs["9999"][0] == "NEW"
+
+    def test_xbrl_still_wins_over_a_newer_period_without_xbrl(self, monkeypatch):
+        """XBRLが無い開示は、期がいくら新しくても会社予想を取れない。"""
+        docs = self._docs(monkeypatch, [
+            {"code": "3835", "id": "TANSHIN", "time": "2026-07-31T13:30",
+             "category": "決算", "xbrl_url": "https://x.test/a.zip",
+             "title": "2027年3月期　第1四半期決算短信〔日本基準〕(連結)"},
+            {"code": "3835", "id": "SETSUMEI", "time": "2026-07-31T16:00",
+             "category": "決算",
+             "title": "2027年3月期　第1四半期決算説明資料"},
+        ])
+        assert docs["3835"][0] == "TANSHIN"
+
+
+class TestPeriodKey:
+    def test_full_year_is_treated_as_the_last_quarter(self):
+        from valuation.build import period_key
+        assert period_key("2026年３月期決算短信〔ＩＦＲＳ〕(連結)") == (2026, 4)
+
+    def test_reads_full_width_quarter_digits(self):
+        from valuation.build import period_key
+        assert period_key("2027年３月期　第１四半期決算短信") == (2027, 1)
+
+    def test_unparsable_title_loses_to_any_parsable_one(self):
+        from valuation.build import period_key
+        assert period_key("決算短信") == (0, 0)
+        assert period_key("") < period_key("2020年3月期第1四半期決算短信")

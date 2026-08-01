@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,31 @@ DISCLOSURES_URL = ("https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/"
                    "data-disclosures/disclosures.json")
 
 
+_PERIOD_RE = re.compile(r"(\d{4})\s*年\s*(\d{1,2})\s*月期")
+_QUARTER_RE = re.compile(r"第\s*([1-4１-４])\s*四半期")
+_ZEN_DIGITS = str.maketrans("１２３４", "1234")
+
+
+def period_key(title: str) -> tuple[int, int]:
+    """短信の表題から対象会計期間を読む。(年度, 四半期) を返す。
+
+    開示時刻ではなく会計期間で新しさを決めるために使う。決算が遅れた会社は
+    複数期ぶんの短信を同じ時刻にまとめて出すことがあり(実例: エア・ウォーターが
+    2026-07-31 15:30 に第3四半期と通期を同時開示)、時刻だけで選ぶと並び順まかせで
+    古い期のほうを掴む。実際それで通期予想ではなく終了済み年度の第3四半期を
+    読んでいた。
+
+    四半期の表記が無ければ通期とみなす(その年度で最後)。読めなければ (0, 0) で、
+    読めた表題に必ず負ける。
+    """
+    m = _PERIOD_RE.search(title or "")
+    if not m:
+        return (0, 0)
+    q = _QUARTER_RE.search(title)
+    quarter = int(q.group(1).translate(_ZEN_DIGITS)) if q else 4
+    return (int(m.group(1)), quarter)
+
+
 def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str, str]]:
     """開示フィードから {銘柄コード: (文書ID, 開示時刻, XBRLのURL)} を作る。
 
@@ -54,6 +80,7 @@ def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str
         print(f"WARNING: 開示フィードを取得できません: {exc}")
         return {}
     out: dict[str, tuple[str, str, str]] = {}
+    best: dict[str, tuple] = {}
     for it in feed.get("items", []):
         if it.get("category") != "決算" or it.get("is_correction"):
             continue
@@ -61,13 +88,16 @@ def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str
         if not code or not doc_id:
             continue
         url = it.get("xbrl_url") or ""
-        cur = out.get(code)
-        # XBRLを持つ開示を優先し、その中で最新を採る。「決算」には短信のほかに
-        # 決算説明会資料・補足資料も入り、それらは短信より後に出ることがある。
-        # 単純に最新を採ると、XBRLの無い説明資料が短信を押しのけて会社予想を
-        # 取り落とす。XBRLがどれにも無い場合だけ、従来どおり最新を採る。
-        if cur is None or (bool(url) and not cur[2]) \
-                or (bool(url) == bool(cur[2]) and t > cur[1]):
+        # 選ぶ基準は、この順に強い:
+        #  1. XBRLを持つこと。「決算」には決算説明会資料・補足資料も入り、
+        #     それらは短信より後に出ることがある。時刻だけで選ぶとXBRLの無い
+        #     説明資料が短信を押しのけ、会社予想を取り落とす。
+        #  2. 対象会計期間が新しいこと。決算が遅れた会社は複数期ぶんの短信を
+        #     同時刻にまとめて出すので、時刻では区別がつかない。
+        #  3. 開示時刻が新しいこと(1も2も同じ場合の最後の手段)。
+        key = (1 if url else 0, period_key(it.get("title") or ""), t)
+        if code not in best or key > best[code]:
+            best[code] = key
             out[code] = (doc_id, t, url)
     return out
 
