@@ -141,6 +141,26 @@ def load_schema_versions(out_dir: Path) -> dict[str, int]:
     return out
 
 
+def guidance_priority(out_dir: Path,
+                      docs: dict[str, tuple[str, str, str]]) -> list[str]:
+    """会社予想をまだ取れていない銘柄を、今回の生成対象に引き上げる。
+
+    開示フィードは当日+前日しか持たない。一方ローリング生成は全1526銘柄を
+    一巡するのに約3日かかるので、決算を出した銘柄が順番待ちをしていると、
+    番が回ってきた頃には短信がフィードから消えている。決算を出した銘柄を
+    その場で作り直さない限り、会社予想はほぼ入らない。
+
+    既に同じ文書IDの予想を持つ銘柄は入れない。取り直しても結果は同じで、
+    ローリング更新の枠を食うだけになる。
+    """
+    out = []
+    for code, doc in docs.items():
+        prev = (load_existing(out_dir, code) or {}).get("guidance")
+        if not prev or prev.get("doc_id") != doc[0]:
+            out.append(code)
+    return out
+
+
 def select_batch(universe: list[str], done: dict[str, str], limit: int,
                  priority: list[str] | None = None,
                  schema: dict[str, int] | None = None,
@@ -148,8 +168,15 @@ def select_batch(universe: list[str], done: dict[str, str], limit: int,
     """今回更新する銘柄を選ぶ。
 
     1. **スキーマが古い生成済み銘柄**(表示項目が欠けたまま残るため最優先)
-    2. 未生成の銘柄(優先リストにあるものを先に)
-    3. 生成済みのうち as_of が古いもの
+    2. 優先リストの銘柄(決算を出したばかりで、短信がフィードにあるうちに
+       取らないと二度と取れないもの)
+    3. 未生成の銘柄
+    4. 生成済みのうち as_of が古いもの
+
+    優先リストを未生成より前に置いているのは、こちらだけ期限があるため。
+    未生成の銘柄は次の一巡でも同じものが作れるが、決算短信は開示フィードに
+    当日+前日しか載らないので、その2日を逃すと次の四半期まで会社予想が
+    取れない。
 
     1を最優先にしているのは、未生成なら画面に「まだ集計されていません」と正直に
     出るのに対し、古いスキーマは「項目が欠けたパネル」が出てしまい、機能が
@@ -176,7 +203,7 @@ def select_batch(universe: list[str], done: dict[str, str], limit: int,
                 and schema[c] < current_schema]
     push([c for c in priority if c in set(outdated)])     # 古い版かつ優先
     push(outdated)                                        # 古い版
-    push([c for c in priority if c not in done])          # 未生成かつ優先
+    push(priority)                                        # 優先(期限つき)
     push([c for c in universe if c not in done])          # 未生成
     push(sorted((c for c in universe if c in done),       # 生成済みは古い順
                 key=lambda c: done[c]))
@@ -243,11 +270,18 @@ def main(argv: list[str] | None = None) -> int:
 
     names = load_universe_all()
     universe = sorted(names)
+    # 開示フィードは選定より先に読む。決算を出した銘柄を今回の対象へ
+    # 引き上げないと、短信がフィードから消えたあとで順番が回ってくる。
+    docs = latest_earnings_docs()
+    print(f"開示フィードの決算短信: {len(docs)}銘柄")
     if args.codes:
         batch = [c.strip() for c in args.codes.split(",") if c.strip() in names]
     else:
+        priority = [c.strip() for c in args.priority.split(",") if c.strip()]
+        fresh = guidance_priority(out_dir, docs)
+        print(f"会社予想が未取得の決算銘柄: {len(fresh)}銘柄")
         batch = select_batch(universe, load_index(out_dir), args.limit,
-                             [c.strip() for c in args.priority.split(",") if c.strip()],
+                             priority + fresh,
                              schema=load_schema_versions(out_dir))
     if not batch:
         print("対象銘柄なし")
@@ -257,9 +291,6 @@ def main(argv: list[str] | None = None) -> int:
     start = (datetime.now(JST).date() - timedelta(days=PRICE_LOOKBACK_DAYS)).isoformat()
     raw = data_mod.fetch([f"{c}.T" for c in batch], start=start, out=None)
     prices = data_mod.frame_to_dict(raw, min_rows=250)
-
-    docs = latest_earnings_docs()
-    print(f"開示フィードの決算短信: {len(docs)}銘柄")
 
     ok = skipped = with_guidance = 0
     for code in batch:

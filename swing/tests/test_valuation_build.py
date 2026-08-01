@@ -295,3 +295,57 @@ class TestXbrlUrlHint:
         monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Resp(feed))
         docs = b.latest_earnings_docs()
         assert docs["7203"][2].endswith("x.zip")
+
+
+class TestGuidancePriority:
+    """決算を出した銘柄を、短信がフィードに載っているうちに作り直すこと。
+
+    開示フィードは当日+前日しか持たない。ローリング生成は一巡に約3日かかる
+    ため、順番待ちに任せると短信が消えたあとで番が回ってくる。会社予想が
+    450銘柄中0件だった原因の半分はこれ(残り半分はXBRLのURL)。
+    """
+
+    def test_reported_code_beats_unbuilt(self):
+        """決算銘柄は未生成銘柄より先。未生成は次の一巡でも作れるが、
+        短信には期限がある。"""
+        done = {"7000": "2026-07-01"}
+        batch = select_batch(UNIVERSE, done, limit=2, priority=["7000"])
+        assert batch[0] == "7000"
+
+    def test_outdated_schema_still_first(self):
+        """表示項目が欠けたパネルの解消は、期限つきの決算取得より先。
+        スキーマ移行は数日で終わるので、両立できないのはその間だけ。"""
+        done = {c: "2026-07-01" for c in UNIVERSE}
+        schema = {c: 3 for c in UNIVERSE} | {"7005": 1}
+        batch = select_batch(UNIVERSE, done, limit=2, priority=["7000"],
+                             schema=schema, current_schema=3)
+        assert batch[0] == "7005"
+        assert batch[1] == "7000"
+
+    def test_skips_codes_that_already_have_the_same_document(self, tmp_path):
+        """同じ文書IDの予想を既に持つ銘柄は入れない(結果が変わらないのに
+        ローリング更新の枠を食う)。"""
+        from valuation.build import guidance_priority
+        (tmp_path / "7203.json").write_text(json.dumps(
+            {"code": "7203", "guidance": {"doc_id": "DOC1"}}), encoding="utf-8")
+        docs = {"7203": ("DOC1", "2026-07-31T15:00", "")}
+        assert guidance_priority(tmp_path, docs) == []
+
+    def test_includes_code_with_newer_document(self, tmp_path):
+        from valuation.build import guidance_priority
+        (tmp_path / "7203.json").write_text(json.dumps(
+            {"code": "7203", "guidance": {"doc_id": "DOC1"}}), encoding="utf-8")
+        docs = {"7203": ("DOC2", "2026-08-05T15:00", "")}
+        assert guidance_priority(tmp_path, docs) == ["7203"]
+
+    def test_includes_code_without_any_guidance(self, tmp_path):
+        from valuation.build import guidance_priority
+        (tmp_path / "7203.json").write_text(json.dumps(
+            {"code": "7203"}), encoding="utf-8")
+        assert guidance_priority(
+            tmp_path, {"7203": ("DOC1", "2026-07-31T15:00", "")}) == ["7203"]
+
+    def test_includes_ungenerated_code(self, tmp_path):
+        from valuation.build import guidance_priority
+        assert guidance_priority(
+            tmp_path, {"7203": ("DOC1", "2026-07-31T15:00", "")}) == ["7203"]
