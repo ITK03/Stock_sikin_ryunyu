@@ -251,3 +251,114 @@ class TestGuidanceBlock:
     def test_none_for_empty_summary(self):
         assert guidance_block(None, None) is None
         assert guidance_block({}, None) is None
+
+
+# --- インラインXBRL ---------------------------------------------------------
+# 決算短信の実体は `.xbrl` ではなく `XBRLData/Summary/…-ixbrl.htm`(インライン
+# XBRL)。`.xbrl` だけを探していたため候補が常に空になり、ZIPは200で取れている
+# のに「解析不能」が全件、会社予想0件という状態になっていた。
+#
+# 実行環境から TDnet に到達できない(プロキシが遮断する)ため、実物のZIPでは
+# 検証できない。ここで固定しているのは実物の構造を模した組み立てであって、
+# 実物での動作確認ではない。
+
+IX_NS = 'xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"'
+
+
+def ixbrl(facts: list[tuple[str, str, str, str]]) -> bytes:
+    """(要素名, contextRef, scale, 表示値) からインラインXBRLを組み立てる。
+
+    金額は「表示された数字」で入るので、scale を掛けないと円にならない。
+    """
+    body = "".join(
+        f'<ix:nonFraction name="tse-ed-t:{el}" contextRef="{ctx}" '
+        f'unitRef="JPY" scale="{scale}" decimals="-6">{val}</ix:nonFraction>'
+        for el, ctx, scale, val in facts)
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?>'
+        f'<html xmlns="http://www.w3.org/1999/xhtml" {IX_NS}>'
+        f'<body><div style="display:none">{body}</div></body></html>'
+    ).encode("utf-8")
+
+
+IX_FACTS = [
+    ("NetSales", "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember",
+     "6", "70,000"),
+    ("OperatingIncome",
+     "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "6", "6,000"),
+    ("NetSales", "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+     "6", "290,000"),
+    ("OperatingIncome", "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+     "6", "20,000"),
+    ("NetIncomePerShare", "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+     "0", "133.50"),
+]
+
+
+class TestInlineXbrl:
+    def test_reads_facts_from_name_attribute(self):
+        got = parse_summary(ixbrl(IX_FACTS))
+        assert got["actual"]["revenue"] == 70_000 * 10 ** 6
+        assert got["forecast"]["operating_income"] == 20_000 * 10 ** 6
+        assert got["forecast"]["eps"] == 133.5
+        assert got["quarter"] == 1
+        assert got["consolidated"] is True
+
+    def test_applies_scale(self):
+        """scale を無視すると百万円が円として入り、桁が6つ狂う。"""
+        got = parse_summary(ixbrl([
+            ("NetSales", "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+             "6", "1,234")]))
+        assert got["forecast"]["revenue"] == 1_234_000_000
+
+    def test_applies_sign_attribute(self):
+        """赤字は sign="-" で表され、テキスト自体は正の数で入る。"""
+        xml = ixbrl([("OperatingIncome",
+                      "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+                      "6", "500")]).replace(b'scale="6"', b'scale="6" sign="-"')
+        assert parse_summary(xml)["forecast"]["operating_income"] == -500_000_000
+
+    def test_reads_value_split_across_child_elements(self):
+        xml = ixbrl([]).replace(
+            b"</div>",
+            b'<ix:nonFraction name="tse-ed-t:NetSales" '
+            b'contextRef="CurrentYearDuration_ConsolidatedMember_ForecastMember" '
+            b'unitRef="JPY" scale="6"><span>1,2</span><span>34</span>'
+            b"</ix:nonFraction></div>")
+        assert parse_summary(xml)["forecast"]["revenue"] == 1_234_000_000
+
+    def test_skips_nil_facts(self):
+        xml = ixbrl([]).replace(
+            b"</div>",
+            b'<ix:nonFraction name="tse-ed-t:NetSales" '
+            b'contextRef="CurrentYearDuration_ConsolidatedMember_ForecastMember" '
+            b'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            b'xsi:nil="true" unitRef="JPY" scale="6" /></div>')
+        assert parse_summary(xml)["forecast"] == {}
+
+    def test_tolerates_html_entities(self):
+        """XHTMLとして配信されるため &nbsp; などが混ざる。ElementTree は DTD を
+        読まないので、そのままだと未定義実体で解析ごと落ちる。"""
+        xml = ixbrl(IX_FACTS).replace(b"<body>", b"<body><p>&nbsp;&yen;</p>")
+        assert parse_summary(xml)["forecast"]["eps"] == 133.5
+
+    def test_zip_prefers_summary_instance(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("XBRLData/Attachment/tse-acedjpfr-99999-ixbrl.htm",
+                        ixbrl([("NetSales",
+                                "CurrentYearDuration_ConsolidatedMember_ForecastMember",
+                                "6", "1")]))
+            zf.writestr("XBRLData/Summary/tse-acedjpsm-99999-ixbrl.htm",
+                        ixbrl(IX_FACTS))
+            zf.writestr("manifest.xml", b"<manifest/>")
+        got = summary_from_zip(buf.getvalue())
+        assert got["forecast"]["eps"] == 133.5
+
+    def test_zip_with_only_ixbrl_is_not_empty(self):
+        """`.xbrl` が1件も無いZIP。これが実物の形で、以前は必ず空を返していた。"""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("XBRLData/Summary/tse-acedjpsm-99999-ixbrl.htm",
+                        ixbrl(IX_FACTS))
+        assert summary_from_zip(buf.getvalue())["forecast"]["eps"] == 133.5

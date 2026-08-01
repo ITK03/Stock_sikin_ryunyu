@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import html.entities
 import io
 import re
 import xml.etree.ElementTree as ET
@@ -44,8 +45,10 @@ _ACCUM_RE = re.compile(r"CurrentAccumulatedQ(\d)Duration", re.I)
 
 
 # TDnet の文書IDは「種別4桁 + 日付8桁 + 連番」。PDFとXBRLで先頭4桁が異なり、
-# PDF が 1401… のとき XBRL は 0812… になる。実行ログで 81_<id>.zip と
-# <id>.zip がどちらも HTTP404 だったため、先頭4桁の差し替えを第一候補にする。
+# PDF が 1401… のとき XBRL は 0812… になる。実行ログでは 81_<id>.zip と
+# <id>.zip はどちらも HTTP404、0812 への差し替えは 200 が返っていた。
+# ただしこの規則は公開仕様ではないので、開示フィードが持つ実URL(url_hint)が
+# あればそちらを使い、これはフィードにリンクが無い場合の保険として残す。
 XBRL_ID_PREFIXES = ("0812", "0813")
 
 
@@ -72,6 +75,8 @@ def _to_float(text: str | None) -> float | None:
     if not text:
         return None
     t = text.strip().replace(",", "").replace("△", "-").replace("▲", "-")
+    # インラインXBRLでは桁区切りに全角スペースや薄いスペースが入ることがある
+    t = t.replace(" ", "").replace("　", "").replace(" ", "")
     try:
         v = float(t)
     except ValueError:
@@ -79,18 +84,85 @@ def _to_float(text: str | None) -> float | None:
     return v
 
 
+_XSI_NIL = "{http://www.w3.org/2001/XMLSchema-instance}nil"
+# 名前つき実体参照(&nbsp; など)。XHTMLとして配信されるインラインXBRLに混ざる
+# ことがあり、ElementTree は DTD を読まないので未定義実体として解析に失敗する。
+_ENTITY_RE = re.compile(r"&([A-Za-z][A-Za-z0-9]*);")
+_KEEP_ENTITIES = {"amp", "lt", "gt", "quot", "apos"}
+
+
+def _resolve_entities(xml_bytes: bytes) -> bytes:
+    """XMLとして未定義の名前つき実体を文字に置き換える。"""
+    def sub(m: re.Match) -> str:
+        name = m.group(1)
+        if name in _KEEP_ENTITIES:
+            return m.group(0)
+        ch = html.entities.html5.get(name + ";") or html.entities.html5.get(name)
+        return ch if ch else m.group(0)
+
+    return _ENTITY_RE.sub(sub, xml_bytes.decode("utf-8", "replace")).encode("utf-8")
+
+
+def _fact_name(el: ET.Element) -> str | None:
+    """勘定科目のローカル名。
+
+    通常のXBRLインスタンスでは要素名そのもの。インラインXBRLでは要素は
+    `ix:nonFraction` で、勘定科目は name 属性(`tse-ed-t:NetSales` の形)に入る。
+    """
+    local = _local(el.tag)
+    if local in ("nonFraction", "nonNumeric"):
+        name = el.get("name") or ""
+        return name.rsplit(":", 1)[-1] or None
+    return local
+
+
+def _fact_value(el: ET.Element) -> float | None:
+    """ファクトの数値。インラインXBRLの scale / sign / 入れ子テキストを解く。
+
+    インラインXBRLの金額は「表示された数字」なので、scale="6"(百万円表示)なら
+    10^6 を掛けないと円にならない。負値は sign="-" で表され、テキスト自体は
+    正の数で入る。ここを無視すると桁と符号が狂う。
+    """
+    if (el.get(_XSI_NIL) or "").lower() == "true":
+        return None
+    inline = _local(el.tag) in ("nonFraction", "nonNumeric")
+    # インラインXBRLでは数字が <span> などで分割されていることがある
+    raw = "".join(el.itertext()) if inline else el.text
+    value = _to_float(raw)
+    if value is None:
+        return None
+    if inline:
+        scale = el.get("scale")
+        if scale:
+            try:
+                value *= 10 ** int(scale)
+            except ValueError:
+                pass
+        if (el.get("sign") or "").strip() == "-":
+            value = -value
+    return value
+
+
 def parse_summary(xml_bytes: bytes) -> dict:
     """XBRLインスタンスから実績・予想を取り出す。
+
+    通常のXBRLインスタンス(.xbrl)とインラインXBRL(*-ixbrl.htm)の両方を読む。
+    TDnetの決算短信は後者で配信されており、こちらを読めないと1件も取れない。
 
     戻り値:
       {"actual": {...}, "forecast": {...}, "quarter": 1..4 | None,
        "consolidated": bool}
-    金額は円単位のまま(短信XBRLは円で入る)。取れなかった項目は入れない。
+    金額は円単位に直す(インラインXBRLは百万円などの表示単位で入っている)。
+    取れなかった項目は入れない。
     """
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError:
-        return {"actual": {}, "forecast": {}, "quarter": None, "consolidated": False}
+        try:
+            root = ET.fromstring(_resolve_entities(xml_bytes))
+        except ET.ParseError:
+            return {"actual": {}, "forecast": {}, "quarter": None,
+                    "consolidated": False}
 
     actual: dict[str, float] = {}
     forecast: dict[str, float] = {}
@@ -98,11 +170,12 @@ def parse_summary(xml_bytes: bytes) -> dict:
     consolidated = False
 
     for el in root.iter():
-        field = _ELEMENT_TO_FIELD.get(_local(el.tag))
+        name = _fact_name(el)
+        field = _ELEMENT_TO_FIELD.get(name) if name else None
         if field is None:
             continue
         ctx = el.get("contextRef") or ""
-        value = _to_float(el.text)
+        value = _fact_value(el)
         if value is None:
             continue
         if "NonConsolidated" not in ctx and "Consolidated" in ctx:
@@ -126,6 +199,21 @@ def parse_summary(xml_bytes: bytes) -> dict:
             "quarter": quarter, "consolidated": consolidated}
 
 
+def instance_names(names: list[str]) -> list[str]:
+    """ZIP内のXBRLインスタンス候補を、読むべき順に並べる。
+
+    決算短信のZIPは
+      XBRLData/Summary/tse-…-ixbrl.htm   ← サマリー(ここに会社予想が入る)
+      XBRLData/Attachment/…-ixbrl.htm    ← 添付の財務諸表
+    という構成で、実体は**インラインXBRL(.htm)**。`.xbrl` だけを探していたため
+    候補が常に空になり、ZIPは取れているのに1件も解析できていなかった。
+    """
+    out = [n for n in names
+           if n.lower().endswith(".xbrl") or "ixbrl.htm" in n.lower()]
+    out.sort(key=lambda n: (0 if "summary" in n.lower() else 1, len(n)))
+    return out
+
+
 def summary_from_zip(zip_bytes: bytes) -> dict:
     """短信ZIPからサマリー部のXBRLインスタンスを探して解析する。
 
@@ -137,9 +225,7 @@ def summary_from_zip(zip_bytes: bytes) -> dict:
     except (zipfile.BadZipFile, OSError):
         return {"actual": {}, "forecast": {}, "quarter": None, "consolidated": False}
 
-    names = [n for n in zf.namelist() if n.lower().endswith(".xbrl")]
-    names.sort(key=lambda n: (0 if "summary" in n.lower() else 1, len(n)))
-    for n in names:
+    for n in instance_names(zf.namelist()):
         try:
             got = parse_summary(zf.read(n))
         except (KeyError, OSError):
@@ -164,9 +250,7 @@ def fetch_summary(doc_id: str, url_hint: str | None = None) -> dict | None:
     """TDnetから短信XBRLを取得して解析する。取得できなければ None。
 
     url_hint は開示フィードが持つ実際のXBRLリンク。URLの規則は公開仕様として
-    保証されておらず、推測した3パターン(81_<id>.zip / <id>.zip / 先頭4桁を
-    0812・0813へ差し替え)はすべて HTTP404 だった。一覧ページに出ている
-    リンクをそのまま使うのが唯一確実な方法なので、あればそれを最優先する。
+    保証されていないので、一覧ページに出ているリンクがあればそれを最優先する。
 
     1銘柄の失敗で全体を止めない(可用性優先)。
     """
@@ -174,7 +258,12 @@ def fetch_summary(doc_id: str, url_hint: str | None = None) -> dict | None:
     import urllib.error
     import urllib.request
 
-    candidates = ([url_hint] if url_hint else []) + xbrl_urls(doc_id)
+    # 推測URLが url_hint と一致することがある(実測では 0812… の差し替えが
+    # そのまま正解)。重複を除かないと同じZIPを2回ダウンロードすることになる。
+    candidates: list[str] = []
+    for u in ([url_hint] if url_hint else []) + xbrl_urls(doc_id):
+        if u not in candidates:
+            candidates.append(u)
     for url in candidates:
         pattern = url.rsplit("/", 1)[-1].replace(doc_id, "<id>")
         try:
@@ -201,5 +290,14 @@ def fetch_summary(doc_id: str, url_hint: str | None = None) -> dict | None:
         _diag[f"{pattern} 解析不能"] = _diag.get(f"{pattern} 解析不能", 0) + 1
         if _verbose_left > 0:
             _verbose_left -= 1
+            # 「ZIPは取れたが解釈できない」ときは中身が分からないと手が出ない。
+            # 実際、候補ファイルが常に空(インラインXBRLを見ていなかった)なのに
+            # 解析失敗としか出ず、原因の特定に時間を取られた。
+            try:
+                names = zipfile.ZipFile(io.BytesIO(data)).namelist()
+            except (zipfile.BadZipFile, OSError):
+                names = ["(ZIPとして開けない)"]
             print(f"  XBRLは取れたが中身を解釈できず {url} ({len(data)}B)")
+            print(f"    ZIP内: {names[:12]}")
+            print(f"    解析対象の候補: {instance_names(names)[:4]}")
     return None
