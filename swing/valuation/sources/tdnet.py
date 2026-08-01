@@ -160,8 +160,13 @@ def diagnostics() -> dict[str, int]:
     return dict(_diag)
 
 
-def fetch_summary(doc_id: str) -> dict | None:
+def fetch_summary(doc_id: str, url_hint: str | None = None) -> dict | None:
     """TDnetから短信XBRLを取得して解析する。取得できなければ None。
+
+    url_hint は開示フィードが持つ実際のXBRLリンク。URLの規則は公開仕様として
+    保証されておらず、推測した3パターン(81_<id>.zip / <id>.zip / 先頭4桁を
+    0812・0813へ差し替え)はすべて HTTP404 だった。一覧ページに出ている
+    リンクをそのまま使うのが唯一確実な方法なので、あればそれを最優先する。
 
     1銘柄の失敗で全体を止めない(可用性優先)。
     """
@@ -169,7 +174,8 @@ def fetch_summary(doc_id: str) -> dict | None:
     import urllib.error
     import urllib.request
 
-    for url in xbrl_urls(doc_id):
+    candidates = ([url_hint] if url_hint else []) + xbrl_urls(doc_id)
+    for url in candidates:
         pattern = url.rsplit("/", 1)[-1].replace(doc_id, "<id>")
         try:
             req = urllib.request.Request(url, headers=_HEADERS)

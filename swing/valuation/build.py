@@ -40,8 +40,8 @@ DISCLOSURES_URL = ("https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/"
                    "data-disclosures/disclosures.json")
 
 
-def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str]]:
-    """開示フィードから {銘柄コード: (文書ID, 開示時刻)} を作る。
+def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str, str]]:
+    """開示フィードから {銘柄コード: (文書ID, 開示時刻, XBRLのURL)} を作る。
 
     決算短信の公表日はここで確定する。yfinance で使っている「期末+45日」の
     推定と違い、これは市場が実際に知った日そのもの。
@@ -53,7 +53,7 @@ def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str
     except Exception as exc:           # noqa: BLE001 - 開示が取れなくても続行
         print(f"WARNING: 開示フィードを取得できません: {exc}")
         return {}
-    out: dict[str, tuple[str, str]] = {}
+    out: dict[str, tuple[str, str, str]] = {}
     for it in feed.get("items", []):
         if it.get("category") != "決算" or it.get("is_correction"):
             continue
@@ -62,7 +62,7 @@ def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str
             continue
         # 同じ銘柄が複数あれば新しいほうを採用
         if code not in out or t > out[code][1]:
-            out[code] = (doc_id, t)
+            out[code] = (doc_id, t, it.get("xbrl_url") or "")
     return out
 
 
@@ -77,7 +77,7 @@ def load_existing(out_dir: Path, code: str) -> dict | None:
         return None
 
 
-def resolve_guidance(code: str, docs: dict[str, tuple[str, str]],
+def resolve_guidance(code: str, docs: dict[str, tuple[str, str, str]],
                      previous: dict | None, shares: float | None) -> dict | None:
     """会社予想を決める。新しい短信があれば取り直し、無ければ前回のを引き継ぐ。
 
@@ -89,11 +89,12 @@ def resolve_guidance(code: str, docs: dict[str, tuple[str, str]],
     doc = docs.get(code)
     if doc is None:
         return prev
-    doc_id, disclosed_at = doc
+    doc_id, disclosed_at = doc[0], doc[1]
+    xbrl_url = doc[2] if len(doc) > 2 else ""
     # 同じ短信を何度も取りに行かない
     if prev and prev.get("doc_id") == doc_id:
         return prev
-    summary = fetch_summary(doc_id)
+    summary = fetch_summary(doc_id, xbrl_url or None)
     if summary is None:
         return prev
     block = guidance_block(summary, disclosed_at[:10], shares=shares)
@@ -212,7 +213,7 @@ def market_index(codes: list[str], out_dir: Path) -> None:
 
 
 def build_one(code: str, name: str, prices: pd.Series,
-              docs: dict[str, tuple[str, str]] | None = None,
+              docs: dict[str, tuple[str, str, str]] | None = None,
               previous: dict | None = None) -> dict | None:
     ticker = f"{code}.T"
     records = fetch_records(ticker)

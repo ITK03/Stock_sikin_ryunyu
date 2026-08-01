@@ -108,20 +108,20 @@ class TestGuidanceCarryOver:
         """同じ短信を何度も取りに行かない。"""
         import valuation.build as b
         called = []
-        monkeypatch.setattr(b, "fetch_summary", lambda d: called.append(d))
+        monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: called.append(d))
         prev = {"doc_id": "DOC1", "eps": 120.0}
-        got = b.resolve_guidance("7203", {"7203": ("DOC1", "2026-07-29T15:00")},
+        got = b.resolve_guidance("7203", {"7203": ("DOC1", "2026-07-29T15:00", "")},
                                  {"guidance": prev}, shares=None)
         assert got == prev
         assert called == [], "同一文書を再取得している"
 
     def test_updates_on_newer_document(self, monkeypatch):
         import valuation.build as b
-        monkeypatch.setattr(b, "fetch_summary", lambda d: {
+        monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: {
             "actual": {"operating_income": 6000.0},
             "forecast": {"operating_income": 20000.0, "eps": 133.5},
             "quarter": 1, "consolidated": True})
-        got = b.resolve_guidance("7203", {"7203": ("DOC2", "2026-08-05T15:00")},
+        got = b.resolve_guidance("7203", {"7203": ("DOC2", "2026-08-05T15:00", "")},
                                  {"guidance": {"doc_id": "DOC1", "eps": 120.0}},
                                  shares=None)
         assert got["doc_id"] == "DOC2"
@@ -132,15 +132,15 @@ class TestGuidanceCarryOver:
     def test_keeps_previous_when_fetch_fails(self, monkeypatch):
         """取得に失敗した回が、抽出済みの予想を消してしまわないこと。"""
         import valuation.build as b
-        monkeypatch.setattr(b, "fetch_summary", lambda d: None)
+        monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: None)
         prev = {"doc_id": "DOC1", "eps": 120.0}
-        got = b.resolve_guidance("7203", {"7203": ("DOC2", "2026-08-05T15:00")},
+        got = b.resolve_guidance("7203", {"7203": ("DOC2", "2026-08-05T15:00", "")},
                                  {"guidance": prev}, shares=None)
         assert got == prev
 
     def test_none_when_never_extracted(self, monkeypatch):
         import valuation.build as b
-        monkeypatch.setattr(b, "fetch_summary", lambda d: None)
+        monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: None)
         assert b.resolve_guidance("7203", {}, None, shares=None) is None
 
 
@@ -251,3 +251,47 @@ class TestIndexRecordsSchema:
         (tmp_path / "7203.json").write_text(
             _json.dumps({"code": "7203", "as_of": "2026-08-01"}), encoding="utf-8")
         assert load_schema_versions(tmp_path) == {"7203": 1}
+
+
+class TestXbrlUrlHint:
+    """開示フィードが持つ実際のXBRLリンクを最優先で使うこと。
+
+    URLの規則は公開仕様として保証されておらず、推測した3パターンは実行ログで
+    すべて HTTP404 だった。一覧ページのリンクをそのまま使うのが確実。
+    """
+
+    def test_passes_feed_url_to_fetcher(self, monkeypatch):
+        import valuation.build as b
+        seen = {}
+        monkeypatch.setattr(b, "fetch_summary",
+                            lambda d, u=None: seen.update(doc=d, url=u) or None)
+        b.resolve_guidance("7203", {"7203": ("DOC1", "2026-08-05T15:00",
+                                             "https://example.test/x.zip")},
+                           None, shares=None)
+        assert seen["url"] == "https://example.test/x.zip"
+
+    def test_missing_url_is_passed_as_none(self, monkeypatch):
+        import valuation.build as b
+        seen = {}
+        monkeypatch.setattr(b, "fetch_summary",
+                            lambda d, u=None: seen.update(url=u) or None)
+        b.resolve_guidance("7203", {"7203": ("DOC1", "2026-08-05T15:00", "")},
+                           None, shares=None)
+        assert seen["url"] is None
+
+    def test_feed_parsing_keeps_xbrl_url(self, monkeypatch):
+        import json as _json
+        import valuation.build as b
+
+        class Resp:
+            def __init__(self, p): self.p = p
+            def read(self): return _json.dumps(self.p).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        feed = {"items": [{"code": "7203", "id": "D1", "time": "2026-07-29T15:00",
+                           "category": "決算",
+                           "xbrl_url": "https://www.release.tdnet.info/inbs/x.zip"}]}
+        monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Resp(feed))
+        docs = b.latest_earnings_docs()
+        assert docs["7203"][2].endswith("x.zip")
