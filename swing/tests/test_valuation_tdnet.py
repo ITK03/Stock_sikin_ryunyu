@@ -362,3 +362,55 @@ class TestInlineXbrl:
             zf.writestr("XBRLData/Summary/tse-acedjpsm-99999-ixbrl.htm",
                         ixbrl(IX_FACTS))
         assert summary_from_zip(buf.getvalue())["forecast"]["eps"] == 133.5
+
+
+class TestBasisConsistency:
+    """実績と予想は必ず同じ基準(連結/非連結)で揃えること。
+
+    短信は同じ勘定科目を連結と単体の両方で載せる。出現順に拾うと
+    「連結の四半期実績 ÷ 単体の通期予想」という組み合わせが起き、単体の予想は
+    連結より小さいので進捗率が1を超えて好調に見えてしまう。実データでも
+    Q1で進捗率1.0超が6件出ていた。
+    """
+
+    def test_does_not_mix_consolidated_actual_with_parent_forecast(self):
+        got = parse_summary(xbrl([
+            ("OperatingIncome",
+             "CurrentAccumulatedQ1Duration_ConsolidatedMember_ResultMember", "5000"),
+            ("OperatingIncome",
+             "CurrentYearDuration_NonConsolidatedMember_ForecastMember", "3000"),
+            ("OperatingIncome",
+             "CurrentYearDuration_ConsolidatedMember_ForecastMember", "20000"),
+        ]))
+        assert got["consolidated"] is True
+        assert got["forecast"]["operating_income"] == 20000
+        assert got["actual"]["operating_income"] == 5000
+
+    def test_falls_back_to_parent_when_only_parent_exists(self):
+        got = parse_summary(xbrl([
+            ("OperatingIncome",
+             "CurrentAccumulatedQ1Duration_NonConsolidatedMember_ResultMember", "500"),
+            ("OperatingIncome",
+             "CurrentYearDuration_NonConsolidatedMember_ForecastMember", "2000"),
+        ]))
+        assert got["consolidated"] is False
+        assert got["actual"]["operating_income"] == 500
+        assert got["forecast"]["operating_income"] == 2000
+
+    def test_prefers_current_year_forecast_over_next_year(self):
+        """本決算では当期予想と翌期予想が両方載る。出現順に任せると翌期の
+        数字で進捗率を計算しかねない。"""
+        got = parse_summary(xbrl([
+            ("OperatingIncome",
+             "NextYearDuration_ConsolidatedMember_ForecastMember", "99999"),
+            ("OperatingIncome",
+             "CurrentYearDuration_ConsolidatedMember_ForecastMember", "20000"),
+        ]))
+        assert got["forecast"]["operating_income"] == 20000
+
+    def test_keeps_next_year_forecast_when_current_year_absent(self):
+        got = parse_summary(xbrl([
+            ("OperatingIncome",
+             "NextYearDuration_ConsolidatedMember_ForecastMember", "12345"),
+        ]))
+        assert got["forecast"]["operating_income"] == 12345

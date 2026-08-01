@@ -164,10 +164,14 @@ def parse_summary(xml_bytes: bytes) -> dict:
             return {"actual": {}, "forecast": {}, "quarter": None,
                     "consolidated": False}
 
-    actual: dict[str, float] = {}
-    forecast: dict[str, float] = {}
-    quarter: int | None = None
-    consolidated = False
+    # 連結/非連結ごとに分けて集める。短信は同じ勘定科目を連結と単体の両方で
+    # 載せるので、出現順で拾うと「連結の四半期実績 ÷ 単体の通期予想」のような
+    # 組み合わせが起きる。単体の予想は連結より小さいので進捗率が1を超え、
+    # 好調に見えてしまう。実績と予想は必ず同じ基準で揃える。
+    buckets: dict[bool, dict] = {
+        True: {"actual": {}, "cur": {}, "next": {}, "quarter": None},
+        False: {"actual": {}, "cur": {}, "next": {}, "quarter": None},
+    }
 
     for el in root.iter():
         name = _fact_name(el)
@@ -178,25 +182,45 @@ def parse_summary(xml_bytes: bytes) -> dict:
         value = _fact_value(el)
         if value is None:
             continue
-        if "NonConsolidated" not in ctx and "Consolidated" in ctx:
-            consolidated = True
-        is_forecast = "Forecast" in ctx
-        # 予想は通期(CurrentYearDuration)のものだけを使う。四半期予想は
-        # 開示していない企業が多く、混ぜると比較できなくなる。
-        if is_forecast:
-            if "CurrentYearDuration" in ctx or "NextYearDuration" in ctx:
-                forecast.setdefault(field, value)
+        b = buckets["NonConsolidated" not in ctx and "Consolidated" in ctx]
+        # 予想は通期のものだけを使う。四半期予想は開示していない企業が多く、
+        # 混ぜると比較できなくなる。
+        if "Forecast" in ctx:
+            if "CurrentYearDuration" in ctx:
+                b["cur"].setdefault(field, value)
+            elif "NextYearDuration" in ctx:
+                b["next"].setdefault(field, value)
             continue
         m = _ACCUM_RE.search(ctx)
         if m:
-            quarter = quarter or int(m.group(1))
-            actual.setdefault(field, value)
+            b["quarter"] = b["quarter"] or int(m.group(1))
+            b["actual"].setdefault(field, value)
         elif "CurrentYearDuration" in ctx:
             # 通期実績(本決算)。四半期が無ければこちらを実績とする。
-            actual.setdefault(field, value)
+            b["actual"].setdefault(field, value)
 
-    return {"actual": actual, "forecast": forecast,
-            "quarter": quarter, "consolidated": consolidated}
+    def unpack(b: dict) -> tuple[dict, dict, int | None]:
+        # 当期予想を翌期予想より優先する。本決算では両方載ることがあり、
+        # 出現順に任せると翌期の数字で進捗率を計算しかねない。
+        forecast = dict(b["next"])
+        forecast.update(b["cur"])
+        return b["actual"], forecast, b["quarter"]
+
+    def result(cons: bool) -> dict:
+        actual, forecast, quarter = unpack(buckets[cons])
+        return {"actual": actual, "forecast": forecast,
+                "quarter": quarter, "consolidated": cons}
+
+    # 実績と予想が揃う基準を優先する(連結 → 非連結)。揃わなければ、
+    # 片方しか無くても情報がある方を返す(進捗率は出せないが予想は出せる)。
+    for require_both in (True, False):
+        for cons in (True, False):
+            got = result(cons)
+            if got["actual"] and got["forecast"]:
+                return got
+            if not require_both and (got["actual"] or got["forecast"]):
+                return got
+    return {"actual": {}, "forecast": {}, "quarter": None, "consolidated": False}
 
 
 def instance_names(names: list[str]) -> list[str]:
