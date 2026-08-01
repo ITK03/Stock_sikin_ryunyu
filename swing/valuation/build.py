@@ -60,9 +60,15 @@ def latest_earnings_docs(url: str = DISCLOSURES_URL) -> dict[str, tuple[str, str
         code, doc_id, t = it.get("code"), it.get("id"), it.get("time") or ""
         if not code or not doc_id:
             continue
-        # 同じ銘柄が複数あれば新しいほうを採用
-        if code not in out or t > out[code][1]:
-            out[code] = (doc_id, t, it.get("xbrl_url") or "")
+        url = it.get("xbrl_url") or ""
+        cur = out.get(code)
+        # XBRLを持つ開示を優先し、その中で最新を採る。「決算」には短信のほかに
+        # 決算説明会資料・補足資料も入り、それらは短信より後に出ることがある。
+        # 単純に最新を採ると、XBRLの無い説明資料が短信を押しのけて会社予想を
+        # 取り落とす。XBRLがどれにも無い場合だけ、従来どおり最新を採る。
+        if cur is None or (bool(url) and not cur[2]) \
+                or (bool(url) == bool(cur[2]) and t > cur[1]):
+            out[code] = (doc_id, t, url)
     return out
 
 

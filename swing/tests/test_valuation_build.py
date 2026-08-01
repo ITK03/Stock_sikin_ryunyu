@@ -349,3 +349,51 @@ class TestGuidancePriority:
         from valuation.build import guidance_priority
         assert guidance_priority(
             tmp_path, {"7203": ("DOC1", "2026-07-31T15:00", "")}) == ["7203"]
+
+
+class TestEarningsDocSelection:
+    """「決算」には短信・説明会資料・補足資料が混ざる。会社予想が入っているのは
+    短信のXBRLだけなので、そちらを選ぶこと。"""
+
+    @staticmethod
+    def _docs(monkeypatch, items):
+        import json as _json
+        import valuation.build as b
+
+        class Resp:
+            def read(self): return _json.dumps({"items": items}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Resp())
+        return b.latest_earnings_docs()
+
+    def test_prefers_xbrl_over_newer_presentation(self, monkeypatch):
+        """説明会資料が短信より後に出ても、短信のXBRLを落とさないこと。
+        実データで2銘柄がこれに当たっていた。"""
+        docs = self._docs(monkeypatch, [
+            {"code": "3835", "id": "TANSHIN", "time": "2026-07-31T13:30",
+             "category": "決算",
+             "xbrl_url": "https://www.release.tdnet.info/inbs/a.zip"},
+            {"code": "3835", "id": "SETSUMEI", "time": "2026-07-31T16:00",
+             "category": "決算"},
+        ])
+        assert docs["3835"][0] == "TANSHIN"
+        assert docs["3835"][2].endswith("a.zip")
+
+    def test_newest_wins_among_xbrl_documents(self, monkeypatch):
+        docs = self._docs(monkeypatch, [
+            {"code": "7203", "id": "OLD", "time": "2026-05-01T15:00",
+             "category": "決算", "xbrl_url": "https://x.test/old.zip"},
+            {"code": "7203", "id": "NEW", "time": "2026-07-31T15:00",
+             "category": "決算", "xbrl_url": "https://x.test/new.zip"},
+        ])
+        assert docs["7203"][0] == "NEW"
+
+    def test_newest_wins_when_none_have_xbrl(self, monkeypatch):
+        docs = self._docs(monkeypatch, [
+            {"code": "9999", "id": "OLD", "time": "2026-05-01T15:00", "category": "決算"},
+            {"code": "9999", "id": "NEW", "time": "2026-07-31T15:00", "category": "決算"},
+        ])
+        assert docs["9999"][0] == "NEW"
+        assert docs["9999"][2] == ""
