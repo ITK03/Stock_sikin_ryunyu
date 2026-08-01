@@ -63,11 +63,13 @@ export interface ValuationProfile {
       quarter: number;
       elapsed: number;
       lead: number | null;
-      verdict: 'ahead' | 'ontrack' | 'behind' | 'unknown';
+      verdict: 'ahead' | 'ontrack' | 'behind' | 'mixed' | 'unknown';
       revenue?: number;
       operating_income?: number;
       ordinary_income?: number;
       net_income?: number;
+      /** 利益3行の進捗の食い違い(最大÷最小)。大きいほど代表値1つでは語れない。 */
+      spread?: number;
     };
   } | null;
   cov: {
@@ -385,6 +387,9 @@ export const PROGRESS_TEXT: Record<string, string> = {
   ahead: '計画を上回るペース',
   ontrack: '計画どおりのペース',
   behind: '計画に対して遅れ',
+  // 営業利益・経常・純利益の進捗が大きく食い違う場合。営業利益の予想が小さい
+  // 会社では営業利益進捗だけが跳ねるため、1つの数字で断定せず内訳を見てもらう。
+  mixed: '利益ごとに差が大きく、一言では言えません',
   unknown: '判定できません',
 };
 

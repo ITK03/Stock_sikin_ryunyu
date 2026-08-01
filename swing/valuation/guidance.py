@@ -19,6 +19,11 @@ ELAPSED_BY_QUARTER = {1: 0.25, 2: 0.50, 3: 0.75, 4: 1.00}
 # 進捗が経過率からこれだけ離れたら「上振れ/遅れ」と呼ぶ。
 DEVIATION_THRESHOLD = 0.10
 
+# 利益の行どうしがこれ以上食い違ったら、進捗の判定を断定しない。
+# 実データ239銘柄の分布は 中央値1.12倍・75%点1.28倍・90%点1.96倍。2.5倍超は
+# 約8%で、大半の会社には影響しない。
+SPREAD_LIMIT = 2.5
+
 # 抽出ロジックの版。上げると、同じ短信から抽出済みの銘柄でも取り直す。
 #
 # 会社予想は「同じ文書IDなら再取得しない」という作りになっている。決算期以外に
@@ -27,7 +32,8 @@ DEVIATION_THRESHOLD = 0.10
 # 済みの279件はそのままだった。スキーマ版と同じで、直したら必ずここを上げる。
 #
 # 2: 実績と予想を同じ基準(連結/非連結)で揃える。当期予想を翌期予想より優先。
-GUIDANCE_VERSION = 2
+# 3: 利益の行が食い違うときは進捗の判定を断定しない(spread / mixed)。
+GUIDANCE_VERSION = 3
 
 
 def _ratio(actual: float | None, forecast: float | None) -> float | None:
@@ -67,14 +73,32 @@ def progress(summary: dict) -> dict | None:
     lead = next((out[f] for f in ("operating_income", "ordinary_income",
                                   "net_income", "revenue") if f in out), None)
     out["lead"] = lead
-    out["verdict"] = verdict(lead, elapsed)
+
+    # 利益3行の食い違い。予想が小さい行では進捗率が跳ねるため、代表指標1つを
+    # 断定的に見せると実態を誤って伝える。実データではユタカフーズの営業利益が
+    # 330%、同じ会社の経常が99%・純利益が75%だった(営業利益の予想が小さい会社)。
+    # 中央値は1.12倍で大半は一致しており、食い違うのは1割程度。
+    profits = [out[f] for f in ("operating_income", "ordinary_income", "net_income")
+               if out.get(f) is not None and out[f] > 0]
+    if len(profits) >= 2:
+        out["spread"] = round(max(profits) / min(profits), 2)
+
+    out["verdict"] = verdict(lead, elapsed, out.get("spread"))
     return out
 
 
-def verdict(ratio: float | None, elapsed: float) -> str:
-    """進捗を経過率と比べた評価。単独の進捗率だけでは判断できない。"""
+def verdict(ratio: float | None, elapsed: float,
+            spread: float | None = None) -> str:
+    """進捗を経過率と比べた評価。単独の進捗率だけでは判断できない。
+
+    利益の行どうしが大きく食い違う場合は "mixed" を返す。営業利益の予想が
+    小さい会社では営業利益進捗率だけが跳ね、経常や純利益とまったく違う話に
+    なる。そこで片方だけを取って「上振れ」と言い切ると事実を歪める。
+    """
     if ratio is None:
         return "unknown"
+    if spread is not None and spread > SPREAD_LIMIT:
+        return "mixed"
     d = ratio - elapsed
     if d >= DEVIATION_THRESHOLD:
         return "ahead"

@@ -414,3 +414,45 @@ class TestBasisConsistency:
              "NextYearDuration_ConsolidatedMember_ForecastMember", "12345"),
         ]))
         assert got["forecast"]["operating_income"] == 12345
+
+
+class TestProgressSpread:
+    """利益の行どうしが大きく食い違うときは断定しないこと。
+
+    営業利益の予想が小さい会社では営業利益進捗率だけが跳ねる。実データの
+    ユタカフーズは営業利益330%・経常99%・純利益75%で、営業利益だけを取ると
+    「大幅上振れ」に見えるが実態は計画どおり。239銘柄の食い違いは中央値1.12倍
+    なので、大半の会社はこの判定に影響されない。
+    """
+
+    def _summary(self, op, ord_, net):
+        return {"quarter": 1, "consolidated": True,
+                "actual": {"operating_income": op[0], "ordinary_income": ord_[0],
+                           "net_income": net[0]},
+                "forecast": {"operating_income": op[1], "ordinary_income": ord_[1],
+                             "net_income": net[1]}}
+
+    def test_reports_spread(self):
+        p = progress(self._summary((330.0, 100.0), (99.0, 100.0), (75.0, 100.0)))
+        assert p["spread"] == round(3.3 / 0.75, 2)
+
+    def test_does_not_claim_ahead_when_lines_disagree(self):
+        p = progress(self._summary((330.0, 100.0), (99.0, 100.0), (75.0, 100.0)))
+        assert p["verdict"] == "mixed", "食い違うのに断定している"
+
+    def test_still_judges_when_lines_agree(self):
+        p = progress(self._summary((40.0, 100.0), (41.0, 100.0), (39.0, 100.0)))
+        assert p["spread"] <= 1.1
+        assert p["verdict"] == "ahead"
+
+    def test_ontrack_is_unaffected_by_small_spread(self):
+        p = progress(self._summary((25.0, 100.0), (26.0, 100.0), (24.0, 100.0)))
+        assert p["verdict"] == "ontrack"
+
+    def test_no_spread_when_only_one_profit_line(self):
+        s = {"quarter": 1, "consolidated": True,
+             "actual": {"operating_income": 40.0},
+             "forecast": {"operating_income": 100.0}}
+        p = progress(s)
+        assert "spread" not in p
+        assert p["verdict"] == "ahead"
