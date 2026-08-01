@@ -1677,9 +1677,17 @@ button.sector-jump:active { opacity: 0.7; }
 .val-progress.behind .val-progress-fill {
   background: linear-gradient(90deg, #f0a06e, var(--danger));
 }
+/* 利益の行が食い違うとき。代表値のバーは満杯まで伸びる(営業利益進捗330%など)
+   ので、既定の緑のままだと「絶好調」と読める。文言は「一言では言えません」な
+   ので、色とバーを中立に落として食い違わせない。数字自体は隠さない。 */
+.val-progress.mixed .val-progress-fill {
+  background: linear-gradient(90deg, var(--border), var(--text-dim));
+}
+.val-progress.mixed .val-progress-head strong { color: var(--text-dim); }
 .val-progress-text { margin: 6px 0 0; font-size: 11.5px; font-weight: 700; }
 .val-progress.ahead .val-progress-text { color: var(--accent); }
 .val-progress.behind .val-progress-text { color: var(--danger); }
+.val-progress.mixed .val-progress-text { color: var(--text-dim); font-weight: 600; }
 .val-progress-rows { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
 .val-progress-item {
   font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums;
