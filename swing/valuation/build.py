@@ -177,10 +177,17 @@ def guidance_priority(out_dir: Path,
     return out
 
 
+# 期限つきの優先銘柄に確保する枠の割合。スキーマ移行で枠が埋まっても、決算を
+# 出した銘柄がこれだけは通るようにする。移行と決算期が重なったとき、移行を
+# 優先して会社予想を丸ごと落とすことがないように。
+PRIORITY_RESERVE = 0.5
+
+
 def select_batch(universe: list[str], done: dict[str, str], limit: int,
                  priority: list[str] | None = None,
                  schema: dict[str, int] | None = None,
-                 current_schema: int = SCHEMA_VERSION) -> list[str]:
+                 current_schema: int = SCHEMA_VERSION,
+                 priority_reserve: float = PRIORITY_RESERVE) -> list[str]:
     """今回更新する銘柄を選ぶ。
 
     1. **スキーマが古い生成済み銘柄**(表示項目が欠けたまま残るため最優先)
@@ -217,6 +224,11 @@ def select_batch(universe: list[str], done: dict[str, str], limit: int,
     outdated = [c for c in universe
                 if c in done and schema.get(c) is not None
                 and schema[c] < current_schema]
+    # 期限つきの優先銘柄に枠の一部を確保する。スキーマを上げた直後は outdated が
+    # 全銘柄になり、決算期と重なると会社予想を1件も取れないまま短信がフィードから
+    # 消える。逆に優先を無条件で先頭に置くと、決算期のあいだスキーマ移行が
+    # 止まる。どちらも起こらないよう、先に一定枠だけ通す。
+    push(priority[:min(len(priority), int(limit * priority_reserve))])
     push([c for c in priority if c in set(outdated)])     # 古い版かつ優先
     push(outdated)                                        # 古い版
     push(priority)                                        # 優先(期限つき)

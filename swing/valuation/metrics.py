@@ -108,20 +108,32 @@ def growth_metrics(records: list[FundamentalRecord]) -> dict:
 
 
 def yearly_history(records: list[FundamentalRecord]) -> dict:
-    """年次推移(スパークライン用)。売上・営業利益は最新期を100とした指数にする。
+    """年次推移(スパークライン用)。売上・営業利益は絶対値の最大を100とした指数。
 
     実額をそのまま持つと桁が大きくサイズを食ううえ、推移の形しか見ないので
     指数化のほうが読みやすい。EPS・ROE・自己資本比率は実値のまま。
+
+    基準の取り方に注意がいる。以前は「最初の非ゼロ値」を100としていたが、
+    これには二つ問題があった。
+
+    - 基準年の営業利益がゼロ近傍だと指数が桁違いに振れる(実測で絶対値1000超が
+      47銘柄)。線形変換なのでスパークラインの形自体は変わらないが、値としては
+      意味を持たない。
+    - **基準年が赤字だと系列全体の符号が反転する。** 指数の先頭は常に +100 に
+      なるので、published のデータからは反転しているかどうか判別すらできない。
+      赤字から立ち直った会社の推移が、黙って上下逆さまに描かれることになる。
+
+    絶対値の最大で割れば、範囲は -100〜100 に収まり、符号も形もそのまま残る。
     """
     if not records:
         return {"years": [], "rev": [], "op": [], "eps": [], "roe": [], "eq": []}
 
     def index_of(attr: str) -> list[float | None]:
         vals = [getattr(r, attr) for r in records]
-        base = next((v for v in vals if v not in (None, 0)), None)
-        if base in (None, 0):
+        scale = max((abs(v) for v in vals if v is not None), default=None)
+        if not scale:
             return [None] * len(vals)
-        return [None if v is None else round(v / base * 100.0, 1) for v in vals]
+        return [None if v is None else round(v / scale * 100.0, 1) for v in vals]
 
     return {
         "years": [r.period_end.year for r in records],

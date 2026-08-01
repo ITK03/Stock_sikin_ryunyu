@@ -113,16 +113,40 @@ class TestGrowthMetrics:
 
 
 class TestYearlyHistory:
-    def test_revenue_is_indexed_to_first_period(self):
+    def test_revenue_is_indexed_to_largest_absolute_value(self):
         rs = [rec(2022 + i, revenue=r, operating_income=o, eps=e, roe=0.08,
                   equity=50.0, total_assets=100.0)
               for i, (r, o, e) in enumerate(zip([100, 110, 120], [8, 9, 10],
                                                 [50, 55, 60]))]
         h = yearly_history(rs)
         assert h["years"] == [2022, 2023, 2024]
-        assert h["rev"] == [100.0, 110.0, 120.0]
+        assert h["rev"] == [83.3, 91.7, 100.0]
+        # EPS・自己資本比率は指数化せず実値のまま
         assert h["eps"] == [50.0, 55.0, 60.0]
         assert h["eq"] == [0.5, 0.5, 0.5]
+
+    def test_loss_making_base_year_does_not_invert_the_series(self):
+        """基準年が赤字でも符号が反転しないこと。
+
+        「最初の非ゼロ値を100」にしていた頃は、赤字から立ち直った会社の推移が
+        上下逆さまに描かれていた。指数の先頭は常に +100 になるので、配信済みの
+        データを見ても反転に気づけない。
+        """
+        rs = [rec(2022 + i, revenue=100.0, operating_income=o, eps=1.0, roe=0.01,
+                  equity=50.0, total_assets=100.0)
+              for i, o in enumerate([-20.0, -5.0, 10.0, 40.0])]
+        h = yearly_history(rs)
+        assert h["op"] == [-50.0, -12.5, 25.0, 100.0]
+        assert h["op"][0] < 0 < h["op"][-1], "赤字→黒字が上向きに出ていない"
+
+    def test_near_zero_base_year_does_not_explode(self):
+        """基準年がゼロ近傍でも指数が桁違いに振れないこと(実測で絶対値1000超が
+        47銘柄あった)。"""
+        rs = [rec(2022 + i, revenue=100.0, operating_income=o, eps=1.0, roe=0.01,
+                  equity=50.0, total_assets=100.0)
+              for i, o in enumerate([0.01, 5.0, 8.0, 10.0])]
+        h = yearly_history(rs)
+        assert max(abs(v) for v in h["op"]) == 100.0
 
     def test_handles_all_missing(self):
         h = yearly_history([rec(2022), rec(2023)])

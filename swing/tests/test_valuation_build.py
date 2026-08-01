@@ -336,8 +336,9 @@ class TestGuidancePriority:
         schema = {c: 3 for c in UNIVERSE} | {"7005": 1}
         batch = select_batch(UNIVERSE, done, limit=2, priority=["7000"],
                              schema=schema, current_schema=3)
-        assert batch[0] == "7005"
-        assert batch[1] == "7000"
+        # 枠が空いていれば両方入る。確保枠があるので順序は優先が先になるが、
+        # ここで固定したいのは「古い版が後回しにされないこと」。
+        assert set(batch) == {"7005", "7000"}
 
     def test_skips_codes_that_already_have_the_same_document(self, tmp_path):
         """同じ文書IDの予想を既に持つ銘柄は入れない(結果が変わらないのに
@@ -425,3 +426,47 @@ class TestEarningsDocSelection:
         ])
         assert docs["9999"][0] == "NEW"
         assert docs["9999"][2] == ""
+
+
+class TestPriorityReserve:
+    """スキーマ移行と決算期が重なっても、両方が進むこと。
+
+    スキーマを上げた直後は生成済み全銘柄が「古い版」になる。古い版を無条件で
+    先に処理すると、決算を出した銘柄が枠に入らないまま短信が開示フィードから
+    消える(フィードは当日+前日しか持たない)。逆に優先を無条件で先頭に置くと、
+    決算期のあいだスキーマ移行が止まる。
+    """
+
+    def test_priority_gets_slots_even_when_everything_is_outdated(self):
+        universe = [f"{7000 + i}" for i in range(40)]
+        done = {c: "2026-07-01" for c in universe}
+        schema = {c: 1 for c in universe}
+        # 決算を出した10銘柄は既に現行スキーマ(=古い版として拾われない)。
+        # ここが本当に競合する場面で、確保枠が無いと1件も入らない。
+        priority = universe[30:]
+        for c in priority:
+            schema[c] = 2
+        batch = select_batch(universe, done, limit=10, priority=priority,
+                             schema=schema, current_schema=2,
+                             priority_reserve=0.5)
+        got = sum(1 for c in batch if c in set(priority))
+        assert got == 5, f"優先枠が確保されていない(優先{got}件)"
+        assert len(batch) - got == 5, "スキーマ移行の枠まで奪っている"
+
+    def test_schema_migration_still_progresses_during_earnings_season(self):
+        universe = [f"{7000 + i}" for i in range(40)]
+        done = {c: "2026-07-01" for c in universe}
+        schema = {c: 1 for c in universe}
+        # 決算期は優先銘柄が枠を超える
+        batch = select_batch(universe, done, limit=10, priority=universe,
+                             schema=schema, current_schema=2,
+                             priority_reserve=0.5)
+        assert len(batch) == 10
+        assert len(set(batch)) == 10, "重複している"
+
+    def test_reserve_does_not_shrink_the_batch(self):
+        universe = [f"{7000 + i}" for i in range(20)]
+        batch = select_batch(universe, {}, limit=6, priority=["7019"],
+                             priority_reserve=0.5)
+        assert len(batch) == 6
+        assert batch[0] == "7019"
