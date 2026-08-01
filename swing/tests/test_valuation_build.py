@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 
 from valuation.build import INDEX_FILE, load_index, market_index, select_batch
+from valuation.guidance import GUIDANCE_VERSION
 
 UNIVERSE = [f"{7000 + i}" for i in range(20)]
 
@@ -109,11 +110,27 @@ class TestGuidanceCarryOver:
         import valuation.build as b
         called = []
         monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: called.append(d))
-        prev = {"doc_id": "DOC1", "eps": 120.0}
+        prev = {"doc_id": "DOC1", "eps": 120.0, "gv": GUIDANCE_VERSION}
         got = b.resolve_guidance("7203", {"7203": ("DOC1", "2026-07-29T15:00", "")},
                                  {"guidance": prev}, shares=None)
         assert got == prev
         assert called == [], "同一文書を再取得している"
+
+    def test_refetches_when_extraction_logic_changed(self, monkeypatch):
+        """抽出ロジックを直したら、同じ短信でも取り直すこと。
+
+        これが無いと、抽出のバグを直しても配信済みの値が古いまま残る。実際
+        連結/非連結の取り違えを直したとき、抽出済みの279件は更新されなかった。
+        """
+        import valuation.build as b
+        monkeypatch.setattr(b, "fetch_summary", lambda d, u=None: {
+            "actual": {}, "forecast": {"eps": 150.0},
+            "quarter": 1, "consolidated": True})
+        prev = {"doc_id": "DOC1", "eps": 120.0, "gv": GUIDANCE_VERSION - 1}
+        got = b.resolve_guidance("7203", {"7203": ("DOC1", "2026-07-29T15:00", "")},
+                                 {"guidance": prev}, shares=None)
+        assert got["eps"] == 150.0
+        assert got["gv"] == GUIDANCE_VERSION
 
     def test_updates_on_newer_document(self, monkeypatch):
         import valuation.build as b
@@ -327,9 +344,20 @@ class TestGuidancePriority:
         ローリング更新の枠を食う)。"""
         from valuation.build import guidance_priority
         (tmp_path / "7203.json").write_text(json.dumps(
-            {"code": "7203", "guidance": {"doc_id": "DOC1"}}), encoding="utf-8")
+            {"code": "7203", "guidance": {"doc_id": "DOC1",
+                                          "gv": GUIDANCE_VERSION}}), encoding="utf-8")
         docs = {"7203": ("DOC1", "2026-07-31T15:00", "")}
         assert guidance_priority(tmp_path, docs) == []
+
+    def test_includes_code_extracted_by_older_logic(self, tmp_path):
+        """抽出ロジックが古い銘柄も作り直しの対象にする。"""
+        from valuation.build import guidance_priority
+        (tmp_path / "7203.json").write_text(json.dumps(
+            {"code": "7203", "guidance": {"doc_id": "DOC1",
+                                          "gv": GUIDANCE_VERSION - 1}}),
+            encoding="utf-8")
+        assert guidance_priority(
+            tmp_path, {"7203": ("DOC1", "2026-07-31T15:00", "")}) == ["7203"]
 
     def test_includes_code_with_newer_document(self, tmp_path):
         from valuation.build import guidance_priority

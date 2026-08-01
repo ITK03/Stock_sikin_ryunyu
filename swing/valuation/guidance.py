@@ -19,6 +19,16 @@ ELAPSED_BY_QUARTER = {1: 0.25, 2: 0.50, 3: 0.75, 4: 1.00}
 # 進捗が経過率からこれだけ離れたら「上振れ/遅れ」と呼ぶ。
 DEVIATION_THRESHOLD = 0.10
 
+# 抽出ロジックの版。上げると、同じ短信から抽出済みの銘柄でも取り直す。
+#
+# 会社予想は「同じ文書IDなら再取得しない」という作りになっている。決算期以外に
+# 予想が消えないための仕組みだが、抽出側のバグを直しても配信済みの値が古い
+# ままになるという副作用がある。実際、連結/非連結の取り違えを直しても、抽出
+# 済みの279件はそのままだった。スキーマ版と同じで、直したら必ずここを上げる。
+#
+# 2: 実績と予想を同じ基準(連結/非連結)で揃える。当期予想を翌期予想より優先。
+GUIDANCE_VERSION = 2
+
 
 def _ratio(actual: float | None, forecast: float | None) -> float | None:
     """進捗率。予想が0以下だと率が意味を持たない(赤字予想など)。"""
@@ -87,6 +97,8 @@ def guidance_block(summary: dict | None, known_from: str | None,
 
     block: dict = {
         "known_from": known_from,
+        # 抽出ロジックの版。古い版で抽出した値を作り直す判定に使う。
+        "gv": GUIDANCE_VERSION,
         "consolidated": bool(summary.get("consolidated")),
         # 会社予想の1株利益と配当。株価があればブラウザ側で予想PER・利回りを出せる。
         "eps": forecast.get("eps"),

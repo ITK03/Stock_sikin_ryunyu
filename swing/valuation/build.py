@@ -24,7 +24,7 @@ import pandas as pd
 from backtest import data as data_mod
 from backtest.universe import load_universe_all, yf_tickers_all
 from screener.bizdays import JST
-from valuation.guidance import guidance_block
+from valuation.guidance import GUIDANCE_VERSION, guidance_block
 from valuation.profile import SCHEMA_VERSION, build_profile
 from valuation.sources.tdnet import diagnostics as tdnet_diagnostics
 from valuation.sources.tdnet import fetch_summary
@@ -97,8 +97,9 @@ def resolve_guidance(code: str, docs: dict[str, tuple[str, str, str]],
         return prev
     doc_id, disclosed_at = doc[0], doc[1]
     xbrl_url = doc[2] if len(doc) > 2 else ""
-    # 同じ短信を何度も取りに行かない
-    if prev and prev.get("doc_id") == doc_id:
+    # 同じ短信を何度も取りに行かない。ただし抽出ロジックを直した場合
+    # (GUIDANCE_VERSION が上がった場合)は取り直す。
+    if prev and prev.get("doc_id") == doc_id and _guidance_current(prev):
         return prev
     summary = fetch_summary(doc_id, xbrl_url or None)
     if summary is None:
@@ -147,6 +148,15 @@ def load_schema_versions(out_dir: Path) -> dict[str, int]:
     return out
 
 
+def _guidance_current(block: dict | None) -> bool:
+    """その会社予想が現行の抽出ロジックで作られたものか。
+
+    版を持たない配信済みの値は「古い」とみなす。ここを甘くすると、抽出の
+    バグを直しても既存の値が更新されないまま残る。
+    """
+    return bool(block) and int(block.get("gv") or 0) >= GUIDANCE_VERSION
+
+
 def guidance_priority(out_dir: Path,
                       docs: dict[str, tuple[str, str, str]]) -> list[str]:
     """会社予想をまだ取れていない銘柄を、今回の生成対象に引き上げる。
@@ -162,7 +172,7 @@ def guidance_priority(out_dir: Path,
     out = []
     for code, doc in docs.items():
         prev = (load_existing(out_dir, code) or {}).get("guidance")
-        if not prev or prev.get("doc_id") != doc[0]:
+        if not prev or prev.get("doc_id") != doc[0] or not _guidance_current(prev):
             out.append(code)
     return out
 
