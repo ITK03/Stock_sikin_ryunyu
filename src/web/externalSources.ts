@@ -21,6 +21,22 @@ export function rankingsUrls(region: Region, bust = false): string[] {
   ];
 }
 
+// 現在値(全銘柄)。rankings と同じ data-rankings ブランチに数分おきで更新される。
+//
+// 銘柄詳細の株価はこれを使う。以前は ticker_index.json(sector-monitor 生成)の
+// 価格を使っていたが、そちらはセクター配信が止まると一緒に凍結する。実際
+// 2026-07-13 から止まり、資金流入タブは数分おきに更新されているのに銘柄詳細を
+// 開くと2週間以上前の株価が出る、という状態になっていた。生成元が別なら
+// 鮮度も別、という当たり前のことが画面上は見えないので、価格の取得元を
+// 更新頻度の高いほうへ一本化する。
+export function quotesUrls(region: Region): string[] {
+  const file = region === 'US' ? 'quotes_us.json' : 'quotes_jp.json';
+  return [
+    `https://raw.githubusercontent.com/ITK03/Stock_sikin_ryunyu/data-rankings/${file}`,
+    `${import.meta.env.BASE_URL}data/${file}`,
+  ];
+}
+
 // 開示データの配信元。
 //
 // 生成元の Stock_open_news は非公開リポジトリのため、raw も GitHub Pages も

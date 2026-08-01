@@ -347,3 +347,14 @@ export interface SwingSignalsFeed {
   calendar: { future_business_days: string[] };
   paper_log_summary: SwingPaperLogSummary;
 }
+
+
+/**
+ * 現在値(全銘柄)。data-rankings ブランチに数分おきで更新される。
+ * p = 終値(または直近値)、c = 前日比(%)。
+ */
+export interface QuotesFile {
+  generated_at?: string;
+  asOf?: string;
+  quotes: Record<string, { p: number | null; c: number | null }>;
+}

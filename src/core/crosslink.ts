@@ -18,6 +18,7 @@ import type {
   Region,
   SectorFile,
   TickerIndexFile,
+  QuotesFile,
 } from './types';
 
 /** ②③(期間別ランキング)で銘柄が入っていた期間と順位。 */
@@ -103,6 +104,31 @@ function nameFromRankings(code: string, ds: RankingDataset | undefined): string 
   return null;
 }
 
+/**
+ * 現在値の取得元。ticker_index より優先する。
+ *
+ * ticker_index は sector-monitor 生成なので、セクター配信が止まると価格も一緒に
+ * 凍結する(実際 2026-07-13 から止まり、資金流入タブは数分おきに更新されている
+ * のに銘柄詳細だけ2週間以上前の株価が出ていた)。quotes は資金流入と同じ
+ * data-rankings ブランチから来るので、両者の鮮度が食い違わない。
+ */
+function fromQuotes(code: string, quotes: QuotesFile | null | undefined):
+    { price: number | null; changePct: number | null } | null {
+  const q = quotes?.quotes;
+  if (!q) return null;
+  let e = q[code];
+  if (!e) {
+    for (const k of Object.keys(q)) {
+      if (normalizeCode(k) === code) {
+        e = q[k];
+        break;
+      }
+    }
+  }
+  if (!e) return null;
+  return { price: e.p ?? null, changePct: e.c ?? null };
+}
+
 interface SectorLookup {
   name: string | null;
   price: number | null;
@@ -165,6 +191,8 @@ export interface CrosslinkSources {
   tickerIndex?: TickerIndexFile | null;
   /** 米国株の所属セクター(ベストエフォート、上位30件のみ)。 */
   sectorUS?: SectorFile | null;
+  /** 現在値。ticker_index より優先する(更新頻度が高いため)。 */
+  quotes?: QuotesFile | null;
   disclosures?: DisclosuresFeed | null;
 }
 
@@ -177,6 +205,7 @@ export function buildStockProfile(rawCode: string, sources: CrosslinkSources): S
   const code = normalizeCode(rawCode);
   if (!code) return null;
 
+  const quote = fromQuotes(code, sources.quotes);
   const jp = fromTickerIndex(code, sources.tickerIndex);
   const us = fromSectorFileMembers(code, 'US', sources.sectorUS);
   const sectors = [...(jp?.sectors ?? []), ...(us?.sectors ?? [])];
@@ -205,8 +234,10 @@ export function buildStockProfile(rawCode: string, sources: CrosslinkSources): S
   return {
     code,
     name,
-    price: jp?.price ?? null,
-    changePct: jp?.changePct ?? us?.changePct ?? null,
+    // 価格は更新頻度の高い quotes を最優先。ticker_index は生成が止まると
+    // 凍結するため、あくまでフォールバックとして残す。
+    price: quote?.price ?? jp?.price ?? null,
+    changePct: quote?.changePct ?? jp?.changePct ?? us?.changePct ?? null,
     sectors,
     rankings,
     disclosures,

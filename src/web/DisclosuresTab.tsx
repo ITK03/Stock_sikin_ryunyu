@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import type { DisclosuresArchiveIndex, DisclosuresFeed } from '../core/types';
 import { useExternalJson, useLazyExternalJson, type ExternalDataState } from './externalData';
 import { DISCLOSURES_ARCHIVE_INDEX_URLS, disclosuresArchiveUrls } from './externalSources';
-import { normalizeCode } from '../core/codes';
-import { dedupeDisclosures, materialClass } from '../core/disclosures';
+import { dedupeDisclosures, disclosureTopics, matchesQuery, matchesTopics, materialClass } from '../core/disclosures';
 import { relTime } from './format';
 import { DisclosureItem } from './DisclosureItem';
 import { useWatchlist } from './watchlist';
@@ -46,6 +45,16 @@ function dayLabel(date: string): string {
 export function DisclosuresTab({ onSelectCode, state }: Props) {
   const [minScore, setMinScore] = useState(0);
   const [query, setQuery] = useState('');
+  // トピック絞り込み(複数選択はOR)。実データから候補を作るので、開示の傾向が
+  // 変わっても空のチップが並ばない。
+  const [topics, setTopics] = useState<Set<string>>(new Set());
+  const toggleTopic = (key: string) =>
+    setTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const [watchOnly, setWatchOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [material, setMaterial] = useState<MaterialFilter>('all');
@@ -76,7 +85,6 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
     // 実データでは複数ソース(yanoshin/scraper)から同一開示が別idで重複混入することがあるため、
     // (time, code, title) が完全一致する行は1件に統合してから表示する。
     const all = dedupeDisclosures(raw);
-    const qCode = normalizeCode(query);
     return all
       .filter((d) => d.score >= minScore)
       .filter((d) => {
@@ -88,15 +96,20 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
       })
       .filter((d) => (urgentOnly ? d.urgent : true))
       .filter((d) => (watchOnly ? watchlist.has(d.code) : true))
-      .filter((d) => {
-        if (!qCode) return true;
-        // 前方一致にする(「72」まで入力した時点で 7203 等が出るように)。
-        const dc = normalizeCode(d.code);
-        return dc !== null && dc.startsWith(qCode);
-      })
+      // コード・会社名・タイトル・タグのいずれかに当たれば表示する。
+      // 以前はコードとしてしか解釈しておらず、会社名を入れても何も起きなかった。
+      .filter((d) => matchesQuery(d, query))
+      .filter((d) => matchesTopics(d, topics))
       .slice()
       .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
-  }, [data, minScore, query, watchOnly, urgentOnly, material, watchlist]);
+  }, [data, minScore, query, topics, watchOnly, urgentOnly, material, watchlist]);
+
+  // チップの候補と件数は、表示中の日付の全開示から作る。絞り込み後の集合から
+  // 作ると、あるトピックを選んだ瞬間に他のチップが消えて選び直せなくなる。
+  const topicChoices = useMemo(
+    () => disclosureTopics(dedupeDisclosures(Array.isArray(data?.items) ? data!.items : [])),
+    [data],
+  );
 
   if (loading && !data) {
     return (
@@ -128,8 +141,7 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
           <input
             className="disc-search"
             type="search"
-            inputMode="numeric"
-            placeholder="銘柄コードで検索(例: 7203)"
+            placeholder="コード・銘柄名・語句で検索(例: 7203 / トヨタ / 自己株式)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -187,6 +199,27 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
             </button>
           ))}
         </nav>
+        {topicChoices.length > 0 && (
+          <nav className="chiprow">
+            <span className="row-label">種類</span>
+            {topics.size > 0 && (
+              <button className="chip" onClick={() => setTopics(new Set())}>
+                すべて
+              </button>
+            )}
+            {topicChoices.map((t) => (
+              <button
+                key={t.key}
+                className={topics.has(t.key) ? 'chip topic active' : 'chip topic'}
+                onClick={() => toggleTopic(t.key)}
+                aria-pressed={topics.has(t.key)}
+              >
+                {t.label}
+                <span className="chip-count">{t.count}</span>
+              </button>
+            ))}
+          </nav>
+        )}
         <div className="disc-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
           {data && (

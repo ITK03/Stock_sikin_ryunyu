@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildStockProfile } from '../core/crosslink';
 import { isJpCode } from '../core/codes';
 import { ValuationPanel } from './ValuationPanel';
-import type { DisclosuresFeed, RankingDataset, Region, SectorFile, TickerIndexFile } from '../core/types';
+import type { DisclosuresFeed, QuotesFile, RankingDataset, Region, SectorFile, TickerIndexFile } from '../core/types';
 import { PERIODS } from '../core/periods';
 import { fetchFirstOk, useLazyExternalJson } from './externalData';
-import { SECTOR_US_URL, TICKER_INDEX_URL, rankingsUrls } from './externalSources';
+import { SECTOR_US_URL, TICKER_INDEX_URL, quotesUrls, rankingsUrls } from './externalSources';
 import { SAMPLE_SECTOR_US, SAMPLE_TICKER_INDEX } from '../data/sampleSector';
 import { priceText, signedPct } from './format';
 import { TierBadge } from './TierBadge';
@@ -86,6 +86,16 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
     sampleData: SAMPLE_SECTOR_US,
     enabled: true,
   });
+  // 現在値。資金流入タブと同じ data-rankings ブランチから来るので、両者の鮮度が
+  // 食い違わない。以前は ticker_index(sector-monitor 生成)の価格を使っており、
+  // セクター配信が止まった 2026-07-13 以降、資金流入は数分おきに更新されるのに
+  // 銘柄詳細だけ2週間以上前の株価が出ていた。
+  const quotesState = useLazyExternalJson<QuotesFile>({
+    cacheKey: 'ext:quotes_jp',
+    urls: quotesUrls('JP'),
+    sampleData: { quotes: {} },
+    enabled: true,
+  });
 
   // 日本株コードなら JP ランキング、それ以外(米国ティッカー)なら US ランキングだけを
   // フォールバック対象にする(両方読むと無駄な転送になるため)。
@@ -100,13 +110,15 @@ export function StockDetail({ code, rankingsJP, rankingsUS, disclosures, onClose
         rankingsUS: effRankingsUS,
         tickerIndex: tickerIndexState.data,
         sectorUS: sectorUSState.data,
+        quotes: quotesState.data,
         disclosures,
       }),
-    [code, effRankingsJP, effRankingsUS, tickerIndexState.data, sectorUSState.data, disclosures],
+    [code, effRankingsJP, effRankingsUS, tickerIndexState.data, sectorUSState.data,
+     quotesState.data, disclosures],
   );
 
   // 所属セクター/現在値はまだ読み込み中の可能性があるので、「データなし」と誤解させない。
-  const crossLoading = tickerIndexState.loading || sectorUSState.loading;
+  const crossLoading = tickerIndexState.loading || sectorUSState.loading || quotesState.loading;
 
   return (
     <div className="overlay" onClick={onClose}>
