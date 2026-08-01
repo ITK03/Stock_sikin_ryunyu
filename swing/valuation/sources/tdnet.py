@@ -43,10 +43,25 @@ _ELEMENT_TO_FIELD = {el: f for f, els in FIELD_ELEMENTS.items() for el in els}
 _ACCUM_RE = re.compile(r"CurrentAccumulatedQ(\d)Duration", re.I)
 
 
+# TDnet の文書IDは「種別4桁 + 日付8桁 + 連番」。PDFとXBRLで先頭4桁が異なり、
+# PDF が 1401… のとき XBRL は 0812… になる。実行ログで 81_<id>.zip と
+# <id>.zip がどちらも HTTP404 だったため、先頭4桁の差し替えを第一候補にする。
+XBRL_ID_PREFIXES = ("0812", "0813")
+
+
 def xbrl_urls(doc_id: str) -> list[str]:
-    """XBRL(zip)の候補URL。公開仕様として保証されていないため複数試す。"""
+    """XBRL(zip)の候補URL。公開仕様として保証されていないため複数試す。
+
+    候補の順序は実行ログの実測で決める。当たったパターンは diagnostics() に
+    "OK" として記録されるので、次回以降その並びを見直せる。
+    """
     base = "https://www.release.tdnet.info/inbs"
-    return [f"{base}/81_{doc_id}.zip", f"{base}/{doc_id}.zip"]
+    urls = []
+    if len(doc_id) > 4 and doc_id.isdigit():
+        for pref in XBRL_ID_PREFIXES:
+            urls.append(f"{base}/{pref}{doc_id[4:]}.zip")
+    urls += [f"{base}/81_{doc_id}.zip", f"{base}/{doc_id}.zip"]
+    return urls
 
 
 def _local(tag: str) -> str:

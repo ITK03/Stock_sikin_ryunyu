@@ -135,10 +135,25 @@ class TestSummaryFromZip:
 
 
 class TestXbrlUrls:
-    def test_multiple_candidates(self):
+    def test_tries_prefix_swapped_id_first(self):
+        """PDFとXBRLで文書IDの先頭4桁が異なる(1401… → 0812…)。
+
+        当初 81_<id>.zip と <id>.zip だけを試しており、実行ログで両方 HTTP404
+        だった(22件ずつ)。先頭4桁の差し替えを第一候補にする。
+        """
         urls = xbrl_urls("140120260729501927")
-        assert len(urls) >= 2
-        assert all("140120260729501927" in u for u in urls)
+        assert urls[0].endswith("081220260729501927.zip")
+        # 元のパターンも候補として残す(どれが当たるかは実行ログで確認する)
+        assert any(u.endswith("81_140120260729501927.zip") for u in urls)
+        assert any(u.endswith("/140120260729501927.zip") for u in urls)
+
+    def test_all_candidates_share_the_sequence_part(self):
+        urls = xbrl_urls("140120260729501927")
+        assert all("20260729501927" in u for u in urls)
+
+    def test_non_numeric_id_falls_back_to_original_patterns(self):
+        urls = xbrl_urls("abc123")
+        assert all("abc123" in u for u in urls)
 
 
 class TestProgress:
