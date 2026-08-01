@@ -136,3 +136,32 @@ export function matchesTopics(d: Disclosure, keys: Set<string>): boolean {
   }
   return false;
 }
+
+// ── 材料フィルタ(複数選択) ─────────────────────────────────────
+// 「特大」「好材料」「悪材料」は同時に選べるようにする(特大の好材料と悪材料を
+// 両方見たい、といった使い方があるため)。「すべて」だけは他と併用できない
+// (そもそも全件なので、他を足しても意味が変わらない)。
+
+export type MaterialKey = 'mega' | 'good' | 'bad';
+
+export function matchesMaterial(d: Disclosure, keys: Set<MaterialKey>): boolean {
+  if (keys.size === 0) return true;   // 未選択 = すべて
+  const mc = materialClass(d);
+  for (const k of keys) {
+    if (k === 'mega' && (mc === 'mega-positive' || mc === 'mega-negative')) return true;
+    if (k === 'good' && (mc === 'positive' || mc === 'mega-positive')) return true;
+    if (k === 'bad' && (mc === 'negative' || mc === 'mega-negative')) return true;
+  }
+  return false;
+}
+
+/**
+ * 材料フィルタの選択を切り替える。「すべて」は選択を空にすることで表す。
+ * 全部を個別に選んだ状態は「すべて」と同じなので、選択を空に畳む。
+ */
+export function toggleMaterial(current: Set<MaterialKey>, key: MaterialKey): Set<MaterialKey> {
+  const next = new Set(current);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next;
+}

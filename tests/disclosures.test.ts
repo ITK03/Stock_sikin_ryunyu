@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dedupeDisclosures, disclosureTopics, matchesQuery, matchesTopics } from '../src/core/disclosures';
+import { dedupeDisclosures, disclosureTopics, matchesMaterial, matchesQuery, matchesTopics, toggleMaterial } from '../src/core/disclosures';
+import type { MaterialKey } from '../src/core/disclosures';
 import type { Disclosure } from '../src/core/types';
 
 // 実データ検証で確認した実際の重複パターンを再現する最小フィールドのヘルパー。
@@ -224,5 +225,65 @@ describe('disclosureTopics の件数上限', () => {
     const t = disclosureTopics(items, 3);
     expect(t.map((x) => x.key).slice(0, 2)).toEqual(['up', 'down']);
     expect(t.length).toBe(3);
+  });
+});
+
+// 「特大」「好材料」「悪材料」は複数選択できる。「すべて」だけは併用不可
+// (そもそも全件なので、他を足しても結果が変わらない)。
+describe('matchesMaterial — 材料フィルタの複数選択', () => {
+  const mk = (direction: string, score: number): Disclosure =>
+    ({ id: '1', code: '1', direction, score } as Disclosure);
+  const megaGood = mk('positive', 90);
+  const megaBad = mk('negative', 90);
+  const good = mk('positive', 60);
+  const bad = mk('negative', 60);
+  const neutral = mk('neutral', 60);
+
+  it('未選択はすべて通す', () => {
+    for (const d of [megaGood, megaBad, good, bad, neutral]) {
+      expect(matchesMaterial(d, new Set())).toBe(true);
+    }
+  });
+
+  it('特大は好悪どちらの特大も通す', () => {
+    const k = new Set<MaterialKey>(['mega']);
+    expect(matchesMaterial(megaGood, k)).toBe(true);
+    expect(matchesMaterial(megaBad, k)).toBe(true);
+    expect(matchesMaterial(good, k)).toBe(false);
+  });
+
+  it('好材料は特大の好材料も含む', () => {
+    const k = new Set<MaterialKey>(['good']);
+    expect(matchesMaterial(good, k)).toBe(true);
+    expect(matchesMaterial(megaGood, k)).toBe(true);
+    expect(matchesMaterial(bad, k)).toBe(false);
+  });
+
+  it('複数選択はOR(特大+好材料)', () => {
+    const k = new Set<MaterialKey>(['mega', 'good']);
+    expect(matchesMaterial(megaBad, k)).toBe(true);    // 特大に当たる
+    expect(matchesMaterial(good, k)).toBe(true);       // 好材料に当たる
+    expect(matchesMaterial(bad, k)).toBe(false);
+  });
+
+  it('中立の開示はどの材料にも当たらない', () => {
+    expect(matchesMaterial(neutral, new Set<MaterialKey>(['mega', 'good', 'bad']))).toBe(false);
+  });
+});
+
+describe('toggleMaterial', () => {
+  it('追加と解除', () => {
+    let s = toggleMaterial(new Set<MaterialKey>(), 'mega');
+    expect([...s]).toEqual(['mega']);
+    s = toggleMaterial(s, 'good');
+    expect(s.size).toBe(2);
+    s = toggleMaterial(s, 'mega');
+    expect([...s]).toEqual(['good']);
+  });
+
+  it('元の集合を書き換えない', () => {
+    const before = new Set<MaterialKey>(['mega']);
+    toggleMaterial(before, 'good');
+    expect([...before]).toEqual(['mega']);
   });
 });

@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import type { DisclosuresArchiveIndex, DisclosuresFeed } from '../core/types';
 import { useExternalJson, useLazyExternalJson, type ExternalDataState } from './externalData';
 import { DISCLOSURES_ARCHIVE_INDEX_URLS, disclosuresArchiveUrls } from './externalSources';
-import { dedupeDisclosures, disclosureTopics, matchesQuery, matchesTopics, materialClass } from '../core/disclosures';
+import { dedupeDisclosures, disclosureTopics, matchesMaterial, matchesQuery, matchesTopics, toggleMaterial } from '../core/disclosures';
+import type { MaterialKey } from '../core/disclosures';
+import { DisclosureFilterSheet } from './DisclosureFilterSheet';
 import { relTime } from './format';
 import { DisclosureItem } from './DisclosureItem';
 import { useWatchlist } from './watchlist';
@@ -23,11 +25,9 @@ const THRESHOLDS = [
 /** 日付セレクタの「ライブ(最新)」を表す特別な値。 */
 const LIVE = 'live';
 
-/** 材料フィルタ。good/bad は特大を含む。mega は特大(好悪両方)のみ。 */
-type MaterialFilter = 'all' | 'mega' | 'good' | 'bad';
-
-const MATERIAL_FILTERS: { key: MaterialFilter; label: string }[] = [
-  { key: 'all', label: 'すべて' },
+/** 材料フィルタ。good/bad は特大を含む。mega は特大(好悪両方)のみ。
+    複数選択でき、「すべて」は選択なし(空集合)で表す。 */
+const MATERIAL_FILTERS: { key: MaterialKey; label: string }[] = [
   { key: 'mega', label: '🔥特大' },
   { key: 'good', label: '好材料' },
   { key: 'bad', label: '悪材料' },
@@ -48,16 +48,11 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
   // トピック絞り込み(複数選択はOR)。実データから候補を作るので、開示の傾向が
   // 変わっても空のチップが並ばない。
   const [topics, setTopics] = useState<Set<string>>(new Set());
-  const toggleTopic = (key: string) =>
-    setTopics((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
   const [watchOnly, setWatchOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
-  const [material, setMaterial] = useState<MaterialFilter>('all');
+  // 材料は複数選択。空集合が「すべて」。
+  const [material, setMaterial] = useState<Set<MaterialKey>>(new Set());
+  const [filterOpen, setFilterOpen] = useState(false);
   const [day, setDay] = useState<string>(LIVE);
   const watchlist = useWatchlist();
 
@@ -87,13 +82,7 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
     const all = dedupeDisclosures(raw);
     return all
       .filter((d) => d.score >= minScore)
-      .filter((d) => {
-        if (material === 'all') return true;
-        const mc = materialClass(d);
-        if (material === 'mega') return mc === 'mega-positive' || mc === 'mega-negative';
-        if (material === 'good') return mc === 'positive' || mc === 'mega-positive';
-        return mc === 'negative' || mc === 'mega-negative';
-      })
+      .filter((d) => matchesMaterial(d, material))
       .filter((d) => (urgentOnly ? d.urgent : true))
       .filter((d) => (watchOnly ? watchlist.has(d.code) : true))
       // コード・会社名・タイトル・タグのいずれかに当たれば表示する。
@@ -106,8 +95,13 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
 
   // チップの候補と件数は、表示中の日付の全開示から作る。絞り込み後の集合から
   // 作ると、あるトピックを選んだ瞬間に他のチップが消えて選び直せなくなる。
+  // フィルタボタンに出すバッジ。何かしら絞り込みが効いていることを外から分かるように。
+  const activeFilters =
+    topics.size + (urgentOnly ? 1 : 0) + (watchOnly ? 1 : 0) + (minScore > 0 ? 1 : 0);
+
   const topicChoices = useMemo(
-    () => disclosureTopics(dedupeDisclosures(Array.isArray(data?.items) ? data!.items : [])),
+    // ウィンドウでは全カテゴリを出す(チップ行のような12個上限は掛けない)。
+    () => disclosureTopics(dedupeDisclosures(Array.isArray(data?.items) ? data!.items : []), Infinity),
     [data],
   );
 
@@ -161,65 +155,35 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
             </select>
           )}
         </div>
-        <nav className="chiprow">
-          <span className="row-label">重要度</span>
-          {THRESHOLDS.map((t) => (
-            <button
-              key={t.key}
-              className={t.key === minScore ? 'chip active' : 'chip'}
-              onClick={() => setMinScore(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-          <button
-            className={urgentOnly ? 'chip urgent-chip active' : 'chip urgent-chip'}
-            onClick={() => setUrgentOnly((v) => !v)}
-            aria-pressed={urgentOnly}
-          >
-            速報のみ
-          </button>
-          <button
-            className={watchOnly ? 'chip watch active' : 'chip watch'}
-            onClick={() => setWatchOnly((v) => !v)}
-            aria-pressed={watchOnly}
-          >
-            ★ウォッチ
-          </button>
-        </nav>
+        {/* 材料だけはウィンドウの外に置く。開示を見ながら何度も切り替えるので、
+            そのたびにウィンドウを開くのは煩わしいため。複数選択できる。 */}
         <nav className="chiprow">
           <span className="row-label">材料</span>
+          <button
+            className={material.size === 0 ? 'chip active' : 'chip'}
+            onClick={() => setMaterial(new Set())}
+            aria-pressed={material.size === 0}
+          >
+            すべて
+          </button>
           {MATERIAL_FILTERS.map((f) => (
             <button
               key={f.key}
-              className={`chip mat-${f.key}${f.key === material ? ' active' : ''}`}
-              onClick={() => setMaterial(f.key)}
+              className={`chip mat-${f.key}${material.has(f.key) ? ' active' : ''}`}
+              onClick={() => setMaterial((prev) => toggleMaterial(prev, f.key))}
+              aria-pressed={material.has(f.key)}
             >
               {f.label}
             </button>
           ))}
+          <button
+            className={activeFilters > 0 ? 'chip filter-open btn-filter-active' : 'chip filter-open'}
+            onClick={() => setFilterOpen(true)}
+          >
+            ⚙ フィルタ
+            {activeFilters > 0 && <span className="chip-count">{activeFilters}</span>}
+          </button>
         </nav>
-        {topicChoices.length > 0 && (
-          <nav className="chiprow">
-            <span className="row-label">種類</span>
-            {topics.size > 0 && (
-              <button className="chip" onClick={() => setTopics(new Set())}>
-                すべて
-              </button>
-            )}
-            {topicChoices.map((t) => (
-              <button
-                key={t.key}
-                className={topics.has(t.key) ? 'chip topic active' : 'chip topic'}
-                onClick={() => toggleTopic(t.key)}
-                aria-pressed={topics.has(t.key)}
-              >
-                {t.label}
-                <span className="chip-count">{t.count}</span>
-              </button>
-            ))}
-          </nav>
-        )}
         <div className="disc-meta">
           {sample && <span className="chip sample-chip">サンプル</span>}
           {data && (
@@ -229,6 +193,21 @@ export function DisclosuresTab({ onSelectCode, state }: Props) {
           )}
         </div>
       </div>
+
+      {filterOpen && (
+        <DisclosureFilterSheet
+          state={{ minScore, topics, urgentOnly, watchOnly }}
+          topics={topicChoices}
+          thresholds={THRESHOLDS}
+          onChange={(next) => {
+            setMinScore(next.minScore);
+            setTopics(next.topics);
+            setUrgentOnly(next.urgentOnly);
+            setWatchOnly(next.watchOnly);
+          }}
+          onClose={() => setFilterOpen(false)}
+        />
+      )}
 
       {items.length === 0 ? (
         <p className="empty">該当する開示がありません。</p>
