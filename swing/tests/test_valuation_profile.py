@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from valuation.history import FundamentalRecord
-from valuation.profile import (GRID_POINTS, SPARK_MONTHS, build_profile,
+from valuation.profile import (GRID_POINTS, SCHEMA_VERSION, SPARK_MONTHS, build_profile,
                                estimate_known_from, monthly_series,
                                percentile_from_grid, quantile_grid,
                                yearly_ranges)
@@ -229,7 +229,7 @@ class TestProfileV2Sections:
     def test_financial_and_growth_sections_exist(self):
         prices, records = make_case()
         p = build_profile("7203", "トヨタ", prices, records)
-        assert p["v"] == 2
+        assert p["v"] == SCHEMA_VERSION
         assert set(p["fin"]) >= {"op_margin", "equity_ratio", "de", "net_cash_ps"}
         assert set(p["growth"]) >= {"rev_yoy", "eps_yoy", "eps_cagr3"}
         assert p["hist"]["years"] == [r.period_end.year for r in records]
@@ -249,3 +249,18 @@ class TestProfileV2Sections:
         p = build_profile("7203", "トヨタ", prices, records, quarterly=qs)
         assert len(p["q"]["labels"]) == 4
         assert "quarterly" not in p["cov"]["missing"]
+
+
+def test_schema_version_is_bumped_when_fields_are_added():
+    """表示項目を足したら SCHEMA_VERSION を上げること。
+
+    guidance を足したときに 2 のままにしたため、guidance を持たない v2 が
+    「最新版」と誤認されて再生成されず、会社予想が永久に出ない状態になった。
+    項目とスキーマ版の対応をここで固定しておく。
+    """
+    prices, records = make_case()
+    p = build_profile("7203", "トヨタ", prices, records)
+    # v3 以降で必ず存在すべきキー(欠けていたら版を上げ忘れている)
+    for key in ("fin", "growth", "hist", "q", "per_m", "pbr_m"):
+        assert key in p, f"{key} が無い"
+    assert SCHEMA_VERSION >= 3

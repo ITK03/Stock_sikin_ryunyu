@@ -26,6 +26,7 @@ from backtest.universe import load_universe_all, yf_tickers_all
 from screener.bizdays import JST
 from valuation.guidance import guidance_block
 from valuation.profile import SCHEMA_VERSION, build_profile
+from valuation.sources.tdnet import diagnostics as tdnet_diagnostics
 from valuation.sources.tdnet import fetch_summary
 from valuation.sources.yf import fetch_quarterly, fetch_records
 
@@ -281,6 +282,11 @@ def main(argv: list[str] | None = None) -> int:
     total = len(list(out_dir.glob("*.json"))) - 1
     print(f"生成 {ok}件 / 失敗 {skipped}件 / 会社予想あり {with_guidance}件 "
           f"/ 累計 {total}銘柄")
+    diag = tdnet_diagnostics()
+    if diag:
+        print("決算短信XBRLの取得結果:")
+        for k, v in sorted(diag.items(), key=lambda x: -x[1]):
+            print(f"  {k}: {v}件")
     return 0
 
 

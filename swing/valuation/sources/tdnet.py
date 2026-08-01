@@ -134,22 +134,51 @@ def summary_from_zip(zip_bytes: bytes) -> dict:
     return {"actual": {}, "forecast": {}, "quarter": None, "consolidated": False}
 
 
+# 失敗の内訳。URLパターンは公開仕様として保証されていないため、推測ではなく
+# 実行ログの実測で決める。最初の数件だけ詳細を出す(1回の実行で数百件試すため)。
+_diag: dict[str, int] = {}
+_verbose_left = 5
+
+
+def diagnostics() -> dict[str, int]:
+    """取得結果の内訳(URLごとの成功/失敗理由)。実行の最後にまとめて出す用。"""
+    return dict(_diag)
+
+
 def fetch_summary(doc_id: str) -> dict | None:
     """TDnetから短信XBRLを取得して解析する。取得できなければ None。
 
     1銘柄の失敗で全体を止めない(可用性優先)。
     """
+    global _verbose_left
     import urllib.error
     import urllib.request
 
     for url in xbrl_urls(doc_id):
+        pattern = url.rsplit("/", 1)[-1].replace(doc_id, "<id>")
         try:
             req = urllib.request.Request(url, headers=_HEADERS)
             with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # noqa: S310
                 data = resp.read()
-        except (urllib.error.URLError, OSError, ValueError):
+        except urllib.error.HTTPError as exc:
+            _diag[f"{pattern} HTTP{exc.code}"] = _diag.get(f"{pattern} HTTP{exc.code}", 0) + 1
+            if _verbose_left > 0:
+                _verbose_left -= 1
+                print(f"  XBRL取得失敗 {url} -> HTTP {exc.code}")
+            continue
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            key = f"{pattern} {type(exc).__name__}"
+            _diag[key] = _diag.get(key, 0) + 1
+            if _verbose_left > 0:
+                _verbose_left -= 1
+                print(f"  XBRL取得失敗 {url} -> {exc}")
             continue
         got = summary_from_zip(data)
         if got["actual"] or got["forecast"]:
+            _diag[f"{pattern} OK"] = _diag.get(f"{pattern} OK", 0) + 1
             return got
+        _diag[f"{pattern} 解析不能"] = _diag.get(f"{pattern} 解析不能", 0) + 1
+        if _verbose_left > 0:
+            _verbose_left -= 1
+            print(f"  XBRLは取れたが中身を解釈できず {url} ({len(data)}B)")
     return None

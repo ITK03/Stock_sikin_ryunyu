@@ -25,7 +25,10 @@ from valuation.history import (DEFAULT_YEARS, MIN_OBSERVATIONS,
 from valuation.metrics import (financial_metrics, growth_metrics,
                                quarterly_history, yearly_history)
 
-SCHEMA_VERSION = 2
+# 3: 会社予想(決算短信XBRL)を追加。
+# 2 のまま足したせいで、guidance を持たない v2 が「最新版」と誤認され再生成
+# されなかった。表示項目を足したら必ずここを上げること。
+SCHEMA_VERSION = 3
 # 分位グリッドの点数。0%,5%,…,100% の21点。これ以上細かくしても表示は変わらず、
 # サイズだけ増える。
 GRID_POINTS = 21
