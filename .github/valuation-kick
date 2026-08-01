@@ -1,3 +1,1 @@
-# バリュエーション生成の手動キック用。
-# この行を書き換えて main に commit すると Valuation Profiles が起動する。
-last-kick: 2026-08-01T02:56Z
+kick 2026-08-01 04:47:35 UTC — verify xbrl_url guidance pipeline
