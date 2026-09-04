@@ -261,3 +261,22 @@ class TestJpxListingUrl:
         monkeypatch.setattr("urllib.request.urlopen",
                             lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
         assert u._jpx_candidates() == [u.JPX_URL]
+
+
+class TestExcelReaders:
+    """JPXの一覧を読むための依存が揃っていること。
+
+    JPXは同じディレクトリのまま data_j.xls → data_j.xlsx に切り替えた。
+    xlrd 2.x は .xlsx のサポートを外しているため openpyxl が要る。無いと
+    pandas.read_excel が `Import openpyxl failed` で落ち、ユニバースが
+    129銘柄のフォールバックに縮む(実際スイングが128銘柄で動いていた)。
+    例外が握りつぶされてフォールバックに落ちる作りなので、依存の欠落は
+    実行時には警告1行にしかならない。ここで落として気づけるようにする。
+    """
+
+    def test_can_read_xlsx(self):
+        import openpyxl  # noqa: F401
+
+    def test_can_read_xls(self):
+        """JPXが .xls に戻す可能性もあるので両方保持する。"""
+        import xlrd  # noqa: F401

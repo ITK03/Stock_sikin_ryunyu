@@ -3,6 +3,12 @@ numpy>=1.24
 yfinance>=0.2.40
 PyYAML>=6.0
 jpholiday>=0.1.10
+# JPXの上場一覧を読むために必要。JPXは同じディレクトリのまま data_j.xls →
+# data_j.xlsx に切り替えており、xlrd 2.x は .xlsx を読めない(サポートが外れた)。
+# openpyxl が無いと pandas.read_excel が失敗し、ユニバースが129銘柄の
+# フォールバックに落ちる。実際それでスイングが128銘柄で動いていた。
+# .xls に戻る可能性もあるので xlrd も残す。
 xlrd>=2.0.1
+openpyxl>=3.1
 pyarrow>=14.0
 pytest>=7.0
