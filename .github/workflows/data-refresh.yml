@@ -30,6 +30,16 @@ on:
   schedule:
     # 自己連鎖が途切れたときの再点火用。連鎖が生きている限り主な起動源ではない。
     - cron: "0 * * * *"
+  # .github/data-refresh-kick を更新する push でも起動する。
+  # このループは起動時のコードを330分掴んだまま走るので、生成側を直しても
+  # 反映は次の起動待ちになる。実際 JPXのURL失効を直したあと、走っていた
+  # ループが古いコードのまま20銘柄を配信し続けた。毎時cronは間引かれて
+  # 数時間空くことがあり、workflow_dispatch も権限次第で叩けない。
+  # concurrency の cancel-in-progress で古いループを置き換えられる。
+  # valuation / swing と同じキック方式。
+  push:
+    branches: [main]
+    paths: [".github/data-refresh-kick"]
 
 permissions:
   contents: write
