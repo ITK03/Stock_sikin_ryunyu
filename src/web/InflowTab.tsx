@@ -12,7 +12,9 @@ import { RankingList, type Density } from './RankingList';
 import { HelpSheet } from './HelpSheet';
 import { FilterSheet } from './FilterSheet';
 import { fetchFirstOk } from './externalData';
+import { universeShortfall } from '../core/rankings';
 import { rankingsUrls } from './externalSources';
+import { useStatusNotice } from './statusNotice';
 import { relTime } from './format';
 import { useWatchlist } from './watchlist';
 
@@ -220,6 +222,9 @@ export function InflowTab({ onSelectCode, onDatasetLoaded }: Props) {
   }
 
   const data = cache[region];
+  // 母集団が想定より小さいまま集計されていないか。黙って20銘柄のランキングを
+  // 「市場の資金流入」として見せると、毎日同じ顔ぶれが並ぶ理由が分からない。
+  useStatusNotice('inflow:universe', universeShortfall(data));
 
   if (!data) {
     return (

@@ -454,3 +454,26 @@ export function computeRankings(
     sessionProgress: opts.intraday?.progress ?? 1,
   };
 }
+
+/**
+ * 集計母集団が名前負けしていないかの点検。
+ *
+ * 資金流入ランキングは「売買代金上位 topN 銘柄から選ぶ」という建て付けなので、
+ * 母集団(universe)が topN を下回ると、その時点で「上位300銘柄のランキング」を
+ * 名乗れない。実際 JP は JPX の上場一覧取得が失敗し、コミット済みの20銘柄
+ * フォールバックのまま集計され続けていた(2026-09-04 時点で universe=20 /
+ * 同じ処理の US は 6,934)。母集団が同じ20銘柄なので毎日ほぼ同じ顔ぶれが並び、
+ * 「更新されていない」ようにしか見えなかった。
+ *
+ * 表示を止めるのではなく、何を見ているのかを添える。値そのものは正しい
+ * (その20銘柄の中では正しい順位)ので、隠すより但し書きを出すほうがよい。
+ */
+export function universeShortfall(
+  dataset: { universe: number; topN: number } | null | undefined,
+): string | null {
+  if (!dataset) return null;
+  const { universe, topN } = dataset;
+  if (!Number.isFinite(universe) || !Number.isFinite(topN)) return null;
+  if (universe >= topN) return null;
+  return `集計対象が${universe}銘柄しかありません(本来は売買代金上位${topN}銘柄)。銘柄一覧の取得に失敗している可能性があります`;
+}

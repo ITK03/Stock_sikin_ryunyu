@@ -12,6 +12,11 @@ import { fetchShares, getCrumb, type UniverseEntry } from '../data/yahoo.js';
 
 const JPX_XLS =
   'https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls';
+// 妥当な最小件数。全市場の実数は JP 約3,900・US 約6,900。これを大きく下回る
+// 結果は取得・解析の異常とみなす(Python側の swing/backtest/universe.py も
+// 同じ考えで 2,500 件未満を異常として弾いている)。
+const MIN_UNIVERSE: Record<Region, number> = { JP: 2500, US: 3000 };
+
 const NASDAQ_LISTED = 'https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt';
 const OTHER_LISTED = 'https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt';
 
@@ -43,7 +48,16 @@ function jpSegment(div: string): MarketSegment | null {
 async function buildJP(): Promise<UniverseEntry[]> {
   console.log('[universe:JP] downloading JPX listing...');
   const res = await fetch(JPX_XLS, { headers: { 'user-agent': 'Mozilla/5.0' } });
-  if (!res.ok) throw new Error(`JPX download failed: ${res.status}`);
+  if (!res.ok) {
+    // 何が返ってきたかを残す。403なのか、置き場所が変わって別ページのHTMLが
+    // 返っているのかで対処がまったく違うのに、状態コードだけでは判別できない。
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `JPX download failed: ${res.status} ${res.statusText} ` +
+        `content-type=${res.headers.get('content-type') ?? '不明'} ` +
+        `body=${JSON.stringify(body.slice(0, 200))}`,
+    );
+  }
   const buf = Buffer.from(await res.arrayBuffer());
   const wb = XLSX.read(buf, { type: 'buffer' });
   const rows = XLSX.utils.sheet_to_json<Record<string, string | number>>(
@@ -135,19 +149,34 @@ async function main() {
   const only = arg ? (arg.split('=')[1].toUpperCase() as Region) : null;
   const regions: Region[] = only ? [only] : ['JP', 'US'];
 
+  let failed = false;
   for (const region of regions) {
     try {
       const universe = await builders[region]();
       console.log(`[universe:${region}] ${universe.length} stocks`);
+      // 極端に少ない結果は書き込まない。取得や解析が壊れても件数が0や数十で
+      // 「成功」してしまい、既にある正しいユニバースを上書きするため。
+      if (universe.length < MIN_UNIVERSE[region]) {
+        throw new Error(
+          `ユニバースが少なすぎる(${universe.length}件 < ${MIN_UNIVERSE[region]}件)。` +
+            '取得か解析が壊れている可能性が高いので既存のconfigを残す',
+        );
+      }
       await enrichShares(region, universe);
       const out = resolve(configDir, OUT_FILE[region]);
       writeFileSync(out, JSON.stringify(universe, null, 0));
       console.log(`[universe:${region}] wrote ${out}`);
     } catch (err) {
       console.error(`[universe:${region}] failed:`, err);
-      if (regions.length === 1) process.exitCode = 1;
+      failed = true;
     }
   }
+  // 1地域でも失敗したら異常終了する。以前は regions.length === 1 のときしか
+  // 終了コードを立てておらず、JP/US を一度に回す通常運用では日本の取得が
+  // 失敗しても `npm run universe` が成功扱いで終わっていた。そのため
+  // デプロイは緑のまま、コミット済みの20銘柄フォールバックで資金流入
+  // ランキングが作られ続けていた(実測: JP universe=20 / US universe=6,934)。
+  if (failed) process.exitCode = 1;
 }
 
 main().catch((e) => {

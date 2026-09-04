@@ -52,8 +52,15 @@ jobs:
       - run: npm ci
 
       # ユニバース(JPX上場一覧 + 発行済株式数)は日次で十分なため、ループ開始時に1回だけ。
+      # 失敗しても価格更新ループは続ける(その方が実害が小さい)。ただし黙って
+      # 続けない。以前は `|| echo` で握りつぶしており、JPXの上場一覧取得が
+      # 失敗し続けても誰も気づかず、コミット済みの20銘柄フォールバックで
+      # 資金流入ランキングが作られ続けていた(実測: JP universe=20 / US=6,934)。
       - name: Build universe
-        run: npm run universe || echo "universe生成に失敗(既存のconfigで継続)"
+        run: |
+          if ! npm run universe; then
+            echo "::warning title=ユニバース生成に失敗::既存のconfigで継続します。資金流入の集計母集団が実際より小さい可能性があります"
+          fi
 
       - name: Refresh loop (約330分・市場が開いている時間帯のみ生成・終了時に自己連鎖)
         env:

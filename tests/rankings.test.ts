@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeRankings } from '../src/core/rankings';
+import { computeRankings, universeShortfall } from '../src/core/rankings';
 import type { DailyBar, MarketSegment } from '../src/core/types';
 
 // 連続営業日(土日を無視した単純連番)を生成。
@@ -220,5 +220,30 @@ describe('computeRankings ② 継続性(単発スパイク耐性)', () => {
     const spike = res.ranking2['2w'].find((r) => r.code === 'SPIKE')!;
     const cnst = res.ranking2['2w'].find((r) => r.code === 'CONST')!;
     expect(cnst.ratio).toBeGreaterThan(spike.ratio);
+  });
+});
+
+describe('universeShortfall', () => {
+  it('母集団が topN を下回ったら警告する', () => {
+    // 実測(2026-09-04): JPX の上場一覧取得に失敗し、コミット済みの20銘柄
+    // フォールバックのまま集計されていた。
+    expect(universeShortfall({ universe: 20, topN: 300 })).toContain('20銘柄');
+  });
+
+  it('母集団が十分なら警告しない', () => {
+    expect(universeShortfall({ universe: 6934, topN: 300 })).toBeNull();
+  });
+
+  it('ちょうど topN なら警告しない', () => {
+    expect(universeShortfall({ universe: 300, topN: 300 })).toBeNull();
+  });
+
+  it('プライムのみ(約1,600)は正常な構成として扱う', () => {
+    expect(universeShortfall({ universe: 1600, topN: 300 })).toBeNull();
+  });
+
+  it('データが無ければ何も言わない', () => {
+    expect(universeShortfall(null)).toBeNull();
+    expect(universeShortfall(undefined)).toBeNull();
   });
 });
