@@ -3,6 +3,7 @@ import {
   adviseManualPosition,
   advisePaperOpen,
   approxBusinessDaysHeld,
+  defaultStrategy,
   summarizeClosed,
 } from '../src/core/swingAdvice';
 import type { SwingExitRules, SwingPaperClosed, SwingPaperOpen } from '../src/core/types';
@@ -139,5 +140,40 @@ describe('summarizeClosed', () => {
     expect(s.byReason[0].reason).toBe('take_profit');
     expect(s.byReason[0].n).toBe(2);
     expect(s.byReason[0].winRate).toBe(1);
+  });
+});
+
+describe('defaultStrategy', () => {
+  const s = (id: string, n: number) => ({ id, buy_candidates: Array(n).fill(0) });
+
+  it('買い候補がある最初の戦略を既定にする', () => {
+    // 実測の並び(期待値降順): keltner 0件 / rsi2_flow 0件 / rsi2_dip 19件。
+    // 先頭固定だと開くたびに空表示になっていた。
+    const list = [s('keltner_atr_dip', 0), s('rsi2_flow', 0), s('rsi2_dip', 19)];
+    expect(defaultStrategy(list, null)?.id).toBe('rsi2_dip');
+  });
+
+  it('利用者が選んだ戦略は候補0件でも尊重する', () => {
+    const list = [s('keltner_atr_dip', 0), s('rsi2_dip', 19)];
+    expect(defaultStrategy(list, 'keltner_atr_dip')?.id).toBe('keltner_atr_dip');
+  });
+
+  it('全戦略が0件の日は先頭を返す', () => {
+    const list = [s('keltner_atr_dip', 0), s('rsi2_dip', 0)];
+    expect(defaultStrategy(list, null)?.id).toBe('keltner_atr_dip');
+  });
+
+  it('候補がある戦略が複数あれば期待値が高い(配列が先の)ほうを選ぶ', () => {
+    const list = [s('keltner_atr_dip', 2), s('rsi2_dip', 19)];
+    expect(defaultStrategy(list, null)?.id).toBe('keltner_atr_dip');
+  });
+
+  it('戦略が空なら undefined', () => {
+    expect(defaultStrategy([], null)).toBeUndefined();
+  });
+
+  it('存在しないIDが選ばれていたら既定にフォールバックする', () => {
+    const list = [s('keltner_atr_dip', 0), s('rsi2_dip', 19)];
+    expect(defaultStrategy(list, 'deleted_strategy')?.id).toBe('rsi2_dip');
   });
 });

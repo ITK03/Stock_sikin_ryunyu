@@ -213,3 +213,27 @@ export function summarizeClosed(closed: SwingPaperClosed[]): ClosedSummary {
     byReason,
   };
 }
+
+/**
+ * 既定で表示する戦略を選ぶ。
+ *
+ * signals.json の strategies は「1トレードあたり期待値の降順」で並んでいる。
+ * ところが期待値が最も高い keltner_atr_dip は意図的にシグナル頻度が低い
+ * サブ戦略（rule_note に「シグナル頻度低め・サブ戦略（5枠中1〜2枠目安）」と
+ * ある）で、買い候補が0件の日が多い。先頭を既定にすると、開くたびに
+ * 「本日は条件を満たす買い候補がありません」から始まってしまう。
+ * 実測 2026-09-04: keltner 0件 / rsi2_flow 0件 / rsi2_dip 19件。
+ *
+ * そこで既定は「買い候補がある最初の戦略」にする。全戦略が0件の日は先頭を
+ * 返す（その日は本当に候補が無いので、空表示が正しい）。
+ * 利用者が明示的に選んだ戦略(pickedId)は常に優先する。
+ */
+export function defaultStrategy<T extends { id: string; buy_candidates: unknown[] }>(
+  strategies: T[],
+  pickedId: string | null,
+): T | undefined {
+  if (strategies.length === 0) return undefined;
+  const picked = strategies.find((s) => s.id === pickedId);
+  if (picked) return picked;
+  return strategies.find((s) => s.buy_candidates.length > 0) ?? strategies[0];
+}

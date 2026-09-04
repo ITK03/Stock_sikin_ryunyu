@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { defaultStrategy } from '../core/swingAdvice';
 import type { SwingSignalsFeed, SwingStrategy } from '../core/types';
 import { useExternalJson } from './externalData';
 import { SWING_SIGNALS_URLS } from './externalSources';
@@ -101,10 +102,10 @@ export function SwingTab({ onSelectCode }: Props) {
   };
 
   const strategies = data?.strategies ?? [];
-  const selected: SwingStrategy | undefined = useMemo(() => {
-    if (strategies.length === 0) return undefined;
-    return strategies.find((s) => s.id === stratId) ?? strategies[0];
-  }, [strategies, stratId]);
+  const selected: SwingStrategy | undefined = useMemo(
+    () => defaultStrategy(strategies, stratId),
+    [strategies, stratId],
+  );
 
   const viewSwitcher = (
     <nav className="segmented swing-view-seg" role="tablist" aria-label="表示切替">
