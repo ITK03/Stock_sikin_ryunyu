@@ -8,9 +8,20 @@ GitHub Actionsランナーのようにインターネットへ出られる環境
 """
 from __future__ import annotations
 
-# JPX「その他統計資料 > 東証上場銘柄一覧」の固定URL（内国株・外国株・ETF等を全収録）
+import re
+
+# JPX「その他統計資料 > 東証上場銘柄一覧」の配布ページ。
+# ファイル本体は .../misc/<ハッシュ>-att/data_j.xls という形で、この <ハッシュ> は
+# JPX 側の都合で入れ替わる。直書きしていた tvdivq0000001vg2-att は実際に 404 に
+# なっており、ユニバース取得が失敗して129銘柄のフォールバックで動き続けていた
+# （signals.json の universe_count が 128 になっていたのはこれ）。推測でURLを
+# 書き換えても次の入れ替えでまた壊れるので、配布ページから現在のリンクを読む。
+JPX_LISTING_PAGE = "https://www.jpx.co.jp/markets/statistics-equities/misc/01.html"
+# 旧URL。配布ページから拾えなかったときの最後の候補として残す。
 JPX_URL = ("https://www.jpx.co.jp/markets/statistics-equities/misc/"
            "tvdivq0000001vg2-att/data_j.xls")
+_UA = {"User-Agent": "Mozilla/5.0"}
+_JPX_HREF_RE = re.compile(r'href="([^"]*data_j\.xlsx?)"', re.I)
 
 # 不正OHLC（データ品質問題）が確認された銘柄。スクリーナー・バックテスト双方の
 # ユニバースから除外する。
@@ -86,16 +97,60 @@ _FALLBACK = {
 _CACHE: dict[str, str] | None = None
 
 
+def extract_jpx_listing_urls(html: str,
+                             page_url: str = JPX_LISTING_PAGE) -> list[str]:
+    """配布ページのHTMLから data_j.xls / .xlsx への現在のリンクを抜き出す。
+
+    相対パスで書かれているので絶対URLに直す。重複は畳み、出現順を保つ。
+    """
+    from urllib.parse import urljoin
+    out: list[str] = []
+    for m in _JPX_HREF_RE.finditer(html or ""):
+        url = urljoin(page_url, m.group(1))
+        if url not in out:
+            out.append(url)
+    return out
+
+
+def _jpx_candidates() -> list[str]:
+    """一覧ファイルの候補URL。配布ページから拾えたものを優先し、旧URLを最後に。"""
+    import urllib.request
+    urls: list[str] = []
+    try:
+        req = urllib.request.Request(JPX_LISTING_PAGE, headers=_UA)
+        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+            html = resp.read().decode("utf-8", "replace")
+        urls = extract_jpx_listing_urls(html)
+    except Exception as exc:  # noqa: BLE001 - 配布ページが読めなくても旧URLを試す
+        print(f"WARNING: JPX配布ページを読めません({exc})")
+    if JPX_URL not in urls:
+        urls.append(JPX_URL)
+    return urls
+
+
+def _fetch_jpx_workbook() -> bytes:
+    """一覧ファイルを取得する。候補を順に試し、全滅なら理由をまとめて投げる。"""
+    import urllib.request
+    failures: list[str] = []
+    for url in _jpx_candidates():
+        try:
+            req = urllib.request.Request(url, headers=_UA)
+            with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+                raw = resp.read()
+            print(f"JPX一覧を取得: {url} ({len(raw)}バイト)")
+            return raw
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"{url} -> {exc}")
+    raise RuntimeError("JPXの上場一覧を取得できない: " + " / ".join(failures))
+
+
 def _fetch_prime() -> dict[str, str]:
     """JPXの上場銘柄一覧からプライム（内国株式）の code->銘柄名 を返す。"""
     import io
-    import urllib.request
 
     import pandas as pd
 
-    req = urllib.request.Request(JPX_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
-        raw = resp.read()
+    raw = _fetch_jpx_workbook()
     df = pd.read_excel(io.BytesIO(raw), dtype=str)
     seg = df["市場・商品区分"].astype(str)
     df = df[seg.str.contains("プライム", na=False)]
@@ -158,13 +213,10 @@ def _is_domestic_stock_code(code: str) -> bool:
 def _fetch_all_markets() -> dict[str, str]:
     """JPXの上場銘柄一覧から、プライム・スタンダード・グロースの全内国株を返す。"""
     import io
-    import urllib.request
 
     import pandas as pd
 
-    req = urllib.request.Request(JPX_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
-        raw = resp.read()
+    raw = _fetch_jpx_workbook()
     df = pd.read_excel(io.BytesIO(raw), dtype=str)
     seg = df["市場・商品区分"].astype(str)
     df = df[seg.str.contains("プライム|スタンダード|グロース", na=False, regex=True)]

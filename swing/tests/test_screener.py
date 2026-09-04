@@ -208,3 +208,56 @@ def test_render_site_injection(tmp_path):
     assert not frag.lstrip().startswith("<!doctype")
     assert idx.startswith("<!doctype html>")
     assert json.loads((site / "data" / "signals.json").read_text(encoding="utf-8"))
+
+
+class TestJpxListingUrl:
+    """JPXの一覧ファイルURLを直書きに頼らないこと。
+
+    ファイル本体は .../misc/<ハッシュ>-att/data_j.xls という形で、この
+    <ハッシュ> は JPX 側の都合で入れ替わる。直書きしていた
+    tvdivq0000001vg2-att は実際に 404 になり、ユニバース取得が失敗して129銘柄の
+    フォールバックで動き続けていた(signals.json の universe_count が 128)。
+    推測で書き換えても次の入れ替えでまた壊れるので、配布ページから読む。
+    通信はせず、抽出だけを固定する。
+    """
+
+    PAGE = "https://www.jpx.co.jp/markets/statistics-equities/misc/01.html"
+
+    def test_resolves_relative_link(self):
+        from backtest.universe import extract_jpx_listing_urls
+        html = '<a href="/markets/statistics-equities/misc/abc123-att/data_j.xls">一覧</a>'
+        assert extract_jpx_listing_urls(html, self.PAGE) == [
+            "https://www.jpx.co.jp/markets/statistics-equities/misc/abc123-att/data_j.xls"]
+
+    def test_hash_change_does_not_break_it(self):
+        from backtest.universe import extract_jpx_listing_urls
+        got = extract_jpx_listing_urls('<a href="./zzzz9999-att/data_j.xls">x</a>', self.PAGE)
+        assert got and got[0].endswith("zzzz9999-att/data_j.xls")
+
+    def test_accepts_xlsx(self):
+        from backtest.universe import extract_jpx_listing_urls
+        got = extract_jpx_listing_urls('<a href="/a-att/data_j.xlsx">x</a>', self.PAGE)
+        assert got[0].endswith("data_j.xlsx")
+
+    def test_dedupes(self):
+        from backtest.universe import extract_jpx_listing_urls
+        html = '<a href="/a-att/data_j.xls">1</a><a href="/a-att/data_j.xls">2</a>'
+        assert len(extract_jpx_listing_urls(html, self.PAGE)) == 1
+
+    def test_ignores_unrelated_links(self):
+        from backtest.universe import extract_jpx_listing_urls
+        html = '<a href="/a-att/data_e.xls">英語版</a><a href="/b.pdf">pdf</a>'
+        assert extract_jpx_listing_urls(html, self.PAGE) == []
+
+    def test_empty_page_yields_nothing(self):
+        """空なら呼び出し側が旧URLへ落ちる。"""
+        from backtest.universe import extract_jpx_listing_urls
+        assert extract_jpx_listing_urls("<html></html>", self.PAGE) == []
+
+    def test_legacy_url_is_always_a_candidate(self, monkeypatch):
+        """配布ページが読めなくても旧URLは必ず試す。"""
+        import backtest.universe as u
+        monkeypatch.setattr(u, "extract_jpx_listing_urls", lambda *a, **k: [])
+        monkeypatch.setattr("urllib.request.urlopen",
+                            lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
+        assert u._jpx_candidates() == [u.JPX_URL]
