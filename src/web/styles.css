@@ -1731,3 +1731,269 @@ button.sector-jump:active { opacity: 0.7; }
 .filter-apply:active { transform: scale(0.99); }
 /* 一覧側のフィルタボタン。絞り込みが効いている件数をバッジで出す。 */
 .chip.filter-open { font-weight: 800; }
+
+/* ========================================================================
+   マイセクター(セクタータブのサブタブ)
+   ======================================================================== */
+
+/* サブタブ切替(マイセクター/業種)。下部メインナビ(BottomTabBar)より
+   一段軽い見た目にし、「メイン→サブ」の階層が一目で分かるようにする。
+   土台は .segmented/.seg-btn だが、幅を内容に合わせて縮め、選択時の主張も抑える
+   (メインナビ・スイングタブのビュー切替より控えめな配色にする)。 */
+.sector-view-seg {
+  display: inline-flex;
+  width: auto;
+  margin: 2px 0 12px;
+  padding: 3px;
+}
+.sector-view-seg .seg-btn {
+  flex: none;
+  padding: 6px 15px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sector-view-seg .seg-btn.active {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.mysec-tab { display: flex; flex-direction: column; padding-top: 2px; }
+
+/* ---------- 一覧(ランキング) ---------- */
+.mysec-toolbar { display: flex; gap: 8px; margin: 0 2px 12px; }
+.mysec-new-btn { font-weight: 800; }
+
+.mysec-summary { display: flex; gap: 10px; margin: 0 2px 14px; }
+.mysec-summary-col {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.mysec-summary-head {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 7px;
+}
+.mysec-mover-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mysec-mover-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mysec-mover-name {
+  font-size: 12px; font-weight: 600; color: var(--text-dim); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mysec-mover-chg { flex: none; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mysec-mover-empty { font-size: 11px; color: var(--muted); }
+
+/* ランキング行は既存の .sector-list/.sector-card/.sector-row 等をそのまま流用し、
+   カード下部にだけ「最強セクター比」の細いバーを足す。 */
+.mysec-row-card { padding-bottom: 11px; }
+.mysec-bar-track {
+  height: 5px;
+  margin: 0 14px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.mysec-bar-fill { height: 100%; border-radius: 999px; background: var(--muted); transition: width 0.25s ease; }
+.mysec-bar-fill.chg-up { background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.mysec-bar-fill.chg-down { background: linear-gradient(90deg, #f0a06e, var(--danger)); }
+
+/* ---------- 詳細 ---------- */
+.mysec-detail { display: flex; flex-direction: column; gap: 10px; padding-top: 2px; }
+.mysec-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mysec-back {
+  border: 0; background: none; color: var(--text-dim); font-size: 13px; font-weight: 700;
+  cursor: pointer; padding: 6px 2px; margin-left: -2px;
+}
+.mysec-back:active { opacity: 0.7; }
+.mysec-detail-actions { display: flex; align-items: center; gap: 8px; }
+.mysec-delete-btn {
+  border: 1px solid rgba(255, 107, 122, 0.35);
+  background: rgba(255, 107, 122, 0.1);
+  color: var(--danger);
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.mysec-delete-btn:active { transform: scale(0.96); }
+
+.mysec-detail-name { margin: 0; font-size: 20px; font-weight: 800; }
+.mysec-name-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 800;
+  font-family: inherit;
+}
+.mysec-name-input:focus { outline: none; }
+
+.mysec-detail-hero { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mysec-detail-chg { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mysec-detail-count { font-size: 12px; color: var(--muted); }
+
+/* 追加(オートコンプリート)。SearchSheetの .search-result-* をサジェスト行で流用する。 */
+.mysec-add { margin: 2px 0 4px; }
+.mysec-add-input { width: 100%; }
+.mysec-suggest {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.mysec-suggest li + li { border-top: 1px solid var(--line-soft); }
+.mysec-suggest-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.mysec-suggest-row:active { background: var(--surface-2); }
+
+/* 構成銘柄の行。レートバッジ・現在値・騰落率・寄与度を並べる。 */
+.mysec-member-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.mysec-member-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px 11px;
+}
+.mysec-member-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+.mysec-member-name {
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mysec-member-code { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mysec-member-price {
+  flex: none; width: 64px; text-align: right; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
+.mysec-member-chg {
+  flex: none; width: 58px; text-align: right; font-size: 12.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mysec-member-contrib {
+  flex: none; width: 54px; text-align: right; font-size: 10.5px; font-weight: 600;
+  opacity: 0.72; font-variant-numeric: tabular-nums;
+}
+.mysec-row-edit { flex: none; display: flex; align-items: center; gap: 7px; }
+
+/* レートバッジ: 5段階、数字が大きいほど主力(色を強くする)。 */
+.rate-badge {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.rate-badge.rate-1 { color: var(--muted); }
+.rate-badge.rate-2 { color: var(--text-dim); }
+.rate-badge.rate-3 { color: var(--text); }
+.rate-badge.rate-4 {
+  color: #04202c; background: linear-gradient(150deg, #bfe9fb, var(--accent-2)); border-color: transparent;
+}
+.rate-badge.rate-5 {
+  color: #2a1e00; background: linear-gradient(150deg, #ffe08a, var(--gold)); border-color: transparent;
+  box-shadow: 0 2px 8px rgba(246, 198, 82, 0.35);
+}
+
+.rate-stepper { display: flex; align-items: center; gap: 6px; }
+.rate-step-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.rate-step-btn:disabled { opacity: 0.35; cursor: default; }
+.rate-step-btn:active:not(:disabled) { transform: scale(0.92); }
+.rate-step-val { width: 14px; text-align: center; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.mysec-remove-btn {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 107, 122, 0.35);
+  background: rgba(255, 107, 122, 0.1);
+  color: var(--danger);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.mysec-remove-btn:active { transform: scale(0.92); }
+
+/* ---------- 入出力シート ---------- */
+.mysec-io-textarea {
+  width: 100%;
+  min-height: 110px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.5;
+  resize: vertical;
+}
+.mysec-io-textarea::placeholder { color: var(--muted); }
+.mysec-io-actions { display: flex; gap: 8px; margin-top: 8px; }
+.mysec-io-actions .filter-reset { margin-top: 0; }
+.mysec-io-error { margin: 8px 2px 0; font-size: 11.5px; color: var(--danger); }
