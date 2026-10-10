@@ -1,0 +1,83 @@
+{
+  "updated_at": "2026-09-23T00:00:03+09:00",
+  "count": 3,
+  "items": [
+    {
+      "id": "140120260918538373",
+      "time": "2026-09-21T16:00:00+09:00",
+      "code": "3422",
+      "company": "Ｊ－ＭＡＸ",
+      "title": "会社組織の変更、役員の異動及び人事異動に関するお知らせ",
+      "pdf_url": "https://webapi.yanoshin.jp/rd.php?https://www.release.tdnet.info/inbs/140120260918538373.pdf",
+      "exchange": "東証",
+      "markets": "",
+      "source": "yanoshin",
+      "category": "その他開示",
+      "score": 10,
+      "impact": "low",
+      "direction": "unknown",
+      "urgent": false,
+      "confidence": 30,
+      "is_correction": true,
+      "tags": [],
+      "reasons": [
+        "減衰:役員の異動"
+      ],
+      "summary": "定例・補足的な開示。株価への影響は限定的とみられる。",
+      "analyzed_by": "rules",
+      "analyzed_at": "2026-09-23T00:00:03+09:00"
+    },
+    {
+      "id": "9753869c8d441b89",
+      "time": "2026-09-21T00:00:00+09:00",
+      "code": "Copyr",
+      "company": "",
+      "title": "Copyright © Tokyo Stock Exchange, Inc. All rights reserved.",
+      "pdf_url": "",
+      "xbrl_url": "",
+      "exchange": "東証",
+      "markets": "",
+      "source": "scraper",
+      "category": "その他開示",
+      "score": 35,
+      "impact": "low",
+      "direction": "unknown",
+      "urgent": false,
+      "confidence": 40,
+      "is_correction": false,
+      "tags": [],
+      "reasons": [
+        "その他開示"
+      ],
+      "summary": "定例・補足的な開示。株価への影響は限定的とみられる。",
+      "analyzed_by": "rules",
+      "analyzed_at": "2026-09-21T15:59:19+09:00"
+    },
+    {
+      "id": "c1c2b4bd4c4dafcf",
+      "time": "2026-09-21T00:00:00+09:00",
+      "code": "",
+      "company": "",
+      "title": "Copyright © Tokyo Stock Exchange, Inc. All rights reserved.",
+      "pdf_url": "",
+      "xbrl_url": "",
+      "exchange": "東証",
+      "markets": "",
+      "source": "scraper",
+      "category": "その他開示",
+      "score": 35,
+      "impact": "low",
+      "direction": "unknown",
+      "urgent": false,
+      "confidence": 40,
+      "is_correction": false,
+      "tags": [],
+      "reasons": [
+        "その他開示"
+      ],
+      "summary": "定例・補足的な開示。株価への影響は限定的とみられる。",
+      "analyzed_by": "rules",
+      "analyzed_at": "2026-09-21T15:59:19+09:00"
+    }
+  ]
+}
